@@ -5,6 +5,8 @@ A rebuild of Auto Doors (SellTheWorldGames, closed source) as a Kiln mod, from i
 ## 0.2.2
 
 - Door label (Fuzen): only doors inside a flame altar's area get one, and it no longer says Open or Closed. It shows the door's name, and under it the mode when that is not Everyone (Players, Players & Survivors, Manual). Doors outside bases show nothing.
+- Build camera: 0.2.0's log (13:17) shows the ordinary third-person camera 5 to 6 m from the character's feet with a 2.5 m boom, so "3 m beyond the boom" flapped while walking (and the game's free-cam flag stayed False), and the 30 log lines were used up before build mode. The camera now counts as away from 6 m beyond the boom and back below 4 m beyond it; changes of the free-cam flag are logged too (60 lines in all).
+- 0.2.1 was never installed (the game was running); 0.2.2 carries its door modes.
 
 ## 0.2.1
 

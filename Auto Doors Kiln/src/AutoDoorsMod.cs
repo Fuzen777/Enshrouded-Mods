@@ -281,16 +281,26 @@ public sealed class AutoDoorsMod : Mod
     // Where a player's build camera is, when it is away from the character. The player of this game (the host, first slot)
     // uses the camera the game renders with: 0.1.0 used the camera the client sends with its input when the game's
     // IsInFreeCam flag was set, and the build camera opened nothing. A joined player still has only that.
+    // 0.2.0 counted the camera as away from 3 m beyond the boom: the ordinary third-person camera sits 5 to 6 m from the
+    // character's feet (boom 2.5 m), so it flapped while walking and its 30 log lines were gone before build mode was tried.
+    // Away now starts 6 m beyond the boom and ends 4 m beyond it, and the game's free-cam flag is logged when it changes.
+    private const double CameraAwayBeyondBoom = 6.0, CameraBackBeyondBoom = 4.0;
+    private bool? _lastFlag;
+
     private WorldPosition? BuildCamera(Player p, bool local)
     {
         bool? flag = p.Check(PlayerStateId.ClientUiIsInFreeCam);
+        if (flag != _lastFlag && local && _cameraLogs++ < 60)
+            Log.Info($"auto doors: free-cam flag {_lastFlag?.ToString() ?? "unreadable"} -> {flag?.ToString() ?? "unreadable"}");
+        if (local) _lastFlag = flag;
         if (local && Ui.Available && Render.CameraAvailable && p.Position is { } at)
         {
             var rc = Render.Camera;
             if (!rc.Valid) return null;
             double away = Distance(rc.Position, at);
-            bool free = flag == true || away > Math.Max(rc.Distance, 2.0) + 3.0;
-            if (free != _cameraFree && _cameraLogs++ < 30)
+            double boom = Math.Max(rc.Distance, 2.0);
+            bool free = flag == true || away > boom + (_cameraFree == true ? CameraBackBeyondBoom : CameraAwayBeyondBoom);
+            if (free != (_cameraFree ?? false) && _cameraLogs++ < 60)
             {
                 double? aimAway = p.Aim is { } a ? Distance(a.Origin, at) : null;
                 Log.Info($"auto doors: build camera {(free ? "away" : "back")}: free-cam flag {flag?.ToString() ?? "unreadable"}, " +
