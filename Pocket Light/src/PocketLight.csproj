@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>PocketLight</AssemblyName>
+    <RootNamespace>PocketLight</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Kiln's own assemblies load from kiln\host at run time: reference them, never copy them. -->
+    <KilnHost Condition="'$(KilnHost)' == ''">D:\SteamLibrary\steamapps\common\Enshrouded\kiln\host</KilnHost>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Kiln.Api" HintPath="$(KilnHost)\Kiln.Api.dll" Private="false" />
+    <Reference Include="Kiln.Client" HintPath="$(KilnHost)\Kiln.Client.dll" Private="false" />
+    <Reference Include="Kiln.Game" HintPath="$(KilnHost)\Kiln.Game.dll" Private="false" />
+    <Reference Include="Kiln.Ui" HintPath="$(KilnHost)\Kiln.Ui.dll" Private="false" />
+    <Reference Include="Kiln.Vfx" HintPath="$(KilnHost)\Kiln.Vfx.dll" Private="false" />
+    <Reference Include="Kiln.World" HintPath="$(KilnHost)\Kiln.World.dll" Private="false" />
+  </ItemGroup>
+
+</Project>

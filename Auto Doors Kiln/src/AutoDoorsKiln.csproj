@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>AutoDoorsKiln</AssemblyName>
+    <RootNamespace>AutoDoorsKiln</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Kiln's own assemblies load from kiln\host at run time: reference them, never copy them. -->
+    <KilnHost Condition="'$(KilnHost)' == ''">D:\SteamLibrary\steamapps\common\Enshrouded\kiln\host</KilnHost>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Kiln.Api" HintPath="$(KilnHost)\Kiln.Api.dll" Private="false" />
+    <Reference Include="Kiln.Build" HintPath="$(KilnHost)\Kiln.Build.dll" Private="false" />
+    <Reference Include="Kiln.Creatures" HintPath="$(KilnHost)\Kiln.Creatures.dll" Private="false" />
+    <Reference Include="Kiln.Players" HintPath="$(KilnHost)\Kiln.Players.dll" Private="false" />
+    <Reference Include="Kiln.Spawn" HintPath="$(KilnHost)\Kiln.Spawn.dll" Private="false" />
+    <Reference Include="Kiln.Ui" HintPath="$(KilnHost)\Kiln.Ui.dll" Private="false" />
+    <Reference Include="Kiln.World" HintPath="$(KilnHost)\Kiln.World.dll" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="kiln.programs.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

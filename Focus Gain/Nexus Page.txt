@@ -1,0 +1,54 @@
+NAME
+Focus Gain
+
+VERSION
+1.0.2
+
+SUMMARY (paste into the Brief Overview field)
+Felling axes and pickaxes fill your focus three times as fast, weapons twice as fast, so special abilities are ready sooner. Both multipliers can be changed from 1 to 20 in Shroudforge's F9 menu.
+
+DESCRIPTION (BBCode, paste into the Detailed Description field)
+[size=5][b]Focus Gain[/b][/size]
+
+Felling axes, pickaxes and weapons give more focus per hit, so their special abilities are ready sooner while you chop, mine and fight.
+
+[size=4][b]What It Does[/b][/size]
+[list]
+[*][b]Felling axes and pickaxes:[/b] 3 focus per hit becomes 9 (x3 by default).
+[*][b]Weapons:[/b] the game gives 3 to 5 focus per hit depending on the weapon, which becomes 6 to 10 (x2 by default). This covers every weapon that gives focus, unarmed hits included.
+[/list]
+
+[size=4][b]Settings[/b][/size]
+Open Shroudforge's menu in game with [b]F9[/b]:
+[list]
+[*][b]Tool Focus Multiplier[/b]: 1 to 20, default 3. Felling axes and pickaxes.
+[*][b]Weapon Focus Multiplier[/b]: 1 to 20, default 2. Every weapon.
+[/list]
+1 keeps the game's own values. A changed setting applies the next time you start the game.
+
+[size=4][b]Requirements[/b][/size]
+[list]
+[*][url=https://www.nexusmods.com/enshrouded/mods/147]Shroudforge (Enshrouded Mod Loader)[/url]. Made and tested with Shroudforge 1.7.9.
+[/list]
+
+[size=4][b]Installation[/b][/size]
+[list]
+[*][b]Vortex:[/b] click Mod Manager Download and deploy.
+[*][b]Manually:[/b] extract the archive into the [b]mods[/b] folder in your Enshrouded folder, so you end up with [b]Enshrouded\mods\tool-focus\mod.json[/b].
+[/list]
+Then start the game through Shroudforge as usual.
+
+[size=4][b]Compatibility[/b][/size]
+[list]
+[*]The mod changes the game's item data each time the game starts and doesn't touch your saves, so you can remove it at any time and focus gain goes back to normal.
+[*]Other mods that change the focus that weapons or tools give per hit may conflict with it.
+[*]Tested in single player only, not in multiplayer or on a dedicated server.
+[/list]
+
+[size=4][b]Checking It Works[/b][/size]
+Shroudforge's log, [b]Enshrouded\shroudforge\logs\shroudforge-client.log[/b], has two lines tagged tool-focus after the game starts: how many felling axes and pickaxes were changed, and how many weapons.
+
+[size=4][b]Credits[/b][/size]
+[list]
+[*]bonsaibauer for Shroudforge.
+[/list]

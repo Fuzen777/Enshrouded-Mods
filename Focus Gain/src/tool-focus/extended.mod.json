@@ -1,0 +1,40 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json",
+  "schemaVersion": 1,
+  "enabled": true,
+  "targets": [
+    "client",
+    "server"
+  ],
+  "settings": {
+    "focusMultiplier": {
+      "value": 3,
+      "label": "Tool Focus Multiplier",
+      "description": "Felling axes and pickaxes give this many times their normal focus per hit (normally 3, so 9 at the default). 1 keeps the game's own value. Restart required.",
+      "control": "number",
+      "min": 1,
+      "max": 20,
+      "step": 1,
+      "applyAt": "restart",
+      "restartRequired": true,
+      "assetPreparation": true
+    },
+    "weaponFocusMultiplier": {
+      "value": 2,
+      "label": "Weapon Focus Multiplier",
+      "description": "Weapons give this many times their normal focus per hit (normally 3 to 5, so 6 to 10 at the default). Covers every item other than felling axes and pickaxes that gives focus, unarmed hits included. 1 keeps the game's own values. Restart required.",
+      "control": "number",
+      "min": 1,
+      "max": 20,
+      "step": 1,
+      "applyAt": "restart",
+      "restartRequired": true,
+      "assetPreparation": true
+    }
+  },
+  "changelog": [
+    "1.0.0: first version, a Focus Multiplier setting for the focus felling axes and pickaxes give per hit.",
+    "1.0.1: renamed from Tool Focus to Focus Gain. New Weapon Focus Multiplier setting for every other item that gives focus per hit; the tool setting is now called Tool Focus Multiplier.",
+    "1.0.2: Weapon Focus Multiplier defaults to 2."
+  ]
+}

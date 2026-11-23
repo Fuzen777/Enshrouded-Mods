@@ -1,0 +1,547 @@
+using System;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
+
+namespace BetterSpells;
+
+/// <summary>A spell with a Duration setting. Its items are found by name; each item names the template it places.</summary>
+public sealed record DurationSpell(string SettingKey, Regex ItemName, bool ScalesDebuffDuration = false, bool IsTotem = false);
+
+/// <summary>A spell with a Damage setting.</summary>
+public sealed record DamageSpell(string SettingKey, Regex ItemName);
+
+/// <summary>
+/// Templates that hold a spell's area, found by name. VfxSizeIndex: which word of the template's VFX parameters holds the zone's size
+/// (zero-based, -1 for none). HasReach: the template has Root's reach config. SizedToMeters: the radius its area gets at x1, in place of its own.
+/// </summary>
+public sealed record AreaTemplates(Regex TemplateName, int VfxSizeIndex = -1, bool HasReach = false, double SizedToMeters = 0);
+
+/// <summary>A spell with a Radius setting. VisualKey: the toggle that also scales the templates' transforms. KeepCursorRange: the items' ground cursor stays as it is.</summary>
+public sealed record RadiusSpell(string SettingKey, Regex ItemName, AreaTemplates[] Templates, string? VisualKey = null, bool KeepCursorRange = false);
+
+/// <summary>A summon spell's cast, by the name of its sequence, and the setting that says how many summons it places.</summary>
+/// EventType and Events: the kind of event that places the summon and how many of them the cast has (the Lightning Wisp's has one
+/// SpawnImpact per tier, each run only for its tier).
+public sealed record SummonCast(string CountKey, string SequenceName, string EventType = "SpawnEntityEvent", int Events = 1);
+
+/// <summary>
+/// An item that acts like a spell (it costs mana): its items by name, its settings' keys (null where it has none), and the template it
+/// summons when its items don't name one (a TemplateImpactConfig 0xf6a785cd).
+/// </summary>
+public sealed record ItemSpell(string Name, Regex Items, string DamageKey, string? DurationKey, string? HealthKey, string? FixedTemplate);
+
+/// <summary>A line of a spell's card in the settings window: the name it has there and the setting's key.</summary>
+public sealed record CardLine(string Label, string Key);
+
+/// <summary>A spell of the settings window: its name, the items whose icon stands for it, and its card's lines.</summary>
+public sealed record WindowSpell(string Spell, Regex? IconItem, CardLine[] Lines);
+
+/// <summary>A section of the settings window: a row of spell icons under a name.</summary>
+public sealed record WindowSection(string Name, WindowSpell[] Spells);
+
+/// <summary>Every setting, and which items, templates and casts of the game each one changes, by name. No Kiln here, so the tests check the names against the game data dump.</summary>
+public static class SpellCatalog
+{
+    public const string GroupSummons = "Summons";
+    public const string GroupDuration = "Duration";
+    public const string GroupDamage = "Damage";
+    public const string GroupRadius = "Radius";
+    public const string GroupCasting = "Casting";
+    public const string GroupHealth = "Health";
+    public const string GroupCost = "Cost";
+    public const string GroupCastTime = "Cast Time";
+    public const string GroupGeneral = "General";
+
+    // The General card: one multiplier per kind of setting for every spell, and whether it multiplies with the spells' own or is a
+    // floor under them.
+    public const string GeneralCostKey = "generalCostMultiplier";
+    public const string GeneralCastTimeKey = "generalCastTimeMultiplier";
+    public const string GeneralDamageKey = "generalDamageMultiplier";
+    public const string GeneralDurationKey = "generalDurationMultiplier";
+    public const string GeneralRadiusKey = "generalRadiusMultiplier";
+    public const string GeneralHealthKey = "generalHealthMultiplier";
+    public const string GeneralAtLeastKey = "generalAtLeast";
+
+    /// <summary>The General card's spell: no item stands for it, so its button shows a word.</summary>
+    public const string GeneralSpell = "All Spells";
+    public const string GeneralButtonText = "All";
+
+    /// <summary>The ManaCost config of a spell item (Kiln's alias), and its tooltip line.</summary>
+    public const string ManaCostPath = "impactValues.ManaCost";
+    /// <summary>The Charge Time config of a spell item (its tooltip names it), its tooltip line in milliseconds, and the cast lock (config 0x41a7d373, how long the caster stays in the cast; seen in game).</summary>
+    public const string ChargeTimePath = "impactValues.0x579b2657";
+    public const uint ChargeTimeTooltipLocaId = 1551270780;
+    public const string CastLockPath = "impactValues.0x41a7d373";
+
+    /// <summary>The cards with a Cast Time setting: every spell, and the items with a Charge Time (not the two scrolls). Key: the name in camel case + CastTimeMultiplier.</summary>
+    public static readonly IReadOnlyList<string> CastTimeSpellNames = new[]
+    {
+        "Fire Bolt",
+        "Fireball",
+        "Fire Pillar",
+        "Light Burst",
+        "Ice Bolt",
+        "Blizzard",
+        "Chain Lightning",
+        "Ball Lightning",
+        "Lightning Channel",
+        "Shroud Meteor",
+        "Shroud Beam",
+        "Totems",
+        "Skeleton",
+        "Lightning Wisp",
+        "Acid Cone",
+        "Root",
+        "Bone Channel",
+        "Magic Shield",
+        "Skull Vessel",
+        "Crawler Bomb",
+    };
+    public const uint ManaCostTooltipLocaId = 3193644544;
+
+    /// <summary>The spells with a Mana Cost setting: every card but General's. The key is the name in camel case + CostMultiplier.</summary>
+    public static readonly IReadOnlyList<string> CostSpellNames = new[]
+    {
+        "Fire Bolt",
+        "Fireball",
+        "Fire Pillar",
+        "Light Burst",
+        "Ice Bolt",
+        "Blizzard",
+        "Chain Lightning",
+        "Ball Lightning",
+        "Lightning Channel",
+        "Shroud Meteor",
+        "Shroud Beam",
+        "Totems",
+        "Skeleton",
+        "Lightning Wisp",
+        "Acid Cone",
+        "Root",
+        "Bone Channel",
+        "Magic Shield",
+        "Skull Vessel",
+        "Fire Wisp Scroll",
+        "Meteor Shower Scroll",
+        "Crawler Bomb",
+    };
+
+    /// <summary>The items that act like spells, asked for by the user: the Items row.</summary>
+    public static readonly IReadOnlyList<ItemSpell> ItemSpells = new[]
+    {
+        new ItemSpell("Skull Vessel", new Regex(@"^Consumable_Necromancer_Grenade_T\d+$", RegexOptions.CultureInvariant), "skullVesselDamageMultiplier",
+            "skullVesselDurationMultiplier", "skullVesselHealthMultiplier", null),
+        new ItemSpell("Fire Wisp Scroll", new Regex(@"^Consumable_Scroll_Fire_Wisp_", RegexOptions.CultureInvariant), "fireWispScrollDamageMultiplier",
+            "fireWispScrollDurationMultiplier", "fireWispScrollHealthMultiplier", "Enemy_Companion_FireWisp"),
+        new ItemSpell("Meteor Shower Scroll", new Regex(@"^Consumable_Scroll_Fog_Meteor_Shower$", RegexOptions.CultureInvariant), "meteorShowerScrollDamageMultiplier",
+            null, null, null),
+        new ItemSpell("Crawler Bomb", new Regex(@"^Consumable_CritterCrawler_Bomb_Grenade_", RegexOptions.CultureInvariant), "crawlerBombDamageMultiplier",
+            "crawlerBombDurationMultiplier", "crawlerBombHealthMultiplier", null),
+    };
+
+    public const string SkeletonsPerCastKey = "skeletonsPerCast";
+    public const string TotemsPerCastKey = "totemsPerCast";
+    public const string SummonSpreadKey = "summonSpread";
+    public const string SkullVesselsPerCastKey = "skullVesselsPerCast";
+    public const string LightningWispsPerCastKey = "lightningWispsPerCast";
+    public const string FireWispsPerUseKey = "fireWispsPerUse";
+    public const string KeepOlderWispsKey = "keepOlderWisps";
+    /// <summary>The Lightning Wisp's cast and its four SpawnImpact events (one per tier).</summary>
+    public const string WispCastSequence = "Attack_Player_Staff_Overlay_ShockWisp";
+    public const int WispCastEvents = 4;
+    public const string MaxTotemsKey = "maxTotems";
+    public const string MaxSkeletonsKey = "maxSkeletons";
+    public const string TotemHealthKey = "totemHealthMultiplier";
+    public const string SkeletonHealthKey = "skeletonHealthMultiplier";
+    public const string MagicShieldHealthKey = "magicShieldHealthMultiplier";
+    public const string InvulnerableTotemsKey = "invulnerableTotems";
+    public const string EnemiesIgnoreTotemsKey = "enemiesIgnoreTotems";
+    public const string ChainLockOnKey = "chainLightningLockOnMultiplier";
+    public const string BallSpeedKey = "ballLightningSpeedMultiplier";
+    public const string BallRadiusKey = "ballLightningRadiusMultiplier";
+    public const string ChainRadiusKey = "chainLightningRadiusMultiplier";
+    public const string BallHitRateKey = "ballLightningHitRateMultiplier";
+    public const string ShroudMeteorVisualKey = "shroudMeteorVisual";
+    public const string LightBurstVisualKey = "lightBurstVisual";
+
+    /// <summary>Every spell item: Ammo_T3_Spell_Ice_Totem_lvl17, Ammo_T7_Spell_Fire_Ball_lvl45_Eternal.</summary>
+    public static readonly Regex AnySpellItem = new Regex(@"^Ammo_T\d+_Spell_", RegexOptions.CultureInvariant);
+
+    private static readonly Regex TotemItem = Item("[A-Za-z]+_Totem");
+    private static readonly Regex SkeletonItem = Item("Skeleton");
+    public static readonly Regex ChainLightningItem = Item("Lightning_Chain");
+
+    public static readonly IReadOnlyList<SettingInfo> Settings = WithCostAndGeneral(new[]
+    {
+        Count(SkeletonsPerCastKey, "Skeletons Per Cast"),
+        Count(TotemsPerCastKey, "Totems Per Cast"),
+        new SettingInfo(LightningWispsPerCastKey, "Lightning Wisps Per Cast", GroupSummons, SettingKind.Count, SpellRules.MinSummonsPerCast, SpellRules.MaxSummonsPerCast, 1, 1),
+        new SettingInfo(KeepOlderWispsKey, "Keep Older Wisps", GroupSummons, SettingKind.Toggle, 0, 1, 1, 0),
+        new SettingInfo(FireWispsPerUseKey, "Fire Wisps Per Use", GroupSummons, SettingKind.Count, SpellRules.MinSummonsPerCast, SpellRules.MaxSummonsPerCast, 1, 1),
+        new SettingInfo(SkullVesselsPerCastKey, "Skull Vessels Per Use", GroupSummons, SettingKind.Count, SpellRules.MinSummonsPerCast, SpellRules.MaxSummonsPerCast, 1, 1),
+        new SettingInfo(MaxTotemsKey, "Max Totems", GroupSummons, SettingKind.Count, SpellRules.MinSummonCap, SpellRules.MaxSummonCap, 1, SpellRules.DefaultSummonCap),
+        new SettingInfo(MaxSkeletonsKey, "Max Skeletons", GroupSummons, SettingKind.Count, SpellRules.MinSummonCap, SpellRules.MaxSummonCap, 1, SpellRules.DefaultSummonCap),
+        Health(TotemHealthKey, "Totem Health"),
+        Health(SkeletonHealthKey, "Skeleton Health"),
+        Health(MagicShieldHealthKey, "Magic Shield Health"),
+        new SettingInfo(SummonSpreadKey, "Totem Spread", GroupSummons, SettingKind.Units, SpellRules.MinSpreadUnits, SpellRules.MaxSpreadUnits, SpellRules.SpreadStep, SpellRules.DefaultSpreadUnits),
+
+        Duration("totemDurationMultiplier", "Totem Duration", 1),
+        new SettingInfo(InvulnerableTotemsKey, "Invulnerable Totems", GroupDuration, SettingKind.Toggle, 0, 1, 1, 0),
+        new SettingInfo(EnemiesIgnoreTotemsKey, "Enemies Ignore Totems", GroupDuration, SettingKind.Toggle, 0, 1, 1, 0),
+        Duration("skeletonDurationMultiplier", "Skeleton Duration", 1),
+        Duration("magicShieldDurationMultiplier", "Magic Shield Duration", 1),
+        Duration("lightningWispDurationMultiplier", "Lightning Wisp Duration", 1),
+        Duration("blizzardDurationMultiplier", "Blizzard Duration", 1),
+        Duration("lightningBallDurationMultiplier", "Lightning Ball Duration", 1),
+        Duration("rootDurationMultiplier", "Root Duration", 1),
+        Duration("firePillarDurationMultiplier", "Fire Pillar Duration", 1),
+        Duration("acidConeDurationMultiplier", "Acid Cone Duration", 1),
+
+        Damage("fireBoltDamageMultiplier", "Fire Bolt Damage"),
+        Damage("fireballDamageMultiplier", "Fireball Damage"),
+        Damage("iceBoltDamageMultiplier", "Ice Bolt Damage"),
+        Damage("acidConeDamageMultiplier", "Acid Cone Damage"),
+        Damage("firePillarDamageMultiplier", "Fire Pillar Damage"),
+        Damage("blizzardDamageMultiplier", "Blizzard Damage"),
+        Damage("lightningBallDamageMultiplier", "Lightning Ball Damage"),
+        Damage("chainLightningDamageMultiplier", "Chain Lightning Damage"),
+        Damage("shroudMeteorDamageMultiplier", "Shroud Meteor Damage"),
+        Damage("rootDamageMultiplier", "Root Damage"),
+        Damage("lightBurstDamageMultiplier", "Light Burst Damage"),
+        Damage("totemDamageMultiplier", "Totem Damage"),
+        Damage("lightningWispDamageMultiplier", "Lightning Wisp Damage"),
+        Damage("skeletonDamageMultiplier", "Skeleton Damage"),
+        Damage("boneChannelDamageMultiplier", "Bone Channel Damage"),
+        Damage("shroudBeamDamageMultiplier", "Shroud Beam Damage"),
+        Damage("lightningChannelDamageMultiplier", "Lightning Channel Damage"),
+
+        Radius("fireballRadiusMultiplier", "Fireball Radius", SpellRules.DefaultRadius),
+        Radius("iceBoltRadiusMultiplier", "Ice Bolt Radius", SpellRules.DefaultRadius),
+        Radius("rootRadiusMultiplier", "Root Radius", SpellRules.DefaultRadius),
+        Radius("firePillarRadiusMultiplier", "Fire Pillar Radius", SpellRules.DefaultRadius),
+        Radius("blizzardRadiusMultiplier", "Blizzard Radius", SpellRules.DefaultRadius),
+        Radius("shroudMeteorRadiusMultiplier", "Shroud Meteor Radius", SpellRules.DefaultRadius),
+        new SettingInfo(ShroudMeteorVisualKey, "Shroud Meteor Visual", GroupRadius, SettingKind.Toggle, 0, 1, 1, 1),
+        Radius("lightBurstRadiusMultiplier", "Light Burst Radius", SpellRules.DefaultRadius),
+        new SettingInfo(LightBurstVisualKey, "Light Burst Visual (Experimental)", GroupRadius, SettingKind.Toggle, 0, 1, 1, 1),
+        Radius(BallRadiusKey, "Ball Lightning Radius", 1),
+        new SettingInfo(ChainRadiusKey, "Chain Lightning Radius", GroupRadius, SettingKind.Multiplier, SpellRules.MinRadius, SpellRules.MaxChainRadius, SpellRules.RadiusStep, 1),
+
+        new SettingInfo(ChainLockOnKey, "Chain Lightning Lock-On Range", GroupCasting, SettingKind.Multiplier, SpellRules.MinLockOn, SpellRules.MaxLockOn, SpellRules.CastingStep, 1),
+        new SettingInfo(BallSpeedKey, "Ball Lightning Speed", GroupCasting, SettingKind.Multiplier, SpellRules.MinBallSpeed, SpellRules.MaxBallSpeed, SpellRules.CastingStep, 1),
+        new SettingInfo(BallHitRateKey, "Ball Lightning Hit Rate", GroupCasting, SettingKind.Multiplier, SpellRules.MinBallHitRate, SpellRules.MaxBallHitRate, SpellRules.CastingStep, 1),
+    });
+
+    /// <summary>The groups of the settings page, in its order.</summary>
+    public static readonly IReadOnlyList<string> Groups = new[] { GroupSummons, GroupDuration, GroupDamage, GroupRadius, GroupCasting, GroupHealth, GroupCost, GroupCastTime, GroupGeneral };
+
+    // Root's and Blizzard's zones hold enemies and slow them for the spell's main duration (their DebuffDuration config), so it follows the setting.
+    public static readonly IReadOnlyList<DurationSpell> DurationSpells = new[]
+    {
+        new DurationSpell("totemDurationMultiplier", TotemItem, IsTotem: true),
+        new DurationSpell("skeletonDurationMultiplier", SkeletonItem),
+        new DurationSpell("magicShieldDurationMultiplier", Item("MagicShield")),
+        new DurationSpell("lightningWispDurationMultiplier", Item("Lightning_Wisp")),
+        new DurationSpell("blizzardDurationMultiplier", Item("Ice_Blizzard"), ScalesDebuffDuration: true),
+        new DurationSpell("lightningBallDurationMultiplier", Item("Lightning_Ball")),
+        new DurationSpell("rootDurationMultiplier", Item("Root"), ScalesDebuffDuration: true),
+        new DurationSpell("firePillarDurationMultiplier", Item("Fire_Pillar")),
+        new DurationSpell("acidConeDurationMultiplier", Item("Acid_Cone")),
+    };
+
+    public static readonly IReadOnlyList<DamageSpell> DamageSpells = new[]
+    {
+        new DamageSpell("fireBoltDamageMultiplier", Item("Fire_Bolt")),
+        new DamageSpell("fireballDamageMultiplier", Item("Fire_Ball")),
+        new DamageSpell("iceBoltDamageMultiplier", Item("Ice_Bolt")),
+        new DamageSpell("acidConeDamageMultiplier", Item("Acid_Cone")),
+        new DamageSpell("firePillarDamageMultiplier", Item("Fire_Pillar")),
+        new DamageSpell("blizzardDamageMultiplier", Item("Ice_Blizzard")),
+        new DamageSpell("lightningBallDamageMultiplier", Item("Lightning_Ball")),
+        new DamageSpell("chainLightningDamageMultiplier", Item("Lightning_Chain")),
+        new DamageSpell("shroudMeteorDamageMultiplier", Item("Fog_Meteor")),
+        new DamageSpell("rootDamageMultiplier", Item("Root")),
+        new DamageSpell("lightBurstDamageMultiplier", Item("Fire_Lightburst")),
+        new DamageSpell("totemDamageMultiplier", TotemItem),
+        new DamageSpell("lightningWispDamageMultiplier", Item("Lightning_Wisp")),
+        new DamageSpell("skeletonDamageMultiplier", SkeletonItem),
+        new DamageSpell("boneChannelDamageMultiplier", Item("Bone_Channel")),
+        new DamageSpell("shroudBeamDamageMultiplier", Item("Fog_Beam_Channel")),
+        new DamageSpell("lightningChannelDamageMultiplier", Item("Lightning_Channel")),
+    };
+
+    // A spell's area is the collider of a template it places or spawns: an explosion per tier, or a zone per tier.
+    public static readonly IReadOnlyList<RadiusSpell> RadiusSpells = new[]
+    {
+        new RadiusSpell("fireballRadiusMultiplier", Item("Fire_Ball"), new[] { Templates(@"^Explosion_Player_Spell_Fireball_\d+(_on_Water)?$") }),
+        new RadiusSpell("iceBoltRadiusMultiplier", Item("Ice_Bolt"), new[]
+        {
+            Templates(@"^Explosion_Player_Spell_IceBolt_\d+$"),
+            Templates(@"^Zone_Player_Spell_IceBolt_\d+$", vfxSizeIndex: 8),
+        }),
+        new RadiusSpell("rootRadiusMultiplier", Item("Root"), new[] { Templates(@"^Zone_Spell_Rooting_\d+$", vfxSizeIndex: 3, hasReach: true) }),
+        new RadiusSpell("firePillarRadiusMultiplier", Item("Fire_Pillar"), new[] { Templates(@"^Zone_Spell_Fire_Pillar_\d+$", vfxSizeIndex: 0) }),
+        new RadiusSpell("blizzardRadiusMultiplier", Item("Ice_Blizzard"), new[] { Templates(@"^Zone_Spell_Blizzard_\d+$", vfxSizeIndex: 0) }),
+        // Its ground cursor stays: the crater's script reads it, and 25 m of terrain per meteor hitched the game.
+        new RadiusSpell("shroudMeteorRadiusMultiplier", Item("Fog_Meteor"), new[] { Templates(@"^Explosion_Player_Spell_Meteor_Explosion$", sizedToMeters: 5) },
+            VisualKey: ShroudMeteorVisualKey, KeepCursorRange: true),
+        new RadiusSpell("lightBurstRadiusMultiplier", Item("Fire_Lightburst"), new[] { Templates(@"^Explosion_Player_Spell_LightBurst_Explosion\d+$") },
+            VisualKey: LightBurstVisualKey),
+    };
+
+    public static readonly IReadOnlyList<SummonCast> SummonCasts = new[]
+    {
+        new SummonCast(SkeletonsPerCastKey, "Attack_Player_Staff_FixedAnim_Summon_Skeleton"),
+        new SummonCast(TotemsPerCastKey, "Attack_Player_Staff_FixedAnim_Totem_Fire"),
+        new SummonCast(TotemsPerCastKey, "Attack_Player_Staff_FixedAnim_Totem_Ice"),
+        new SummonCast(TotemsPerCastKey, "Attack_Player_Staff_FixedAnim_Totem_Lightning"),
+        // The Skull Summoning Vessels' throw, shared by every tier: each vessel thrown summons its skull where it lands.
+        new SummonCast(SkullVesselsPerCastKey, "UseItem_Consumable_Tool_SkullSummon_Throw"),
+        // The Lightning Wisp's cast places the wisp through a script (one SpawnImpact per tier) that also removes the caster's older wisps
+        // it touches; the Fire Wisp scroll spawns its wisp directly.
+        new SummonCast(LightningWispsPerCastKey, WispCastSequence, "SpawnImpact", WispCastEvents),
+        new SummonCast(FireWispsPerUseKey, "UseItem_Scroll_Companion_FireWisp"),
+    };
+
+
+    /// <summary>The player's templates, whose MaxTotemCount and MaxSkeletonSpellCount every player gets when it spawns.</summary>
+    public static readonly IReadOnlyList<string> PlayerTemplates = new[] { "1_Player", "1_Player_AG2" };
+
+    /// <summary>The spells whose placed entity's health a Health setting multiplies.</summary>
+    public static readonly IReadOnlyList<(string SettingKey, Regex ItemName)> HealthSpells = new[]
+    {
+        (TotemHealthKey, TotemItem), (SkeletonHealthKey, SkeletonItem), (MagicShieldHealthKey, Item("MagicShield")),
+    };
+
+    /// <summary>Chain Lightning's cast, shared by its five items: one SpawnImpact event whose own sphere is the area the spell hits.</summary>
+    public const string ChainCastSequence = "Attack_Player_Staff_FixedAnim_ChainLightning";
+
+    /// <summary>Ball Lightning's cast, shared by its three items, and the ball each tier spawns.</summary>
+    public const string BallCastSequence = "Attack_Player_Staff_FixedAnim_LightningBall";
+    public static readonly Regex BallTemplate = new Regex(@"^Projectile_Player_Staff_LightningBall_\d+$", RegexOptions.CultureInvariant);
+
+    // The settings window: a section per element, then Summons (what they do counts more than their element) and Others, each a row of
+    // spell icons; the chosen spell's card has a line per setting. Every setting is on exactly one card.
+    public static readonly IReadOnlyList<WindowSection> WindowSections = new[]
+    {
+        new WindowSection("General", new[]
+        {
+            new WindowSpell(GeneralSpell, null, new[]
+            {
+                Line("Mana Cost", GeneralCostKey), Line("Cast Time", GeneralCastTimeKey), Line("Damage", GeneralDamageKey), Line("Duration", GeneralDurationKey), Line("Radius", GeneralRadiusKey),
+                Line("Health", GeneralHealthKey), Line("Mode", GeneralAtLeastKey),
+            }),
+        }),
+        new WindowSection("Fire", new[]
+        {
+            Spell("Fire Bolt", Item("Fire_Bolt"), Line("Damage", "fireBoltDamageMultiplier")),
+            Spell("Fireball", Item("Fire_Ball"), Line("Damage", "fireballDamageMultiplier"), Line("Radius", "fireballRadiusMultiplier")),
+            Spell("Fire Pillar", Item("Fire_Pillar"), Line("Duration", "firePillarDurationMultiplier"), Line("Damage", "firePillarDamageMultiplier"),
+                Line("Radius", "firePillarRadiusMultiplier")),
+            Spell("Light Burst", Item("Fire_Lightburst"), Line("Damage", "lightBurstDamageMultiplier"), Line("Radius", "lightBurstRadiusMultiplier"),
+                Line("Visual (Experimental)", LightBurstVisualKey)),
+        }),
+        new WindowSection("Ice", new[]
+        {
+            Spell("Ice Bolt", Item("Ice_Bolt"), Line("Damage", "iceBoltDamageMultiplier"), Line("Radius", "iceBoltRadiusMultiplier")),
+            Spell("Blizzard", Item("Ice_Blizzard"), Line("Duration", "blizzardDurationMultiplier"), Line("Damage", "blizzardDamageMultiplier"),
+                Line("Radius", "blizzardRadiusMultiplier")),
+        }),
+        new WindowSection("Lightning", new[]
+        {
+            Spell("Chain Lightning", ChainLightningItem, Line("Damage", "chainLightningDamageMultiplier"), Line("Radius", ChainRadiusKey),
+                Line("Lock-On Range", ChainLockOnKey)),
+            Spell("Ball Lightning", Item("Lightning_Ball"), Line("Duration", "lightningBallDurationMultiplier"), Line("Damage", "lightningBallDamageMultiplier"),
+                Line("Radius", BallRadiusKey), Line("Speed", BallSpeedKey), Line("Hit Rate", BallHitRateKey)),
+            Spell("Lightning Channel", Item("Lightning_Channel"), Line("Damage", "lightningChannelDamageMultiplier")),
+        }),
+        new WindowSection("Shroud", new[]
+        {
+            Spell("Shroud Meteor", Item("Fog_Meteor"), Line("Damage", "shroudMeteorDamageMultiplier"), Line("Radius", "shroudMeteorRadiusMultiplier"),
+                Line("Visual", ShroudMeteorVisualKey)),
+            Spell("Shroud Beam", Item("Fog_Beam_Channel"), Line("Damage", "shroudBeamDamageMultiplier")),
+        }),
+        new WindowSection("Summons", new[]
+        {
+            Spell("Totems", TotemItem, Line("Duration", "totemDurationMultiplier"), Line("Damage", "totemDamageMultiplier"), Line("Health", TotemHealthKey),
+                Line("Max Totems", MaxTotemsKey), Line("Per Cast", TotemsPerCastKey),
+                Line("Spread", SummonSpreadKey), Line("Invulnerable", InvulnerableTotemsKey), Line("Enemies Ignore Them", EnemiesIgnoreTotemsKey)),
+            Spell("Skeleton", SkeletonItem, Line("Duration", "skeletonDurationMultiplier"), Line("Damage", "skeletonDamageMultiplier"),
+                Line("Health", SkeletonHealthKey), Line("Max Skeletons", MaxSkeletonsKey), Line("Per Cast", SkeletonsPerCastKey)),
+            Spell("Lightning Wisp", Item("Lightning_Wisp"), Line("Duration", "lightningWispDurationMultiplier"), Line("Damage", "lightningWispDamageMultiplier"),
+                Line("Per Cast", LightningWispsPerCastKey), Line("Keep Older Wisps", KeepOlderWispsKey)),
+        }),
+        new WindowSection("Others", new[]
+        {
+            Spell("Acid Cone", Item("Acid_Cone"), Line("Duration", "acidConeDurationMultiplier"), Line("Damage", "acidConeDamageMultiplier")),
+            Spell("Root", Item("Root"), Line("Duration", "rootDurationMultiplier"), Line("Damage", "rootDamageMultiplier"), Line("Radius", "rootRadiusMultiplier")),
+            Spell("Bone Channel", Item("Bone_Channel"), Line("Damage", "boneChannelDamageMultiplier")),
+            Spell("Magic Shield", Item("MagicShield"), Line("Duration", "magicShieldDurationMultiplier"), Line("Health", MagicShieldHealthKey)),
+        }),
+        new WindowSection("Items", new[]
+        {
+            Spell("Skull Vessel", ItemSpells[0].Items, Line("Duration", "skullVesselDurationMultiplier"), Line("Damage", "skullVesselDamageMultiplier"), Line("Health", "skullVesselHealthMultiplier"),
+                Line("Per Use", SkullVesselsPerCastKey)),
+            Spell("Fire Wisp Scroll", ItemSpells[1].Items, Line("Duration", "fireWispScrollDurationMultiplier"), Line("Damage", "fireWispScrollDamageMultiplier"), Line("Health", "fireWispScrollHealthMultiplier"),
+                Line("Per Use", FireWispsPerUseKey)),
+            Spell("Meteor Shower Scroll", ItemSpells[2].Items, Line("Damage", "meteorShowerScrollDamageMultiplier")),
+            Spell("Crawler Bomb", ItemSpells[3].Items, Line("Duration", "crawlerBombDurationMultiplier"), Line("Damage", "crawlerBombDamageMultiplier"), Line("Health", "crawlerBombHealthMultiplier")),
+        }),
+    };
+
+    /// <summary>Every spell of the settings window, section after section: the index the window keeps for the chosen spell.</summary>
+    public static readonly IReadOnlyList<WindowSpell> WindowSpells = FlattenSections();
+
+    // A spell's card: its Mana Cost first, then its own lines.
+    private static WindowSpell Spell(string name, Regex iconItem, params CardLine[] lines)
+    {
+        var withCost = new List<CardLine> { Line("Mana Cost", CostKey(name)) };
+        foreach (string castName in CastTimeSpellNames)
+        {
+            if (castName == name)
+            {
+                withCost.Add(Line("Cast Time", CastTimeKey(name)));
+            }
+        }
+        withCost.AddRange(lines);
+        return new WindowSpell(name, iconItem, withCost.ToArray());
+    }
+
+    /// <summary>The key of a spell's Mana Cost setting: "Fire Bolt" is fireBoltCostMultiplier.</summary>
+    public static string CostKey(string spellName)
+    {
+        string[] words = spellName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var key = new System.Text.StringBuilder(words[0].ToLowerInvariant());
+        for (int index = 1; index < words.Length; index++)
+        {
+            key.Append(char.ToUpperInvariant(words[index][0])).Append(words[index], 1, words[index].Length - 1);
+        }
+        return key.Append("CostMultiplier").ToString();
+    }
+
+    /// <summary>The key of a card's Cast Time setting: "Fire Bolt" is fireBoltCastTimeMultiplier.</summary>
+    public static string CastTimeKey(string spellName)
+    {
+        string costKey = CostKey(spellName);
+        return costKey.Substring(0, costKey.Length - "CostMultiplier".Length) + "CastTimeMultiplier";
+    }
+
+    /// <summary>A lower value is the better one for these groups (At Least keeps the lower).</summary>
+    public static bool LowerIsBetter(string group)
+    {
+        return group == GroupCost || group == GroupCastTime;
+    }
+
+    /// <summary>The General card's setting that goes with a per-spell multiplier, or null when none does.</summary>
+    public static string? GeneralKeyFor(SettingInfo setting)
+    {
+        if (setting.Kind != SettingKind.Multiplier)
+        {
+            return null;
+        }
+        return setting.Group switch
+        {
+            GroupCost => GeneralCostKey,
+            GroupCastTime => GeneralCastTimeKey,
+            GroupDamage => GeneralDamageKey,
+            GroupDuration => GeneralDurationKey,
+            GroupRadius => GeneralRadiusKey,
+            GroupHealth => GeneralHealthKey,
+            _ => null,
+        };
+    }
+
+    private static IReadOnlyList<SettingInfo> WithCostAndGeneral(SettingInfo[] spellSettings)
+    {
+        var settings = new List<SettingInfo>(spellSettings);
+        foreach (string name in CostSpellNames)
+        {
+            settings.Add(new SettingInfo(CostKey(name), name + " Mana Cost", GroupCost, SettingKind.Multiplier, SpellRules.MinCost, SpellRules.MaxCost, SpellRules.CostStep, 1));
+        }
+        settings.Add(Duration("skullVesselDurationMultiplier", "Skull Vessel Duration", 1));
+        settings.Add(Damage("skullVesselDamageMultiplier", "Skull Vessel Damage"));
+        settings.Add(Health("skullVesselHealthMultiplier", "Skull Vessel Health"));
+        settings.Add(Duration("fireWispScrollDurationMultiplier", "Fire Wisp Scroll Duration", 1));
+        settings.Add(Damage("fireWispScrollDamageMultiplier", "Fire Wisp Scroll Damage"));
+        settings.Add(Health("fireWispScrollHealthMultiplier", "Fire Wisp Scroll Health"));
+        settings.Add(Damage("meteorShowerScrollDamageMultiplier", "Meteor Shower Scroll Damage"));
+        settings.Add(Duration("crawlerBombDurationMultiplier", "Crawler Bomb Duration", 1));
+        settings.Add(Damage("crawlerBombDamageMultiplier", "Crawler Bomb Damage"));
+        settings.Add(Health("crawlerBombHealthMultiplier", "Crawler Bomb Health"));
+        foreach (string name in CastTimeSpellNames)
+        {
+            settings.Add(new SettingInfo(CastTimeKey(name), name + " Cast Time", GroupCastTime, SettingKind.Multiplier, SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep, 1));
+        }
+        settings.Add(new SettingInfo(GeneralCastTimeKey, "General Cast Time", GroupGeneral, SettingKind.Multiplier, SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep, 1));
+        settings.Add(new SettingInfo(GeneralCostKey, "General Mana Cost", GroupGeneral, SettingKind.Multiplier, SpellRules.MinCost, SpellRules.MaxCost, SpellRules.CostStep, 1));
+        settings.Add(new SettingInfo(GeneralDamageKey, "General Damage", GroupGeneral, SettingKind.Multiplier, SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep, 1));
+        settings.Add(new SettingInfo(GeneralDurationKey, "General Duration", GroupGeneral, SettingKind.Multiplier, SpellRules.MinDuration, SpellRules.MaxDuration, SpellRules.DurationStep, 1));
+        settings.Add(new SettingInfo(GeneralRadiusKey, "General Radius", GroupGeneral, SettingKind.Multiplier, SpellRules.MinRadius, SpellRules.MaxRadius, SpellRules.RadiusStep, 1));
+        settings.Add(new SettingInfo(GeneralHealthKey, "General Health", GroupGeneral, SettingKind.Multiplier, SpellRules.MinHealth, SpellRules.MaxHealth, SpellRules.HealthStep, 1));
+        settings.Add(new SettingInfo(GeneralAtLeastKey, "General Mode", GroupGeneral, SettingKind.Toggle, 0, 1, 1, 0));
+        return settings;
+    }
+
+    private static CardLine Line(string label, string key)
+    {
+        return new CardLine(label, key);
+    }
+
+    private static WindowSpell[] FlattenSections()
+    {
+        var spells = new List<WindowSpell>();
+        foreach (WindowSection section in WindowSections)
+        {
+            spells.AddRange(section.Spells);
+        }
+        return spells.ToArray();
+    }
+
+    public static SettingInfo Setting(string key)
+    {
+        foreach (SettingInfo setting in Settings)
+        {
+            if (setting.Key == key)
+            {
+                return setting;
+            }
+        }
+        throw new KeyNotFoundException("No setting " + key);
+    }
+
+    private static Regex Item(string spellName)
+    {
+        return new Regex(@"^Ammo_T\d+_Spell_" + spellName + "_", RegexOptions.CultureInvariant);
+    }
+
+    private static AreaTemplates Templates(string namePattern, int vfxSizeIndex = -1, bool hasReach = false, double sizedToMeters = 0)
+    {
+        return new AreaTemplates(new Regex(namePattern, RegexOptions.CultureInvariant), vfxSizeIndex, hasReach, sizedToMeters);
+    }
+
+    private static SettingInfo Count(string key, string label)
+    {
+        return new SettingInfo(key, label, GroupSummons, SettingKind.Count, SpellRules.MinSummonsPerCast, SpellRules.MaxSummonsPerCast, 1, 1);
+    }
+
+    private static SettingInfo Duration(string key, string label, double defaultMultiplier)
+    {
+        return new SettingInfo(key, label, GroupDuration, SettingKind.Multiplier, SpellRules.MinDuration, SpellRules.MaxDuration, SpellRules.DurationStep, defaultMultiplier);
+    }
+
+    private static SettingInfo Damage(string key, string label)
+    {
+        return new SettingInfo(key, label, GroupDamage, SettingKind.Multiplier, SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep, 1);
+    }
+
+    private static SettingInfo Health(string key, string label)
+    {
+        return new SettingInfo(key, label, GroupHealth, SettingKind.Multiplier, SpellRules.MinHealth, SpellRules.MaxHealth, SpellRules.HealthStep, 1);
+    }
+
+    private static SettingInfo Radius(string key, string label, double defaultMultiplier)
+    {
+        return new SettingInfo(key, label, GroupRadius, SettingKind.Multiplier, SpellRules.MinRadius, SpellRules.MaxRadius, SpellRules.RadiusStep, defaultMultiplier);
+    }
+}

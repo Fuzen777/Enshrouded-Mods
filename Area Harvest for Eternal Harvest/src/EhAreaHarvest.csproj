@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>EhAreaHarvest</AssemblyName>
+    <RootNamespace>EhAreaHarvest</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Kiln's own assemblies load from kiln\host at run time: reference them, never copy them. -->
+    <KilnHost Condition="'$(KilnHost)' == ''">D:\SteamLibrary\steamapps\common\Enshrouded\kiln\host</KilnHost>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Kiln.Api" HintPath="$(KilnHost)\Kiln.Api.dll" Private="false" />
+    <Reference Include="Kiln.Game" HintPath="$(KilnHost)\Kiln.Game.dll" Private="false" />
+    <Reference Include="Kiln.Gameplay" HintPath="$(KilnHost)\Kiln.Gameplay.dll" Private="false" />
+    <Reference Include="Kiln.Queries" HintPath="$(KilnHost)\Kiln.Queries.dll" Private="false" />
+    <Reference Include="Kiln.Saves" HintPath="$(KilnHost)\Kiln.Saves.dll" Private="false" />
+    <Reference Include="Kiln.Spawn" HintPath="$(KilnHost)\Kiln.Spawn.dll" Private="false" />
+    <Reference Include="Kiln.World" HintPath="$(KilnHost)\Kiln.World.dll" Private="false" />
+  </ItemGroup>
+
+</Project>

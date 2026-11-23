@@ -1,0 +1,12 @@
+{
+  "id": "terrain-tool-radius",
+  "name": "Terrain Tool Radius",
+  "version": "1.0.0",
+  "description": "The pickaxe digs and the rake flattens a bigger area, each with a multiplier in the F9 menu (Pickaxe Radius x3 and Rake Radius x4 by default). Bombs and enemy attacks keep their normal size. Changes the same two places in the game's terrain code as Advanced Terrain Edit's pickaxe and rake radius (by Lombrar), without its other tools, so don't use both. A native DLL loaded through native-plugin.ini; only works in worlds you host.",
+  "authors": [
+    "Fuzen777"
+  ],
+  "license": null,
+  "dependencies": [],
+  "capabilities": []
+}

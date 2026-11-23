@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>StreamlinedLogistics</AssemblyName>
+    <RootNamespace>StreamlinedLogistics</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- For the two game components read as fixed-size structs (the player's inventory setup and hotbar pages). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Kiln's own assemblies load from kiln\host at run time: reference them, never copy them. -->
+    <KilnHost Condition="'$(KilnHost)' == ''">D:\SteamLibrary\steamapps\common\Enshrouded\kiln\host</KilnHost>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Kiln.Abilities" HintPath="$(KilnHost)\Kiln.Abilities.dll" Private="false" />
+    <Reference Include="Kiln.Api" HintPath="$(KilnHost)\Kiln.Api.dll" Private="false" />
+    <Reference Include="Kiln.Blocks" HintPath="$(KilnHost)\Kiln.Blocks.dll" Private="false" />
+    <Reference Include="Kiln.Chat" HintPath="$(KilnHost)\Kiln.Chat.dll" Private="false" />
+    <Reference Include="Kiln.Client" HintPath="$(KilnHost)\Kiln.Client.dll" Private="false" />
+    <Reference Include="Kiln.Content" HintPath="$(KilnHost)\Kiln.Content.dll" Private="false" />
+    <Reference Include="Kiln.Game" HintPath="$(KilnHost)\Kiln.Game.dll" Private="false" />
+    <Reference Include="Kiln.Gameplay" HintPath="$(KilnHost)/Kiln.Gameplay.dll" Private="false" />
+    <Reference Include="Kiln.Settings" HintPath="$(KilnHost)/Kiln.Settings.dll" Private="false" />
+    <Reference Include="Kiln.Items" HintPath="$(KilnHost)\Kiln.Items.dll" Private="false" />
+    <Reference Include="Kiln.Players" HintPath="$(KilnHost)\Kiln.Players.dll" Private="false" />
+    <Reference Include="Kiln.Spawn" HintPath="$(KilnHost)\Kiln.Spawn.dll" Private="false" />
+    <Reference Include="Kiln.Ui" HintPath="$(KilnHost)\Kiln.Ui.dll" Private="false" />
+    <Reference Include="Kiln.World" HintPath="$(KilnHost)\Kiln.World.dll" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The food and drink that can be used from a chest, with their buffs' numbers (Scripts\make_usable_items.py). -->
+    <EmbeddedResource Include="..\data\item_categories.json" LogicalName="StreamlinedLogistics.item_categories.json" />
+    <EmbeddedResource Include="..\data\chestsort_categories.json" LogicalName="StreamlinedLogistics.chestsort_categories.json" />
+  </ItemGroup>
+
+</Project>

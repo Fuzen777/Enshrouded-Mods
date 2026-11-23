@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The mod's chest rules and categories, without Kiln: the rest of the mod needs the game. -->
+    <Compile Include="..\..\src\ChestRules.cs" Link="ChestRules.cs" />
+    <Compile Include="..\..\src\ChestCategories.cs" Link="ChestCategories.cs" />
+    <Compile Include="..\..\src\CategoryTree.cs" Link="CategoryTree.cs" />
+  </ItemGroup>
+
+</Project>

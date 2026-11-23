@@ -1,0 +1,14 @@
+{
+  "id": "tool-focus",
+  "name": "Focus Gain",
+  "version": "1.0.2",
+  "description": "Felling axes, pickaxes and weapons give more focus per hit, so their special abilities are ready sooner. Tool Focus Multiplier (3 by default) multiplies the normal focus per hit of felling axes and pickaxes, Weapon Focus Multiplier (2 by default) that of every weapon.",
+  "authors": [
+    "Fuzen777"
+  ],
+  "license": null,
+  "dependencies": [],
+  "capabilities": [
+    "patch"
+  ]
+}

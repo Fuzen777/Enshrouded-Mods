@@ -1,0 +1,26 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json",
+  "schemaVersion": 1,
+  "enabled": true,
+  "targets": [
+    "client",
+    "server"
+  ],
+  "settings": {
+    "maxStackSize": {
+      "value": 9999,
+      "label": "Max Stack Size",
+      "description": "Every item that stacks is raised to this size. Single items (weapons, armour ...) stay single, and items that already stack higher keep their size. Restart required.",
+      "control": "number",
+      "min": 2,
+      "max": 65535,
+      "step": 1,
+      "applyAt": "restart",
+      "restartRequired": true,
+      "assetPreparation": true
+    }
+  },
+  "changelog": [
+    "First version: one Max Stack Size setting for every stackable item."
+  ]
+}

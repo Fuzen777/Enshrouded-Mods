@@ -1,0 +1,12 @@
+{
+  "id": "eh-area-harvest",
+  "name": "Area Harvest for Eternal Harvest",
+  "version": "1.0.0",
+  "description": "Harvesting one Eternal Harvest crop or planted fruit tree by hand also harvests the ripe ones around it, which XHL Planting Assistant's range harvest leaves out.",
+  "authors": [
+    "Fuzen777"
+  ],
+  "apiVersion": "0.2.9",
+  "side": "server",
+  "entryAssembly": "EhAreaHarvest.dll"
+}

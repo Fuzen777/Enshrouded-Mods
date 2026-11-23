@@ -1,0 +1,12 @@
+{
+  "id": "pocket-light",
+  "name": "Pocket Light",
+  "version": "1.0.0",
+  "description": "A light that follows your character, with nothing to equip: press K to switch it on or off. Brightness, radius, color and position are settings.",
+  "authors": [
+    "Fuzen777"
+  ],
+  "apiVersion": "0.2.9",
+  "side": "client",
+  "entryAssembly": "PocketLight.dll"
+}

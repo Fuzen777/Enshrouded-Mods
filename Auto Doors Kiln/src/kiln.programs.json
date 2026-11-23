@@ -1,0 +1,8 @@
+{
+  "format": 1,
+  "programs": {
+    "door_toggle": {
+      "eventsOut": ["AcceptOfferedInteractionEvent", "ToggleInteractionEvent"]
+    }
+  }
+}
