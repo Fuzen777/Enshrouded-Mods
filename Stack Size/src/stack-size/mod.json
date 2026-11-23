@@ -1,8 +1,8 @@
 {
   "id": "stack-size",
   "name": "Stack Size",
-  "version": "1.0.0",
-  "description": "Raises the max stack size of every stackable item to the Max Stack Size setting (9999 by default). Single items like weapons and armour stay single, and items that already stack higher keep their size.",
+  "version": "1.1.0",
+  "description": "Raises the max stack size of every stackable item to the Max Stack Size setting (9999 by default), and items that already stack to 1000 or more, such as building blocks, to the Large Stack Size setting (65535 by default). Single items like weapons and armour stay single, and items that already stack higher keep their size.",
   "authors": [
     "Fuzen777"
   ],
