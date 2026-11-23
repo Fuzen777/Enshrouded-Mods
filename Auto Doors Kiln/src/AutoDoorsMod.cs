@@ -623,18 +623,17 @@ public sealed class AutoDoorsMod : Mod
     // ------------------------------------------------------------------------------------------------- label ----
 
     // Tick thread: the door under the crosshair, as text for the render thread.
-    // Only doors inside a flame altar's area get a label: the door's name, and under it its mode when that is not Everyone.
-    // No open or closed (Fuzen, 23 Nov 2026).
+    // Only doors inside a flame altar's area get a label, and only their mode when that is not Everyone: no name, no open
+    // or closed (Fuzen, 23 Nov 2026).
     private void UpdateLabel(DoorSettings s)
     {
         if (!Ui.Available || !s.DoorLabel || Players.All.FirstOrDefault() is not { } player || Aimed(player) is not { } d
-            || !d.InBase)
+            || !d.InBase || ModeOf(d) is var mode && mode == DoorMode.Everyone)
         {
             _label = null;
             return;
         }
-        var mode = ModeOf(d);
-        var label = new DoorLabel(d.Name, mode == DoorMode.Everyone ? "" : ModeText(mode));
+        var label = new DoorLabel(ModeText(mode), "");
         if (label != _label) _label = label;
     }
 

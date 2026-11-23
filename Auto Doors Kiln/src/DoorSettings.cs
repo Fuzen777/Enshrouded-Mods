@@ -61,7 +61,7 @@ public sealed class DoorSettings
     public bool RespectHandToggles { get; set; } = true;
 
     [ConfigKey("doorLabel")]
-    [Comment("Door Label. Looking at a door inside a base shows its name under the crosshair, and its mode when it is not Everyone.")]
+    [Comment("Door Label. Looking at a door inside a base shows its mode under the crosshair (Players, Players & Survivors or Manual); nothing for Everyone.")]
     public bool DoorLabel { get; set; } = true;
 
     [ConfigKey("toasts")]
