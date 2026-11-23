@@ -1288,7 +1288,41 @@ public static class ChestRules
     /// <summary>True for a chest the player named to be left alone: a name that starts with two hyphens, as Quick Deposit reads it.</summary>
     public static bool IsExcludedChestName(string? chestName)
     {
-        return chestName != null && chestName.TrimStart().StartsWith("--", StringComparison.Ordinal);
+        // A chest named with -- in front, and an Auto-Stations chest (its stock is the stations'), take no deposit and lend
+        // nothing to a re-sort.
+        return chestName != null && (chestName.TrimStart().StartsWith("--", StringComparison.Ordinal) || IsAutoStationsName(chestName));
+    }
+
+    /// <summary>The name of a base's Magic Chest that Auto-Stations keeps stocked for the automated stations (since 0.10.33).</summary>
+    public const string AutoStationsName = "Auto-Stations";
+
+    public static bool IsAutoStationsName(string? chestName)
+    {
+        return chestName != null && string.Equals(chestName.Trim(), AutoStationsName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // What an Auto-Stations chest must bring for the base's stations: each station's inputs for that many crafts, summed per
+    // item, less what the base's crafting stock holds. Items with nothing missing are left out.
+    public static Dictionary<uint, long> AutoStationsShortfall(IEnumerable<IReadOnlyList<(uint Item, int Count)>> stationInputs, int crafts, Func<uint, long> baseStock)
+    {
+        var needed = new Dictionary<uint, long>();
+        foreach (IReadOnlyList<(uint Item, int Count)> inputs in stationInputs)
+        {
+            foreach ((uint item, int count) in inputs)
+            {
+                needed[item] = needed.GetValueOrDefault(item) + (long)count * crafts;
+            }
+        }
+        var shortfall = new Dictionary<uint, long>();
+        foreach (KeyValuePair<uint, long> need in needed)
+        {
+            long missing = need.Value - baseStock(need.Key);
+            if (missing > 0)
+            {
+                shortfall[need.Key] = missing;
+            }
+        }
+        return shortfall;
     }
 
     /// <summary>The state file's text: {"links":[[x,y,z],...],"favorites":[itemId,...],"gridView":false,"includeHotbar":false}.</summary>

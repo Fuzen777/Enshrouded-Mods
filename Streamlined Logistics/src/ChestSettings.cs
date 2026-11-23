@@ -54,6 +54,16 @@ public sealed class ChestSettings
     [Range(0, 2)]
     public int AutoNameChests { get; set; }
 
+    [ConfigKey("autoStationsCrafts")]
+    [Comment("Auto-Stations Crafts. For every automated station of a base with a Magic Chest named Auto-Stations, the base's Magic Chests are kept holding the inputs of this many crafts of the station's selected recipe, brought from your linked chests in other bases into the Auto-Stations chest. 0 turns it off.")]
+    [Range(0, 100)]
+    public int AutoStationsCrafts { get; set; } = 10;
+
+    [ConfigKey("autoStationsSeconds")]
+    [Comment("Auto-Stations Every (s). How often the Auto-Stations chests are topped up.")]
+    [Range(5, 300)]
+    public int AutoStationsSeconds { get; set; } = 30;
+
     [ConfigKey("highlightDepositedChests")]
     [Comment("Highlight Chests After A Deposit. On: the chests a quick deposit put items into are lit while your inventory is open and then for the Highlight Time. The chests themselves get the game's outline when Streamlined Logistics Glow is installed (greeneye\\streamlined-logistics-glow); otherwise each gets a box and its name.")]
     public bool HighlightDepositedChests { get; set; } = true;

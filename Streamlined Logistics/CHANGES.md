@@ -7,6 +7,16 @@ How it works: the screen is a Kiln screen (`Ui.Screen`) drawn in the player's ga
 `Scripts\Build.ps1` runs the tests (`tests\ChestRulesTests`), builds against Kiln's assemblies in `<game>\kiln\host` and puts the mod in `dist\streamlined-logistics`; `-Install` copies it to `<game>\kiln\mods\streamlined-logistics`, where Kiln loads it as a drop-in (game closed).
 
 
+## 0.10.33
+
+Kiln 0.2.0-dev.30.8 answered draft 17 in part (kiln#132): crafting menus count the linked chests, linked dyes sort with the player's, and a production station's screen shows the game's own counts again, since its +1 / +10 is the game's transfer from the bag and the base's Magic Chests; fills from registered sources are not built (docs/re/stations.md 10.8). The user chose to keep the base's Magic Chests stocked instead, so that the game's buttons and Busy Hands (which keeps 2 crafts loaded per station from the base's Magic Chests) find the inputs: "Work only with chests called Auto-Stations or something like that, working with auto-rename. If trying to add with no chest named such and/or auto-rename turned off, show a toast saying so. Add a setting for \"how many crafts\" to keep the chest topped up with.", then a continuous top-up with a setting for how often, counting the base's whole Magic Chest stock.
+
+- **Auto-Stations:** every Auto-Stations Every seconds (setting `autoStationsSeconds`, 5 to 300, default 30), for each base with automated stations that have a selected recipe: their inputs for Auto-Stations Crafts crafts (setting `autoStationsCrafts`, 0 to 100, default 10, 0 off), summed per item, less the base's crafting stock (`Bases.Stock`), are moved from linked chests in other bases (or ordinary linked chests in the base) into the base's Magic Chest named Auto-Stations. Favorites never move. With Auto-Name Chests on and no such chest, the base's default-named Magic Chest closest to its stations with a free slot is named Auto-Stations; else a toast says what to do, once per base per session. `ChestRules.AutoStationsShortfall`, tested.
+- **Auto-Stations chests are kept out** of Quick Deposit and Re-Sort (like chests named with -- in front), so their stock stays for the stations. The name is in the Chests tab's name list.
+
+> [!warning]
+> Not yet seen in game. Busy Hands may also collect finished items into the Auto-Stations chest, as into any Magic Chest of the base.
+
 ## 0.10.32
 
 Kiln 0.2.0-dev.30.6 (mod API 0.2.15, installed 23 Nov 2026) shipped draft 16, both parts (kiln#125): `Crafting.AddSource` and the dyes of linked sources. The user: "Kiln released 0.2.0-dev.30.6, see what we can use." The mod asks for API 0.2.15.

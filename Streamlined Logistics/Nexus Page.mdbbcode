@@ -12,7 +12,7 @@ target: nexus
 
 </div>
 
-Tired of stopping every five minutes because your inventory is, yet again, full ? Streamlined Logistics is intended as an all-in-one storage mod for **Kiln** that solves this exact issue.
+Tired of stopping every five minutes because your inventory is, *yet again*, full ? Streamlined Logistics is intended as an all-in-one storage mod for **Kiln** that solves this exact issue.
 
 Press **F2** and every chest you linked shows up as one searchable list next to your hotbars and backpack. Take what you need, drag it where you want it, store your loot, or let Quick Deposit and Re-Sort put everything into the right chests for you. Need a specific item ? Just open the menu : your favorited ones wait for you at the top, and everything else is searchable and neatly organized in tabs and categories.
 
@@ -20,7 +20,7 @@ If you fully set it up, you'll never have to worry about your inventory again :
 
 - Enable Auto Quick Deposit, Salvage and Rename.
 - Have a few unnamed Magic Chests around
-- Whenever your inventory is full, its content will be automatically deposited in your chests, and as you loot, items you don’t want get salvaged. Works with mods like [Kiln Auto Loot](https://www.nexusmods.com/enshrouded/mods/355).
+- Whenever your inventory is full, its contents will be automatically deposited in your chests, and as you loot, items you don’t want get salvaged. Works with mods like [Kiln Auto Loot](https://www.nexusmods.com/enshrouded/mods/355).
 - Coming from a chaotic, unorganized save ? Just click Re-Sort, and all your chests will be (almost) perfectly sorted without requiring you to do anything.
 
 … This way, you’ll stop fighting your inventory so you can actually play the game. Most features are fully configurable if you’d rather have more inventory management in your game. I’m not judging. ||(I am.)||
@@ -94,6 +94,10 @@ The F2 menu offers :
 - **LMB on a category** highlights every chest named for it in the world. LMB on a group highlights the group's chests and all of its sub-categories' chests.
 - Materials and Building blocks are hidden by default, since you mostly use them through the crafting menu and the Construction Hammer. A search still finds them.
 
+### Cross-Base Storage &amp; Craft
+
+- You can craft (at stations and NPCs) from any base, from your linked chests. At least that’s what’s supposed to happen. **<span style="color: #d9534f">Not working currently</span>** (waiting on a Kiln update) ; <span style="color: #d9534f">use Cross-Base Storage in the meantime</span>.
+
 ### Settings in the window
 
 - A Settings tab with every option and an explanation on hover. Changes apply at once and are saved. The same settings are also on the mod's page in Kiln's menu.
@@ -142,7 +146,7 @@ The key is **Open Streamlined Logistics** in the Keys tab of Kiln's menu.
 
 ## Requirements
 
-- [Kiln](https://github.com/frostdev-ops/kiln) mod loader, **0.2.0-dev.30.5 or newer**.
+- [Kiln](https://github.com/frostdev-ops/kiln) mod loader, **0.2.0-dev.30.6 or newer**.
 
 ## Installation
 
@@ -164,14 +168,13 @@ To update, check with Kiln or download the newest version and install it manuall
 - Links are stored by chest position and are not yet kept per world.
 - The repair kit can't be used from the window; use it from your hotbar.
 - The game's full item detail (damage, perks, gems) only shows for items you have looked at in the game's own screens this session.
-- No controller button to open the window yet.
+- No controller button to open the window yet, nor controller navigation. 
 - A large Re-Sort takes a little while; the window's other buttons wait until it ends.
 
 ## Planned features
 
 These are designed and waiting on a Kiln update that gives mods what they need. They will come as soon as Kiln supports them.
 
-- **Craft from your linked chests**, in any base, at any crafting station or NPC, as if the materials were in that base's chests. Until then, you might want a mod like [Cross-Base Storage](https://www.nexusmods.com/enshrouded/mods/245).
 - **Dyes from your linked chests** at the coloring station.
 - **Use the repair kit** from the window, like other consumables.
 - **Favorite borders that stay behind the game's item menu** (RMB on an item). Right now the gold border is drawn on top of that menu. For this reason, favorites in inventory is currently not recommended since Kiln draws on top of everything else.
@@ -180,6 +183,6 @@ These are designed and waiting on a Kiln update that gives mods what they need. 
 
 ## Credits
 
-- The Kiln team, for the loader and for adding the outline, item use, inventory marks, controller support, item details, chest renaming and drag and drop this mod relies on.
+- The Kiln team, for the loader and for adding many features the mod relies on.
 - XHL-Remote Chest, for the original idea.
 - Quick Deposit, for the chest category file format and the deposit rules this mod follows.
