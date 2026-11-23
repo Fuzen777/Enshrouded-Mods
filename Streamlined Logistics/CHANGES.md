@@ -7,6 +7,16 @@ How it works: the screen is a Kiln screen (`Ui.Screen`) drawn in the player's ga
 `Scripts\Build.ps1` runs the tests (`tests\ChestRulesTests`), builds against Kiln's assemblies in `<game>\kiln\host` and puts the mod in `dist\streamlined-logistics`; `-Install` copies it to `<game>\kiln\mods\streamlined-logistics`, where Kiln loads it as a drop-in (game closed).
 
 
+## 0.10.34
+
+0.10.33 seen in game (kiln.log, 23 Nov 2026 19:37): a Magic Chest was named Auto-Stations and got 20 Bones for its Bonemeal station, then again at each pass. The user: "since it only stores 10 crafts, if I queue [n] crafts for a station, I have to wait 30s until the next batch arrives ... Any way we could have some kind of \"restock immediately if less than 50%\" feature without tanking perfs ?"
+
+- **Restock at half:** each full pass keeps what every base's stations need for the set crafts; between passes, once a second, the base's stock of those items is read (`Bases.Stock`, a few reads, no station or chest scan), and an item under half of its need brings the next pass forward (at most every 3 s).
+- **Crafting menus:** they count the linked chests since Kiln 0.2.0-dev.30.8 but crafting with them does nothing, with no payment or refusal in kiln.log: Kiln's side, draft 18 in the Kiln document.
+
+> [!warning]
+> Not yet seen in game.
+
 ## 0.10.33
 
 Kiln 0.2.0-dev.30.8 answered draft 17 in part (kiln#132): crafting menus count the linked chests, linked dyes sort with the player's, and a production station's screen shows the game's own counts again, since its +1 / +10 is the game's transfer from the bag and the base's Magic Chests; fills from registered sources are not built (docs/re/stations.md 10.8). The user chose to keep the base's Magic Chests stocked instead, so that the game's buttons and Busy Hands (which keeps 2 crafts loaded per station from the base's Magic Chests) find the inputs: "Work only with chests called Auto-Stations or something like that, working with auto-rename. If trying to add with no chest named such and/or auto-rename turned off, show a toast saying so. Add a setting for \"how many crafts\" to keep the chest topped up with.", then a continuous top-up with a setting for how often, counting the base's whole Magic Chest stock.

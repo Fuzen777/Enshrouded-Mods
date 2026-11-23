@@ -4042,15 +4042,34 @@ public sealed class StreamlinedLogisticsMod : Mod
 
     private long _autoStationsNextTick;
     private readonly HashSet<BaseId> _autoStationsToasted = new();
+    // Since 0.10.34: what each base's stations need for the set crafts (from the last full pass), checked against the base's stock
+    // once a second; an item under half of it brings the next pass forward (at most every AutoStationsQuickGapMilliseconds).
+    private volatile IReadOnlyList<(BaseId Base, Dictionary<uint, long> Needed)> _autoStationsNeeds = Array.Empty<(BaseId, Dictionary<uint, long>)>();
+    private long _autoStationsQuickCheckTick;
+    private long _autoStationsLastPassTick;
+    private const long AutoStationsQuickGapMilliseconds = 3000;
 
     private void AutoStationsSoon()
     {
         ChestSettings? settings = _settings?.Value;
         long now = Environment.TickCount64;
-        if (settings == null || settings.AutoStationsCrafts <= 0 || _busy || now < _autoStationsNextTick || !Client.IsHosting)
+        if (settings == null || settings.AutoStationsCrafts <= 0 || _busy || !Client.IsHosting)
         {
             return;
         }
+        if (now < _autoStationsNextTick)
+        {
+            if (now < _autoStationsQuickCheckTick || now - _autoStationsLastPassTick < AutoStationsQuickGapMilliseconds)
+            {
+                return;
+            }
+            _autoStationsQuickCheckTick = now + 1000;
+            if (!AutoStationsRunningLow())
+            {
+                return;
+            }
+        }
+        _autoStationsLastPassTick = now;
         _autoStationsNextTick = now + Math.Clamp(settings.AutoStationsSeconds, 5, 300) * 1000L;
         Post(TopUpAutoStations);
     }
@@ -4084,6 +4103,7 @@ public sealed class StreamlinedLogisticsMod : Mod
         List<DepositChestState> linked = ReadLinkedDepositChests(player);
         FavoriteSet favorites = _state.FavoriteSet(_toolEntries);
         int autoName = _settings?.Value.AutoNameChests ?? 0;
+        var needs = new List<(BaseId Base, Dictionary<uint, long> Needed)>();
         foreach ((BaseId baseId, List<StationInfo> stations) in stationsByBase)
         {
             var inputs = new List<IReadOnlyList<(uint Item, int Count)>>();
@@ -4103,6 +4123,7 @@ public sealed class StreamlinedLogisticsMod : Mod
                     // an unknown recipe: nothing to bring
                 }
             }
+            needs.Add((baseId, ChestRules.AutoStationsShortfall(inputs, crafts, _ => 0)));
             Dictionary<uint, long> shortfall = ChestRules.AutoStationsShortfall(inputs, crafts, item => Bases.Stock(baseId, new ItemId(item)));
             if (shortfall.Count == 0)
             {
@@ -4157,6 +4178,24 @@ public sealed class StreamlinedLogisticsMod : Mod
                 Log.Info($"auto-stations: {moved} item(s) into {target.Label} ({target.Entity.Value}) for {stations.Count} station(s): {(received.TryGetValue(target.Entity.Value, out Dictionary<string, long>? items) ? DescribeItems(items) : "")}");
             }
         }
+        _autoStationsNeeds = needs;
+    }
+
+    // Once a second between passes: true when a base's stock of an item its stations use has fallen under half of what they
+    // need for the set crafts (a few stock reads, no station or chest scan).
+    private bool AutoStationsRunningLow()
+    {
+        foreach ((BaseId baseId, Dictionary<uint, long> needed) in _autoStationsNeeds)
+        {
+            foreach ((uint item, long count) in needed)
+            {
+                if (Bases.Stock(baseId, new ItemId(item)) * 2 < count)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     // The base's Magic Chest named Auto-Stations; with Auto-Name Chests on, the closest default-named Magic Chest of the base to
