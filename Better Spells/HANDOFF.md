@@ -215,10 +215,10 @@ What Better Spells does at startup today, to be done in the loaded world instead
 
 | What | Where |
 |---|---|
-| This project | `C:\Google Drive\Coding\Game Mods\Enshrouded\My Mods\Better Spells` (git repository at `C:\Google Drive\Coding`, commits go to `main`) |
-| Workspace rules | `C:\Google Drive\Coding\AGENTS.md` |
+| This project | `My Mods\Better Spells` in the author's workspace repository (commits go to `main`) |
+| Workspace rules | `AGENTS.md` at the root of the author's workspace repository |
 | Game's mods folder | `D:\SteamLibrary\steamapps\common\Enshrouded\mods` |
-| Folder Vortex staged for Better Spells | `D:\Vortex Mods\enshrouded\Better Spells 2.0.1\better-spells` |
+| Folder Vortex staged for Better Spells | `<Vortex staging>\enshrouded\Better Spells 2.0.1\better-spells` |
 | Log of the current game start | `D:\SteamLibrary\steamapps\common\Enshrouded\shroudforge\logs\shroudforge-client.log` (earlier starts next to it, with a number in the name) |
 | All Spells Probe's export | `D:\SteamLibrary\steamapps\common\Enshrouded\shroudforge\exports\all-spells-probe` |
 | Backups made at each install | `%APPDATA%\Vortex\enshrouded-mod-backups` |
@@ -226,7 +226,7 @@ What Better Spells does at startup today, to be done in the loaded world instead
 Build, test and install both mods, keeping the saved F9 values:
 
 ```powershell
-pwsh -NoProfile -File "C:\Google Drive\Coding\Game Mods\Enshrouded\My Mods\Better Spells\Scripts\Build.ps1" -Install
+pwsh -NoProfile -File ".\Scripts\Build.ps1" -Install
 ```
 
 - The tests need lupa (Lua for Python), which is not installed for `py` on this PC. Either install it (`py -m pip install lupa`) or pass `-LupaPath` with a folder that holds it. The folder used so far was a temporary one and may be gone.

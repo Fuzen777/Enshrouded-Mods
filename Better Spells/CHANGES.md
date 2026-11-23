@@ -687,7 +687,7 @@ Since 3.0.0 Better Spells is one **Kiln mod** (`src\better-spells-kiln`, id `bet
 > 3. The ground preview still shows the game's own area, though the log shows all 17 collider copies written. Second try in 2.0.4.
 
 > [!note]
-> Installed with the new `Scripts\Build.ps1 -Install`, in place over the staged files (`D:\Vortex Mods\enshrouded\Better Spells 2.0.1`, hardlinked): the 17 saved F9 values are kept and the 16 new settings start at their defaults. Vortex still lists 2.0.1. Backup in `%APPDATA%\Vortex\enshrouded-mod-backups\2026-11-19 Better Spells 2.0.2 before 2.0.3`.
+> Installed with the new `Scripts\Build.ps1 -Install`, in place over the staged files (`<Vortex staging>\enshrouded\Better Spells 2.0.1`, hardlinked): the 17 saved F9 values are kept and the 16 new settings start at their defaults. Vortex still lists 2.0.1. Backup in `%APPDATA%\Vortex\enshrouded-mod-backups\2026-11-19 Better Spells 2.0.2 before 2.0.3`.
 
 ---
 
@@ -702,7 +702,7 @@ Since 3.0.0 Better Spells is one **Kiln mod** (`src\better-spells-kiln`, id `bet
 > Checked in game (19 Nov 2026): with Shroud Meteor Visual on, the explosion looks bigger. Still unknown: whether the scale also widens its collider. If it does, the blast becomes that much larger again (around 200 m at x5): enemies far beyond 25 m get hit. Then turn Shroud Meteor Visual off and the collider has to be divided by the scale instead.
 
 > [!note]
-> Installed in place over 2.0.1's staged files (`D:\Vortex Mods\enshrouded\Better Spells 2.0.1`, hardlinked), keeping the F9 values, since installing a zip in Vortex resets them. Vortex still lists 2.0.1. Backup in `enshrouded-mod-backups\2026-11-18 Better Spells 2.0.1 before 2.0.2`.
+> Installed in place over 2.0.1's staged files (`<Vortex staging>\enshrouded\Better Spells 2.0.1`, hardlinked), keeping the F9 values, since installing a zip in Vortex resets them. Vortex still lists 2.0.1. Backup in `enshrouded-mod-backups\2026-11-18 Better Spells 2.0.1 before 2.0.2`.
 
 ---
 
