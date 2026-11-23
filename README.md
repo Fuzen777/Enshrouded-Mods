@@ -9,9 +9,7 @@ Source of Fuzen777's Enshrouded mods, shared so other modders can read how they 
 | [Better Spells](Better%20Spells) | Kiln (C#) | Per-spell duration, damage, area and summon settings |
 | [Focus Gain](Focus%20Gain) | Shroudforge (Lua) | More focus per hit from felling axes, pickaxes and weapons, and a wider felling axe special |
 | [Pocket Light](Pocket%20Light) | Kiln (C#) | A light on your character with nothing to equip |
-| [Stack Size](Stack%20Size) | Shroudforge (Lua) | Bigger max stack sizes |
 | [Streamlined Logistics](Streamlined%20Logistics) | Kiln (C#) | One list of what the linked chests hold, from anywhere, with moves between them and the backpack |
-| [Terrain Tool Radius](Terrain%20Tool%20Radius) | Shroudforge (native C++) | Bigger pickaxe dig and rake flatten areas |
 
 ## Building
 
