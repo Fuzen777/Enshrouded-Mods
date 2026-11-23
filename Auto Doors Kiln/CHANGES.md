@@ -2,6 +2,10 @@
 
 A rebuild of Auto Doors (SellTheWorldGames, closed source) as a Kiln mod, from its described behaviour, not its code. Doors are toggled by sending the game's own `ToggleInteractionEvent {guest, host, offer}` from the mod's ECS program `door_toggle` (`src\kiln.programs.json`); `interaction_toggle_new` flips `ServerToggleState` and `interaction_directional` swings the door away from the guest.
 
+## 0.2.2
+
+- Door label (Fuzen): only doors inside a flame altar's area get one, and it no longer says Open or Closed. It shows the door's name, and under it the mode when that is not Everyone (Players, Players & Survivors, Manual). Doors outside bases show nothing.
+
 ## 0.2.1
 
 - Door modes (Fuzen): Everyone (no label, as before), Players, Players & Survivors, Manual. The label and the message show these names. Survivors Only is now Players & Survivors in what it does too: players, their build camera and survivors open the door, animals don't. Manual (was Off) leaves the door alone.

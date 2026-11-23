@@ -61,7 +61,7 @@ public sealed class DoorSettings
     public bool RespectHandToggles { get; set; } = true;
 
     [ConfigKey("doorLabel")]
-    [Comment("Door Label. Looking at a door shows its name, whether it is open and its mode under the crosshair.")]
+    [Comment("Door Label. Looking at a door inside a base shows its name under the crosshair, and its mode when it is not Everyone.")]
     public bool DoorLabel { get; set; } = true;
 
     [ConfigKey("toasts")]

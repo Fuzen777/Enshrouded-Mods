@@ -613,22 +613,18 @@ public sealed class AutoDoorsMod : Mod
     // ------------------------------------------------------------------------------------------------- label ----
 
     // Tick thread: the door under the crosshair, as text for the render thread.
+    // Only doors inside a flame altar's area get a label: the door's name, and under it its mode when that is not Everyone.
+    // No open or closed (Fuzen, 23 Nov 2026).
     private void UpdateLabel(DoorSettings s)
     {
         if (!Ui.Available || !s.DoorLabel || Players.All.FirstOrDefault() is not { } player || Aimed(player) is not { } d
-            || IsOpen(d.Id) is not { } open)
+            || !d.InBase)
         {
             _label = null;
             return;
         }
-        string state = open ? "Open" : "Closed";
-        if (s.Enabled)
-        {
-            var mode = ModeOf(d);
-            if (s.OnlyInsideBases && !d.InBase) state += "  ·  outside bases";
-            else if (mode != DoorMode.Everyone) state += "  ·  " + ModeText(mode);
-        }
-        var label = new DoorLabel(d.Name, state);
+        var mode = ModeOf(d);
+        var label = new DoorLabel(d.Name, mode == DoorMode.Everyone ? "" : ModeText(mode));
         if (label != _label) _label = label;
     }
 
@@ -646,7 +642,8 @@ public sealed class AutoDoorsMod : Mod
         if (_label is not { } label || e.MenuOpen || e.Capturing || !e.Screen.InGame || e.Screen.Hud != HudScreen.InGame) return;
         float x = e.Width / 2f, y = e.Height / 2f + 48f * e.Scale;
         e.Draw.Text(x, y, label.Name, Color.White, 22f * e.Scale, TextAlign.Center, TextStyle.Outline, false);
-        e.Draw.Text(x, y + 26f * e.Scale, label.State, new Color(210, 210, 210, 255), 18f * e.Scale, TextAlign.Center, TextStyle.Outline, false);
+        if (label.State.Length > 0)
+            e.Draw.Text(x, y + 26f * e.Scale, label.State, new Color(210, 210, 210, 255), 18f * e.Scale, TextAlign.Center, TextStyle.Outline, false);
     }
 
     // "Prop_Door_Small_Steel_Crafted" -> "Small Steel Door"; "_Prop_Door_HollowHalls_Large" -> "Large Hollow Halls Door".
