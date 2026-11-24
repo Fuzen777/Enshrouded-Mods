@@ -9,8 +9,8 @@ using Kiln;
 namespace Grimoire;
 
 /// <summary>
-/// One book of the grimoire (spells today, arrows later): the player's stacks of one kind of ammunition kept in Kiln's player storage
-/// (key "grimoire:spells", 32 slots, that kind only, kept at death), shown and equipped in the player's own order. Works in a world this
+/// One book of the grimoire (spells, arrows): the player's stacks of one kind of ammunition kept in Kiln's player storage
+/// (keys "grimoire:spells" and "grimoire:arrows", 32 slots, that kind only, kept at death), shown and equipped in the player's own order. Works in a world this
 /// player hosts (single player or hosted co-op): the screen, the clicks and the HUD list act on the local player.
 /// - The equipped stack lives in a backpack cell, where the game expects it, and every step is a plain move (no item is created or
 ///   destroyed). 0.1.0 to 0.1.2 kept it in an Equipment page cell (Kiln's GiveEquip): the game did not keep a spell there across a
@@ -22,7 +22,7 @@ namespace Grimoire;
 /// - Running out: the next entry in the order is equipped (more of the same spell first).
 /// - A grimoire spell the game switched away from by itself stays in the backpack; five seconds after the last change of the slot it
 ///   is filed back into the storage (Settle). The player's own backpack spells stay.
-/// Every step is logged with the book's name ("spells:").
+/// Every step is logged with the book's name ("spells:", "arrows:").
 /// </summary>
 internal sealed class Book : IDisposable
 {
@@ -89,6 +89,22 @@ internal sealed class Book : IDisposable
 
     public string Name => _kind.Name;
 
+    public BookKind Kind => _kind;
+
+    // What the screen's default tab looks at, as the view last saw it (any thread).
+    public bool HasEntries => _view.Entries.Length > 0;
+    public bool HasBackpackStacks => _view.Bag.Length > 0;
+
+    // Reads the game again now. Tick thread only.
+    public void RefreshNow()
+    {
+        EntityId player = Client.Available ? Client.LocalPlayer : EntityId.None;
+        if (!player.IsNone && Client.IsHosting)
+        {
+            Refresh(player);
+        }
+    }
+
     public void Start()
     {
         if (PlayerStorage.Available)
@@ -125,7 +141,7 @@ internal sealed class Book : IDisposable
         {
             _clicks = Ui.Inventory.OnClick(new SlotClickOptions { Button = SlotButton.Left, Modifiers = SlotModifiers.Ctrl, Take = false }, OnSlotClicked);
         }
-        catch (KilnUnavailableException error)
+        catch (Exception error) when (error is KilnUnavailableException or InvalidOperationException or ArgumentException)
         {
             Log.Info($"{Tag}: Ctrl+click can't add to the grimoire on this build: {error.Message}");
         }

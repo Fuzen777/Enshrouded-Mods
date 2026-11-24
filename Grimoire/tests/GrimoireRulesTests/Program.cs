@@ -57,5 +57,12 @@ Check(rows.SequenceEqual(new (uint, int)[] { (3, 7) }), "HUD rows: the book's co
 Check(GrimoireRules.ClampSlots(0) == GrimoireRules.MinSlots && GrimoireRules.ClampSlots(99) == GrimoireRules.MaxSlots && GrimoireRules.ClampSlots(12) == 12,
     "Spell Slots stays within 1 to 32");
 
+// The default tab (spellsInBackpack, spellsInGrimoire, arrowsInBackpack, arrowsInGrimoire).
+Check(GrimoireRules.OpenOnArrows(false, true, true, false), "arrows in the backpack and no spell there: Arrows, even with spells in the grimoire");
+Check(GrimoireRules.OpenOnArrows(false, false, false, true), "no spell anywhere, arrows only in the grimoire: Arrows");
+Check(!GrimoireRules.OpenOnArrows(true, false, true, true), "a spell in the backpack: Spells");
+Check(!GrimoireRules.OpenOnArrows(false, true, false, true), "spells in the grimoire and no loose arrows: Spells");
+Check(!GrimoireRules.OpenOnArrows(false, false, false, false), "nothing anywhere: Spells");
+
 Console.WriteLine(failures == 0 ? "All grimoire rules tests passed." : $"{failures} grimoire rules test(s) failed.");
 return failures == 0 ? 0 : 1;

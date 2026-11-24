@@ -1,13 +1,14 @@
 using System;
 using System.Linq;
+using System.Threading;
 using Kiln;
 
 namespace Grimoire;
 
 /// <summary>
-/// Grimoire: spells kept out of the backpack in slots of their own (Kiln player storage), equipped and listed in the player's own order.
-/// Built for arrows too: each kind is a Book (spells today). The screen (F3, or the button on the mod's page in Kiln's menu) shows the
-/// books and the settings. Moved out of Better Spells 3.3.0-dev.11, where it was the spellbook.
+/// Grimoire: spells and arrows kept out of the backpack in slots of their own (Kiln player storage), equipped and listed in the player's
+/// own order. Each kind is a Book. The screen (F3, or the button on the mod's page in Kiln's menu) has a tab per book and the settings;
+/// it opens on Arrows or Spells by GrimoireRules.OpenOnArrows. Moved out of Better Spells 3.3.0-dev.11, where it was the spellbook.
 /// </summary>
 public sealed class GrimoireMod : Mod
 {
@@ -16,27 +17,40 @@ public sealed class GrimoireMod : Mod
     private const string WindowTitle = "Grimoire";
     // A Kiln screen has a fixed size: this fits the default 12 slots and a short backpack list; the rest scrolls.
     private const float ScreenWidth = 360f;
-    private const float ScreenHeight = 760f;
+    private const float ScreenHeight = 780f;
+    private const int SpellsTab = 0;
+    private const int ArrowsTab = 1;
 
     private ModConfig<GrimoireSettings>? _settings;
-    private Book? _spells;
+    private Book[] _books = Array.Empty<Book>();
     private UiScreen? _window;
     private KeyBinding? _windowKey;
     private IDisposable? _settingsPage;
+    // The tab to select at the next frame (-1: none), set when the screen opens; the tab drawn last, for the settings below it.
+    private int _pendingTab = -1;
+    private int _shownTab;
 
     public override void OnLoad()
     {
         _settings = Config.Register<GrimoireSettings>(ConfigKind.Common, null);
-        _spells = new Book(this, BookKind.Spells, () => Setting(GrimoireSettings.SpellSlotsKey, GrimoireRules.DefaultSlots), () => Enabled);
-        _spells.Start();
+        _books = new[]
+        {
+            new Book(this, BookKind.Spells, () => Setting(GrimoireSettings.SpellSlotsKey, GrimoireRules.DefaultSlots), () => Enabled),
+            new Book(this, BookKind.Arrows, () => Setting(GrimoireSettings.ArrowSlotsKey, GrimoireRules.DefaultSlots), () => Enabled),
+        };
+        foreach (Book book in _books)
+        {
+            book.Start();
+        }
         _settings.Changed += OnSettingsChanged;
         if (Ui.Available)
         {
             _window = Ui.Screen(WindowTitle, DrawWindow, new UiScreenOptions { Width = ScreenWidth, Height = ScreenHeight, DimBackground = false });
+            _window.Opened += OnWindowOpened;
             _windowKey = KeyBindings.Register(WindowBindingId, WindowDefaultKey, () => _window?.Toggle(), "Open Grimoire", Context.Info.Name);
             _settingsPage = Ui.AddConfigPage(Context.Info.Id, DrawSettingsPage);
         }
-        Log.Info($"loaded {Context.Info.Version}{(_window == null ? ", without its screen (Kiln's menu is not available)" : $", {_windowKey?.Key} opens the grimoire")}");
+        Log.Info($"loaded {Context.Info.Version}: {string.Join(", ", _books.Select(b => b.Name))}{(_window == null ? ", without its screen (Kiln's menu is not available)" : $", {_windowKey?.Key} opens the grimoire")}");
     }
 
     public override void OnUnload()
@@ -45,8 +59,11 @@ public sealed class GrimoireMod : Mod
         {
             _settings.Changed -= OnSettingsChanged;
         }
-        _spells?.Dispose();
-        _spells = null;
+        foreach (Book book in _books)
+        {
+            book.Dispose();
+        }
+        _books = Array.Empty<Book>();
         _settingsPage?.Dispose();
         _settingsPage = null;
         _windowKey?.Dispose();
@@ -56,18 +73,54 @@ public sealed class GrimoireMod : Mod
     }
 
     [Subscribe]
-    private void OnEquipmentChanged(PlayerEquipmentChangedEvent e) => _spells?.OnEquipmentChanged(e);
+    private void OnEquipmentChanged(PlayerEquipmentChangedEvent e)
+    {
+        foreach (Book book in _books)
+        {
+            book.OnEquipmentChanged(e);
+        }
+    }
 
     [Subscribe]
-    private void OnStorageRestored(PlayerStorageRestoredEvent e) => _spells?.OnStorageEvent(e.Key, e.ToString());
+    private void OnStorageRestored(PlayerStorageRestoredEvent e) => OnStorageEvent(e.Key, e.ToString());
 
     [Subscribe]
-    private void OnStorageParked(PlayerStorageParkedEvent e) => _spells?.OnStorageEvent(e.Key, e.ToString());
+    private void OnStorageParked(PlayerStorageParkedEvent e) => OnStorageEvent(e.Key, e.ToString());
 
     [Subscribe]
-    private void OnStorageDeath(PlayerStorageDeathEvent e) => _spells?.OnStorageEvent(e.Key, e.ToString());
+    private void OnStorageDeath(PlayerStorageDeathEvent e) => OnStorageEvent(e.Key, e.ToString());
 
-    private void OnSettingsChanged(ConfigChangedEvent change) => _spells?.SettingsChanged();
+    private void OnStorageEvent(string key, string what)
+    {
+        foreach (Book book in _books)
+        {
+            book.OnStorageEvent(key, what);
+        }
+    }
+
+    private void OnSettingsChanged(ConfigChangedEvent change)
+    {
+        foreach (Book book in _books)
+        {
+            book.SettingsChanged();
+        }
+    }
+
+    // The screen opened: both books read the game again, then the default tab is chosen on what they hold.
+    private void OnWindowOpened()
+    {
+        Context.Scheduler.Post(() =>
+        {
+            foreach (Book book in _books)
+            {
+                book.RefreshNow();
+            }
+            Book spells = _books[SpellsTab];
+            Book arrows = _books[ArrowsTab];
+            bool onArrows = GrimoireRules.OpenOnArrows(spells.HasBackpackStacks, spells.HasEntries, arrows.HasBackpackStacks, arrows.HasEntries);
+            Interlocked.Exchange(ref _pendingTab, onArrows ? ArrowsTab : SpellsTab);
+        });
+    }
 
     private bool Enabled => _settings?.Value.Enabled ?? true;
 
@@ -112,26 +165,50 @@ public sealed class GrimoireMod : Mod
         ui.TextDisabled($"Or Press {_windowKey?.Key}");
     }
 
-    // The screen: each book, then the settings.
+    // The screen: a tab per book, then the settings (Mod Enabled and the shown book's slots).
     private void DrawWindow(UiDraw ui)
     {
-        if (ui.BeginChild("##books", 0f, -(ui.MeasureText("X").Height * 6f)))
+        Book[] books = _books;
+        if (books.Length == 0)
         {
-            _spells?.Draw(ui);
+            return;
         }
-        ui.EndChild();
+        float settingsHeight = ui.MeasureText("X").Height * 6f;
+        int pending = Volatile.Read(ref _pendingTab);
+        if (ui.BeginTabBar("##books"))
+        {
+            for (int i = 0; i < books.Length; i++)
+            {
+                if (ui.BeginControlledTab(books[i].Name, pending == i))
+                {
+                    _shownTab = i;
+                    if (ui.BeginChild("##book" + books[i].Name, 0f, -settingsHeight))
+                    {
+                        books[i].Draw(ui);
+                    }
+                    ui.EndChild();
+                    ui.EndTab();
+                }
+            }
+            ui.EndTabBar();
+        }
+        if (pending >= 0)
+        {
+            Interlocked.CompareExchange(ref _pendingTab, -1, pending);
+        }
         ui.Separator("Settings");
         bool enabled = Enabled;
         if (ui.Checkbox("Mod Enabled", ref enabled))
         {
             Change(GrimoireSettings.EnabledKey, enabled);
         }
-        ui.Tooltip("Off: the game's own spell list. The grimoire keeps what it holds.");
-        int slots = Setting(GrimoireSettings.SpellSlotsKey, GrimoireRules.DefaultSlots);
-        if (ui.Slider("Spell Slots", ref slots, GrimoireRules.MinSlots, GrimoireRules.MaxSlots))
+        ui.Tooltip("Off: the game's own spell and arrow lists. The grimoire keeps what it holds.");
+        BookKind kind = books[Math.Clamp(_shownTab, 0, books.Length - 1)].Kind;
+        int slots = Setting(kind.SlotsKey, GrimoireRules.DefaultSlots);
+        if (ui.Slider($"{kind.Singular} Slots", ref slots, GrimoireRules.MinSlots, GrimoireRules.MaxSlots))
         {
-            Change(GrimoireSettings.SpellSlotsKey, slots);
+            Change(kind.SlotsKey, slots);
         }
-        ui.Tooltip("How many spells the grimoire holds, one slot per spell. Lowering it keeps the spells already in it.");
+        ui.Tooltip($"How many kinds of {kind.Name.ToLowerInvariant()} the grimoire holds, one slot each. Lowering it keeps what is already in it.");
     }
 }

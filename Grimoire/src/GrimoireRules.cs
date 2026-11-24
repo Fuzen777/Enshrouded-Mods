@@ -16,6 +16,12 @@ public static class GrimoireRules
 
     public static int ClampSlots(int slots) => Math.Clamp(slots, MinSlots, MaxSlots);
 
+    /// <summary>The tab the screen opens on (the user's rule, 24 Nov 2026): Arrows when no spell is in the backpack and either arrows are
+    /// in the backpack or the grimoire holds arrows but no spells; Spells otherwise. "In the backpack" means loose stacks, not the
+    /// grimoire's own equipped stack.</summary>
+    public static bool OpenOnArrows(bool spellsInBackpack, bool spellsInGrimoire, bool arrowsInBackpack, bool arrowsInGrimoire) =>
+        !spellsInBackpack && (arrowsInBackpack || (!spellsInGrimoire && arrowsInGrimoire));
+
     /// <summary>Adds the items present that the order does not know yet at its end, in the order given. An item the order knows keeps its
     /// place, also while it is absent, so it comes back where it was.</summary>
     public static bool Merge(List<uint> order, IEnumerable<uint> present)

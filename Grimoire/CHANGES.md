@@ -1,8 +1,14 @@
 # Grimoire - Spells and Arrows Slots
 
-Kiln mod (C#, id `grimoire`) that keeps spells out of the backpack in slots of their own, equipped and listed in the HUD in the player's own order. Arrows are planned as a second book of the same kind. Source in `src`, tests in `tests\GrimoireRulesTests` (the rules without the game). `Scripts\Build.ps1` runs the tests and builds the mod into `dist\grimoire`; with `-Install` it copies it to `<game>\kiln\mods\grimoire` (game closed). The settings are in Kiln's profile (`%LOCALAPPDATA%\Kiln\profiles\my-mods\config\grimoire.json`), so an install never touches them. Tags are `grimoire/vX.Y.Z`.
+Kiln mod (C#, id `grimoire`) that keeps spells and arrows out of the backpack in slots of their own, equipped and listed in the HUD in the player's own order (the equipped stack takes one backpack slot). Source in `src`, tests in `tests\GrimoireRulesTests` (the rules without the game). `Scripts\Build.ps1` runs the tests and builds the mod into `dist\grimoire`; with `-Install` it copies it to `<game>\kiln\mods\grimoire` (game closed). The settings are in Kiln's profile (`%LOCALAPPDATA%\Kiln\profiles\my-mods\config\grimoire.json`), so an install never touches them. Tags are `grimoire/vX.Y.Z`.
 
 It was the spellbook of Better Spells (3.3.0-dev.1 to dev.11, 23 and 24 Nov 2026); that history, with what was found in game, is in `..\Better Spells\CHANGES.md`.
+
+## 0.2.0 (not released)
+
+- **Arrows** (asked 24 Nov 2026, after the user found spells working in 0.1.3): a second book on the same code, storage `grimoire:arrows` (32 slots, arrows only, kept on death), order key `order-arrows`, the bow's HUD arrow list in the player's order, and **Arrow Slots** (1 to 32, default 12). Same plain-moves-only rules as spells: the equipped arrows sit in one backpack cell, a pick swaps them with the stored ones, arrows that aren't the grimoire's stay in the backpack, and running out equips more of the same kind first, else the next in the order.
+- **Spells and Arrows tabs in F3**, with the settings below them (Mod Enabled for both, and the shown tab's Slots). The screen opens on **Arrows** when no spell is loose in the backpack and either arrows are, or the grimoire holds arrows but no spells; on **Spells** otherwise (the user's rule; `GrimoireRules.OpenOnArrows`, tested). A tab clicked while the screen is open stays until it closes. The screen is 780 high (was 760) for the tab bar.
+- Seen in game with 0.1.3 (the user, 24 Nov 2026): Grimoire spells work.
 
 ## 0.1.3 (not released)
 
