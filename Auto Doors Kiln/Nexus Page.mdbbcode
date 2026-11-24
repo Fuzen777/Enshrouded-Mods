@@ -55,7 +55,7 @@ Press **Shift + F7** in game (or **Open Settings Window** on the mod's page in K
 - **Mod Enabled**: the whole mod on or off.
 - **Bases Only**: on by default. Turn it off and doors everywhere open and close by themselves. Door modes, their key and the label stay for doors in your base.
 - **Players / Survivors / Build Camera / Animals**: who opens doors. Animals are off by default, so your farm stays in.
-- **Open Distance** and **Close Distance**: how close someone has to be for a door to open, and how far everyone has to be for it to close (hold Shift on the - and + buttons for bigger steps).
+- **Open Distance** and **Close Distance**: how close someone has to be for a door to open, and how far everyone has to be for it to close, in steps of 0.1 m (hold Shift on the - and + buttons for 0.5 m).
 - **Height Reach**: someone on another floor (above or below this distance) neither opens a door nor keeps it open.
 - **Close Delay**: seconds a door stays open after everyone has left.
 - **Respect Hand Toggles**: the "stays that way while you are near it" rule above.
@@ -67,7 +67,7 @@ Press **Shift + F7** in game (or **Open Settings Window** on the mod's page in K
 
 ## Requirements
 
-- [Kiln](https://github.com/frostdev-ops/kiln) mod loader, **0.2.0-dev.30.6 or newer**.
+- [Kiln](https://github.com/frostdev-ops/kiln) mod loader, **0.2.0-dev.31 or newer**.
 
 ## Installation
 

@@ -108,7 +108,7 @@ public sealed partial class AutoDoorsMod : Mod
             CreateSettingsScreen();
             Events.On<RenderFrameEvent>(OnFrame);
         }
-        Log.Info($"auto doors {Context.Info.Version}: loaded; open {_settings.Value.OpenDistanceDm / 10.0:0.0} m, close {_settings.Value.CloseDistanceDm / 10.0:0.0} m");
+        Log.Info($"auto doors {Context.Info.Version}: loaded; open {_settings.Value.OpenDistance:0.0} m, close {_settings.Value.CloseDistance:0.0} m");
     }
 
     public override void OnUnload()
@@ -249,22 +249,17 @@ public sealed partial class AutoDoorsMod : Mod
             d.Forward = World.Transform(id) is { } tf ? Vector3.Transform(Vector3.UnitZ, tf.Rotation) : Vector3.Zero;
             d.InBase = bases.Any(b => b.Contains(at));
         }
-        // Secret pieces (template names with "Secret"): toggles without a front and a back. Candidates come from two
-        // places: entities with the toggle components, and every entity whose template name holds "Secret" (0.2.10 found
-        // none through the first alone).
-        _toggleSet ??= World.Query("InteractionToggle", "ServerToggleState", "InteractionOfferRuntime");
-        _toggleSet.Refresh();
-        var candidates = new Dictionary<uint, EntityId>();
-        foreach (var id in _toggleSet.Entities) candidates[id.Value] = id;
-        int byName = 0;
-        try
+        // Secret pieces (Base_Secret_Door, _Shelf, _Floor, ...): toggles without a front and a back, found by template name.
+        // (A query for InteractionToggle + ServerToggleState + InteractionOfferRuntime finds none of them.)
+        IEnumerable<EntityId> named;
+        try { named = Spawn.FindByName("Secret", null, 1e9, 2000).ToList(); }
+        catch (Exception ex)
         {
-            foreach (var e in Spawn.FindByName("Secret", null, 1e9, 2000)) { candidates[e.Value] = e; byName++; }
+            if (!_secretFindFailed) Log.Warn($"auto doors: finding secret pieces failed: {ex.Message}");
+            _secretFindFailed = true;
+            named = Array.Empty<EntityId>();
         }
-        catch (Exception ex) { if (_secretLogs < 3) Log.Warn($"auto doors: finding secret pieces by name failed: {ex.Message}"); }
-        var diag = _secretLogs < 3 && bases.Count > 0 ? new List<string>() : null;
-        int secrets = 0;
-        foreach (var id in candidates.Values)
+        foreach (var id in named)
         {
             if (seen.Contains(id.Value) || World.Position(id) is not { } at) continue;
             if (!_doors.TryGetValue(id.Value, out var d))
@@ -273,31 +268,20 @@ public sealed partial class AutoDoorsMod : Mod
                 string? template = Spawn.Inspect(id)?.TemplateName;
                 if (template == null) continue;   // not known yet: look again next time
                 bool toggles = World.ReadBytes(id, "ServerToggleState") != null && World.ReadBytes(id, "InteractionOfferRuntime") != null;
-                bool inBase = bases.Any(b => b.Contains(at));
-                if (diag != null && diag.Count < 40 && (template.IndexOf("Secret", StringComparison.OrdinalIgnoreCase) >= 0 || inBase && toggles))
-                    diag.Add($"{id.Value} {template}{(toggles ? " toggles" : "")}{(inBase ? " in base" : "")}");
                 if (!toggles || template.IndexOf("Secret", StringComparison.OrdinalIgnoreCase) < 0) { _notSecret.Add(id.Value); continue; }
                 _doors[id.Value] = d = new DoorState { Id = id, Name = SecretName(template), Secret = true };
             }
-            secrets++;
             seen.Add(id.Value);
             d.At = at;
             d.Key = KeyOf(at);
             d.Forward = World.Transform(id) is { } tf ? Vector3.Transform(Vector3.UnitZ, tf.Rotation) : Vector3.Zero;
             d.InBase = bases.Any(b => b.Contains(at));
         }
-        if (diag != null)
-        {
-            _secretLogs++;
-            Log.Info($"auto doors: secret pieces: {secrets} found; {_toggleSet.Entities.Count()} toggles, {byName} named Secret; new candidates: " +
-                     (diag.Count == 0 ? "none" : string.Join("; ", diag)));
-        }
         foreach (var gone in _doors.Keys.Where(k => !seen.Contains(k)).ToList()) _doors.Remove(gone);
         if (_notSecret.Count > 20000) _notSecret.Clear();
     }
 
-    private EntitySet? _toggleSet;
-    private int _secretLogs;
+    private bool _secretFindFailed;
     private readonly HashSet<uint> _notSecret = new();
 
     // "Base_Secret_Shelf" -> "Secret Shelf".
@@ -461,9 +445,9 @@ public sealed partial class AutoDoorsMod : Mod
     {
         var triggers = Triggers(s);
         var players = Players.All.ToList();
-        double open = s.OpenDistanceDm / 10.0;
-        double close = Math.Max(s.CloseDistanceDm, s.OpenDistanceDm) / 10.0;
-        double height = s.HeightReachDm / 10.0;
+        double open = s.OpenDistance;
+        double close = Math.Max(s.CloseDistance, s.OpenDistance);
+        double height = s.HeightReach;
         double now = Now;
 
         foreach (var d in _doors.Values)

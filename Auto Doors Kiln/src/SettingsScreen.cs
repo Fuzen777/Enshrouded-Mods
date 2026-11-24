@@ -13,6 +13,7 @@ public sealed partial class AutoDoorsMod
     private const float ScreenWidth = 470f;
     private const float ScreenHeight = 650f;
     private const int ShiftSteps = 5;
+    private static readonly DoorSettings DefaultSettings = new();
 
     private UiScreen? _screen;
     private DoorSettings _draft = new();
@@ -87,21 +88,22 @@ public sealed partial class AutoDoorsMod
 
         ui.Spacing();
         ui.Separator("Distances");
-        var metres = (Func<int, string>)(dm => $"{dm / 10.0:0.0} m");
-        int step = shift ? ShiftSteps : 1;
-        Number(ui, "open", "Open Distance", s.OpenDistanceDm, 40, metres, step, x => x.OpenDistanceDm, (x, v) =>
+        var metres = (Func<double, string>)(m => $"{m:0.0} m");
+        int steps = shift ? ShiftSteps : 1;
+        double step = steps * DoorRules.Step;
+        Number(ui, "open", "Open Distance", s.OpenDistance, DefaultSettings.OpenDistance, metres, step, x => x.OpenDistance, (x, v) =>
         {
-            x.OpenDistanceDm = Math.Clamp(v, DoorRules.MinDistanceDm, DoorRules.MaxOpenDistanceDm);
-            x.CloseDistanceDm = Math.Max(x.CloseDistanceDm, x.OpenDistanceDm);
+            x.OpenDistance = Math.Clamp(v, DoorRules.MinDistance, DoorRules.MaxOpenDistance);
+            x.CloseDistance = Math.Max(x.CloseDistance, x.OpenDistance);
         }, "How close someone has to come, along the ground, for a door to open.");
-        Number(ui, "close", "Close Distance", s.CloseDistanceDm, 46, metres, step, x => x.CloseDistanceDm,
-            (x, v) => x.CloseDistanceDm = Math.Clamp(v, x.OpenDistanceDm, DoorRules.MaxCloseDistanceDm),
+        Number(ui, "close", "Close Distance", s.CloseDistance, DefaultSettings.CloseDistance, metres, step, x => x.CloseDistance,
+            (x, v) => x.CloseDistance = Math.Clamp(v, x.OpenDistance, DoorRules.MaxCloseDistance),
             "A door closes once everyone is farther than this. Never less than the open distance.");
-        Number(ui, "height", "Height Reach", s.HeightReachDm, 25, metres, step, x => x.HeightReachDm,
-            (x, v) => x.HeightReachDm = Math.Clamp(v, DoorRules.MinHeightReachDm, DoorRules.MaxHeightReachDm),
+        Number(ui, "height", "Height Reach", s.HeightReach, DefaultSettings.HeightReach, metres, step, x => x.HeightReach,
+            (x, v) => x.HeightReach = Math.Clamp(v, DoorRules.MinHeightReach, DoorRules.MaxHeightReach),
             "Someone farther than this above or below a door, on another floor, neither opens it nor keeps it open.");
-        Number(ui, "delay", "Close Delay", s.CloseDelaySeconds, 0, sec => $"{sec} s", step, x => x.CloseDelaySeconds,
-            (x, v) => x.CloseDelaySeconds = Math.Clamp(v, 0, 30),
+        Number(ui, "delay", "Close Delay", s.CloseDelaySeconds, 0, sec => $"{sec:0} s", steps, x => x.CloseDelaySeconds,
+            (x, v) => x.CloseDelaySeconds = (int)Math.Clamp(Math.Round(v), 0, 30),
             "How long a door stays open after everyone has left.");
 
         ui.Spacing();
@@ -127,7 +129,7 @@ public sealed partial class AutoDoorsMod
             Change(x =>
             {
                 var d = new DoorSettings { Enabled = x.Enabled };
-                x.OpenDistanceDm = d.OpenDistanceDm; x.CloseDistanceDm = d.CloseDistanceDm; x.HeightReachDm = d.HeightReachDm;
+                x.OpenDistance = d.OpenDistance; x.CloseDistance = d.CloseDistance; x.HeightReach = d.HeightReach;
                 x.CloseDelaySeconds = d.CloseDelaySeconds; x.OnlyInsideBases = d.OnlyInsideBases;
                 x.OpenForPlayers = d.OpenForPlayers; x.OpenForSurvivors = d.OpenForSurvivors; x.OpenForBuildCamera = d.OpenForBuildCamera;
                 x.OpenForAnimals = d.OpenForAnimals; x.CloseDoorsOpenedByHand = d.CloseDoorsOpenedByHand;
@@ -147,8 +149,9 @@ public sealed partial class AutoDoorsMod
     }
 
     // [-] value [+] label: the value in the look's accent colour while it is not the default.
-    private void Number(UiDraw ui, string id, string label, int value, int def, Func<int, string> format, int step,
-        Func<DoorSettings, int> get, Action<DoorSettings, int> set, string tip)
+    // A value with [-] and [+] buttons. Values move on a grid of 0.1 (rounded, so repeated steps don't drift).
+    private void Number(UiDraw ui, string id, string label, double value, double def, Func<double, string> format, double step,
+        Func<DoorSettings, double> get, Action<DoorSettings, double> set, string tip)
     {
         tip += $" Hold Shift for {ShiftSteps} steps at a time.";
         using var scope = ui.Id(id);
@@ -156,14 +159,14 @@ public sealed partial class AutoDoorsMod
         float gap = (float)Math.Ceiling(size * 0.3f);
         float valueWidth = ui.MeasureText("10.0 m", 0).Width + 2 * gap;
         float left = ui.Cursor.X;
-        if (ui.Button("-", size, size)) Change(x => set(x, get(x) - step));
+        if (ui.Button("-", size, size)) Change(x => set(x, Math.Round(get(x) - step, 1)));
         ui.Tooltip(tip);
         string text = format(value);
         ui.SameLine(left + size + gap + (float)Math.Floor((valueWidth - ui.MeasureText(text, 0).Width) / 2), -1);
-        if (value == def) ui.Text(text); else ui.Text(ui.Palette.Accent, text);
+        if (Math.Abs(value - def) < 0.001) ui.Text(text); else ui.Text(ui.Palette.Accent, text);
         ui.Tooltip(tip);
         ui.SameLine(left + size + 2 * gap + valueWidth, -1);
-        if (ui.Button("+", size, size)) Change(x => set(x, get(x) + step));
+        if (ui.Button("+", size, size)) Change(x => set(x, Math.Round(get(x) + step, 1)));
         ui.Tooltip(tip);
         ui.SameLine(0, 2 * gap);
         ui.Text(label);

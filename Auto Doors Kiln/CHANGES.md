@@ -2,6 +2,13 @@
 
 A rebuild of Auto Doors (SellTheWorldGames, closed source) as a Kiln mod, from its described behaviour, not its code. Doors are toggled by sending the game's own `ToggleInteractionEvent {guest, host, offer}` from the mod's ECS program `door_toggle` (`src\kiln.programs.json`); `interaction_toggle_new` flips `ServerToggleState` and `interaction_directional` swings the door away from the guest.
 
+## 0.3.0
+
+- Release build. Needs Kiln 0.2.0-dev.31 or newer (mod API 0.2.17).
+- Distances are in metres: Open Distance, Close Distance and Height Reach are decimals with `[Range(min, max, 0.1)]`, so Kiln's sliders move in steps of 0.1 m. New config keys `openDistance`, `closeDistance`, `heightReach`; the old `...Dm` keys are not read (they stay in the file, marked Unknown key, and can be deleted), so distances set before go back to their defaults once. The settings window's - and + move 0.1 m (Shift: 0.5 m).
+- Secret pieces, from 0.2.11's log (Fuzen: all work now): the toggle query found none of them, the name search found them all. The mod now finds them by name only, and the diagnostic log is gone.
+- Door label and Kiln dev.31's menu hiding: dev.31 hides world-position draws (`RenderFrameEvent.World`) while a game menu is open, but never pixel draws (`Draw`). The label is a pixel draw under the crosshair, so it keeps its own check (HUD in game, no Kiln menu or window) and nothing changes for it.
+
 ## 0.2.11
 
 - Secret pieces (Fuzen: 0.2.10 gave no message and no change on a secret door, a bookcase and a secret floor). Secret pieces are now also found by template name ("Secret" in the name), not only through the toggle components. For its first three scans with a base loaded, the log lists what it finds: `auto doors: secret pieces: N found; ...` with each candidate's id, template, whether it toggles and whether it is in a base.
