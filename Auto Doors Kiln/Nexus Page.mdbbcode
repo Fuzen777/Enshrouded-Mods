@@ -34,6 +34,10 @@ Both keys can be changed in the **Keys** tab of Kiln's menu. Normally, it should
 
 Modes are saved per world. When you look at a door inside your base whose mode is not Everyone, its mode shows under the crosshair.
 
+### Secret Doors
+
+Secret doors, shelves, floors and stairs in your base are left alone by default (**Manual**), so they stay secret. Look at one and press **Shift + MMB** (LB + Y) to switch it to **Close Only**: it never opens by itself, but closes once every player has left. Press again to go back to Manual. Only the message tells you the mode; there is no label.
+
 ### Opening/Closing by Hand
 
 You can still use any door as usual. A door you open or close by hand **stays that way while you are near it**, then goes back to working on its own once everyone has left.

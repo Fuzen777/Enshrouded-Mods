@@ -2,6 +2,11 @@
 
 A rebuild of Auto Doors (SellTheWorldGames, closed source) as a Kiln mod, from its described behaviour, not its code. Doors are toggled by sending the game's own `ToggleInteractionEvent {guest, host, offer}` from the mod's ECS program `door_toggle` (`src\kiln.programs.json`); `interaction_toggle_new` flips `ServerToggleState` and `interaction_directional` swings the door away from the guest.
 
+## 0.2.9
+
+- Build camera swing, from 0.2.8's log: a toggle only moves a door when its guest is the door's last accepted guest (InteractionOfferRuntime.lastAcceptData.guestId, +24). Survivors' toggles did nothing until accepted, then the door swung away from them; the player toggled doors from 25 m away. So the mod now accepts with the guest first whenever the door's last accepted guest is someone else (no more 15-step wait on a failed toggle), for every open and close. Camera guests: a player, survivor or animal on the camera's side at any distance, else another door on that side at any distance (0.2.8's 8 m found none: neighbouring doors share the wall's plane). A door guest that is not accepted falls back to you, and that kind is skipped after two failures.
+- Secret pieces (Fuzen): Base_Secret_Door, Shelf, Floor, Stair and Mechanism in a base. Manual by default; the Door Mode key switches between Manual and Close Only (never opens by itself, closes once the players have left, also when opened by hand or a mechanism). Message only, no label. Saved as CloseOnly in the world's door list.
+
 ## 0.2.8
 
 - Build camera swing (Fuzen: still wrong in 0.2.7). 0.2.7's log: the camera in front got the player as guest (nobody on its side), state 1; the camera behind got a door 396 m away as guest, whose toggle did nothing (24 steps, past the 15-step check), so the fallback accepted and toggled with the player, state 1 again: every camera open swung away from the player. Now the guest is a player, survivor or animal on the camera's side, else another door, within 8 m of the door (players at any distance). If the toggle with a non-player guest does nothing, the door is accepted with that guest and toggled again; only then with you. A guest kind that never works is skipped after two failures.

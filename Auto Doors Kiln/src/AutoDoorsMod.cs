@@ -25,6 +25,7 @@ namespace AutoDoorsKiln;
 public sealed partial class AutoDoorsMod : Mod
 {
     private const int EventSize = 24;
+    private const int AcceptedGuestOffset = 24;   // InteractionOfferRuntime.lastAcceptData.guestId
     private const int AcceptedOfferOffset = 36;
     private const int OfferIdOffset = 40;
     private const int EvaluateEverySteps = 4;      // the world runs 60 steps a second
@@ -34,7 +35,6 @@ public sealed partial class AutoDoorsMod : Mod
     private const double RetryAfterSeconds = 3.0;
     private const double ModeKeyReach = 8.0;     // the Door Mode key picks a door within this many metres of you
     private const double SurvivorSearchRadius = 60.0;
-    private const double GuestReach = 8.0;       // a non-player guest for a camera open stands within this of the door
 
     private readonly ConcurrentQueue<(string Name, uint Guest, uint Host, uint Offer)> _outgoing = new();
     private readonly List<IDisposable> _bindings = new();
@@ -69,6 +69,7 @@ public sealed partial class AutoDoorsMod : Mod
         public Vector3 Forward;      // the door's +Z (the game's forward axis): DirectionalInteraction has a front and a back
         public double GuestSide;     // which side of the door the guest of the last open stood on (for the log)
         public bool InBase;
+        public bool Secret;          // a secret door, shelf, floor, stair or mechanism: Manual or Close Only, no label
         public string Key = "";
         public string Name = "";
         public bool? LastSeen;
@@ -221,7 +222,8 @@ public sealed partial class AutoDoorsMod : Mod
         return KeyOf(new WorldPosition(v[0], v[1], v[2]));
     }
 
-    private DoorMode ModeOf(DoorState d) => _modes.TryGetValue(d.Key, out var m) ? m : DoorMode.Everyone;
+    private DoorMode ModeOf(DoorState d) =>
+        _modes.TryGetValue(d.Key, out var m) && (!d.Secret || m == DoorMode.CloseOnly) ? m : d.Secret ? DoorMode.Manual : DoorMode.Everyone;
 
     // -------------------------------------------------------------------------------------------------- doors ----
 
@@ -243,7 +245,38 @@ public sealed partial class AutoDoorsMod : Mod
             d.Forward = World.Transform(id) is { } tf ? Vector3.Transform(Vector3.UnitZ, tf.Rotation) : Vector3.Zero;
             d.InBase = bases.Any(b => b.Contains(at));
         }
+        // Secret pieces (Base_Secret_Door, _Shelf, _Floor, _Stair, _Mechanism): toggles without a front and a back.
+        _toggleSet ??= World.Query("InteractionToggle", "ServerToggleState", "InteractionOfferRuntime");
+        _toggleSet.Refresh();
+        foreach (var id in _toggleSet.Entities)
+        {
+            if (seen.Contains(id.Value) || World.Position(id) is not { } at) continue;
+            if (!_doors.TryGetValue(id.Value, out var d))
+            {
+                if (_notSecret.Contains(id.Value)) continue;
+                string? template = Spawn.Inspect(id)?.TemplateName;
+                if (template == null || template.IndexOf("Secret", StringComparison.OrdinalIgnoreCase) < 0) { _notSecret.Add(id.Value); continue; }
+                _doors[id.Value] = d = new DoorState { Id = id, Name = SecretName(template), Secret = true };
+            }
+            seen.Add(id.Value);
+            d.At = at;
+            d.Key = KeyOf(at);
+            d.Forward = World.Transform(id) is { } tf ? Vector3.Transform(Vector3.UnitZ, tf.Rotation) : Vector3.Zero;
+            d.InBase = bases.Any(b => b.Contains(at));
+        }
         foreach (var gone in _doors.Keys.Where(k => !seen.Contains(k)).ToList()) _doors.Remove(gone);
+        if (_notSecret.Count > 20000) _notSecret.Clear();
+    }
+
+    private EntitySet? _toggleSet;
+    private readonly HashSet<uint> _notSecret = new();
+
+    // "Base_Secret_Shelf" -> "Secret Shelf".
+    private static string SecretName(string template)
+    {
+        foreach (var part in new[] { "Shelf", "Floor", "Stair", "Mechanism" })
+            if (template.IndexOf(part, StringComparison.OrdinalIgnoreCase) >= 0) return "Secret " + part;
+        return "Secret Door";
     }
 
     private static bool? IsOpen(EntityId door) =>
@@ -334,6 +367,7 @@ public sealed partial class AutoDoorsMod : Mod
         DoorMode.Everyone => true,
         DoorMode.Players => who is Who.Player or Who.Camera,
         DoorMode.PlayersAndSurvivors => who is Who.Player or Who.Camera or Who.Survivor,
+        DoorMode.CloseOnly => who is Who.Player or Who.Camera,   // who keeps a secret door open; it never opens by itself
         _ => false,
     };
 
@@ -424,7 +458,8 @@ public sealed partial class AutoDoorsMod : Mod
             }
             d.LastSeen = isOpen;
 
-            var mode = d.InBase ? ModeOf(d) : DoorMode.Everyone;   // modes are set and kept for base doors only
+            // modes are set and kept for base doors only; secret pieces outside bases are left alone
+            var mode = d.InBase ? ModeOf(d) : d.Secret ? DoorMode.Manual : DoorMode.Everyone;
             if (mode == DoorMode.Manual || (s.OnlyInsideBases && !d.InBase)) continue;
 
             var keepOpen = Within(d, triggers, mode, close, height);
@@ -436,21 +471,22 @@ public sealed partial class AutoDoorsMod : Mod
 
             if (!isOpen)
             {
-                if (now < d.RetryAt) continue;
+                if (mode == DoorMode.CloseOnly || now < d.RetryAt) continue;
                 if (Within(d, triggers, mode, open, height) is { } who)
                 {
                     d.GuestKind = "";
                     d.Path = "";
                     uint openGuest = who.Who == Who.Camera ? GuestOnSide(d, who.At, triggers, players, who.Entity) : who.Entity;
                     d.GuestSide = Side(d, who.At);
-                    d.GuestTrial = who.Who == Who.Camera && d.GuestKind != "player";
+                    d.GuestTrial = who.Who == Who.Camera ? d.GuestKind != "player" : who.Who != Who.Player;
+                    if (who.Who != Who.Camera) d.GuestKind = who.Who.ToString().ToLowerInvariant();
                     Start(d, true, openGuest, who.Who.ToString().ToLowerInvariant(), players);
                 }
                 continue;
             }
 
             if (keepOpen != null) { d.ClearSince = -1; continue; }
-            if (!d.OpenedByMod && !s.CloseDoorsOpenedByHand) continue;
+            if (!d.OpenedByMod && !s.CloseDoorsOpenedByHand && mode != DoorMode.CloseOnly) continue;
             if (d.ClearSince < 0) d.ClearSince = now;
             if (now - d.ClearSince < s.CloseDelaySeconds || now < d.RetryAt) continue;
             if (NearestPlayer(d, players) is { } guest) Start(d, false, guest, "everyone left", players);
@@ -484,7 +520,6 @@ public sealed partial class AutoDoorsMod : Mod
             double side = Side(d, at);
             if (Math.Sign(side) != Math.Sign(want) || Math.Abs(side) < 0.3) return;
             double dist = Distance(at, d.At);
-            if (kind != "player" && dist > GuestReach) return;
             double score = rank * 1000 + dist;
             if (score < bestScore) { bestScore = score; best = entity; bestKind = kind; }
         }
@@ -492,14 +527,14 @@ public sealed partial class AutoDoorsMod : Mod
         foreach (var t in triggers)
             if (t.Who is Who.Survivor or Who.Animal && !playerIds.Contains(t.Entity))
                 Consider(t.Entity, t.At, t.Who == Who.Survivor ? "survivor" : "animal", 0);
-        foreach (var other in _doors.Values) Consider(other.Id.Value, other.At, "door", 1);
+        foreach (var other in _doors.Values) if (!other.Secret) Consider(other.Id.Value, other.At, "door", 1);
         d.GuestKind = bestKind;
         if (_sideLogs++ < 30)
         {
             var me = players.FirstOrDefault(p => p.Entity.Value == fallback);
             string you = me?.Position is { } pos ? $"; you stand {(Side(d, pos) >= 0 ? "in front" : "behind")} ({Side(d, pos):0.00} m)" : "";
             Log.Info($"auto doors: build camera at door {d.Id.Value}: camera {(want > 0 ? "in front" : "behind")} ({want:0.0} m), guest {best} ({bestKind}" +
-                     (best == fallback ? ", none on that side" : $", {bestScore % 1000:0.0} m from the door") + $"){you}");
+                     (best == fallback ? ", none on that side" : $", {Distance(_doors.TryGetValue(best, out var g) ? g.At : d.At, d.At):0.0} m from the door") + $"){you}");
         }
         return best;
     }
@@ -535,8 +570,16 @@ public sealed partial class AutoDoorsMod : Mod
         d.Want = open;
         d.Why = why;
         d.ClearSince = -1;
-        if (!open) d.GuestTrial = false;
+        if (!open) { d.GuestTrial = false; d.Path = ""; }
+        // A toggle only moves the door when its guest is the door's last accepted guest (0.2.8's log: survivors and the
+        // player far away both worked once accepted). Accept with the guest first when it is someone else.
         uint offer = ReadRuntime(d.Id, AcceptedOfferOffset);
+        if (offer != 0 && ReadRuntime(d.Id, AcceptedGuestOffset) != guest)
+        {
+            if (d.Path.Length == 0) d.Path = "accepted with the guest";
+            AcceptAs(d, guest);
+            return;
+        }
         if (offer != 0)
         {
             Send("ToggleInteractionEvent", guest, d.Id.Value, offer);
@@ -545,13 +588,8 @@ public sealed partial class AutoDoorsMod : Mod
             d.Due = _step + CheckAfterSteps;
             return;
         }
-        if (d.GuestTrial)
-        {
-            d.Path = "accepted with the guest";
-            AcceptAs(d, guest);
-            return;
-        }
-        Accept(d, players);
+        if (d.Path.Length == 0) d.Path = "accepted with the guest";
+        AcceptAs(d, guest);
     }
 
     private void Accept(DoorState d, List<Player> players)
@@ -613,6 +651,7 @@ public sealed partial class AutoDoorsMod : Mod
             case Stage.Accepting:
                 // wait until the accept landed (the runtime changed), at most AcceptWaitSteps
                 if (RuntimeKey(d.Id) == d.RuntimeBefore && _step < d.Due) break;
+                if (d.GuestTrial && RuntimeKey(d.Id) == d.RuntimeBefore) { FallBackToPlayer(d, players, "the door did not accept it"); break; }
                 uint offer = ReadRuntime(d.Id, AcceptedOfferOffset);
                 if (offer == 0)
                 {
@@ -694,8 +733,10 @@ public sealed partial class AutoDoorsMod : Mod
         EnsureWorldRules();
         if (_doors.Count == 0 || _step - _lastScan >= RescanEverySteps) Rescan();
         if (Aimed(player) is not { } d || !d.InBase) return;   // the key was let through to the game
-        var next = (DoorMode)(((int)ModeOf(d) + 1) % 4);
-        if (next == DoorMode.Everyone) _modes.Remove(d.Key); else _modes[d.Key] = next;
+        var next = d.Secret
+            ? (ModeOf(d) == DoorMode.CloseOnly ? DoorMode.Manual : DoorMode.CloseOnly)
+            : (DoorMode)(((int)ModeOf(d) + 1) % 4);
+        if (next == DoorMode.Everyone || (d.Secret && next == DoorMode.Manual)) _modes.Remove(d.Key); else _modes[d.Key] = next;
         SaveModes();
         d.HandHold = false;
         d.ClearSince = -1;
@@ -705,6 +746,7 @@ public sealed partial class AutoDoorsMod : Mod
             DoorMode.Everyone => "opens for everyone",
             DoorMode.Players => "opens for players",
             DoorMode.PlayersAndSurvivors => "opens for players & survivors",
+            DoorMode.CloseOnly => "closes by itself",
             _ => "is manual",
         }, ToastKind.Info);
     }
@@ -756,7 +798,7 @@ public sealed partial class AutoDoorsMod : Mod
         // key stays the game's and there is no label.
         bool inBase = d is { InBase: true };
         SetModeKeys(inBase);
-        if (!inBase || !s.DoorLabel || ModeOf(d!) is var mode && mode == DoorMode.Everyone)
+        if (!inBase || !s.DoorLabel || d!.Secret || ModeOf(d) is var mode && mode == DoorMode.Everyone)
         {
             _label = null;
             return;
@@ -785,6 +827,7 @@ public sealed partial class AutoDoorsMod : Mod
         DoorMode.Everyone => "Everyone",
         DoorMode.Players => "Players",
         DoorMode.PlayersAndSurvivors => "Players & Survivors",
+        DoorMode.CloseOnly => "Close Only",
         _ => "Manual",
     };
 
