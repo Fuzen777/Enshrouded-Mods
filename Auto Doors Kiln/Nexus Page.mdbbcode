@@ -6,13 +6,13 @@
 
 <div style="text-align: center">
 
-*<span style="color: #e6a050">Doors in your base open as you walk up to them and close behind you.</span>*
+*<span style="color: #e6a050">Approach : door opens. Leave : door closes. Simple as that.</span>*
 
 </div>
 
 Auto Doors is a **Kiln** mod. Inside a Flame Altar's area, doors opens when you, a survivor or your build camera comes near, and close once everyone has left. 
 
-It is a rebuild of the idea behind SellTheWorldGames' AutoDoors, with configurable distances and a mode for each door. It also doesn’t close your inventory/craft menu if a door opens at the same time.
+It is a rebuild of the idea behind SellTheWorldGames' AutoDoors, with configurable distances and a mode for each door. It also doesn’t close your inventory/chest/craft menu if a door opens at the same time.
 
 There is no on-screen prompt for any of this, so here is everything you can do.
 
@@ -30,7 +30,7 @@ Both keys can be changed in the **Keys** tab of Kiln's menu. Normally, it should
 - **Everyone** (Default) : Players, Build Camera, Survivors (and Animals if turned on)
 - **Players** : Players, Build Camera
 - Players &amp; Survivors : same as Everyone, Animals excluded.
-- Manual : same as if the mod were off. 
+- Manual : same as if the mod were off.
 
 Modes are saved per world. When you look at a door inside your base whose mode is not Everyone, its mode shows under the crosshair.
 

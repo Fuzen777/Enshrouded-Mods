@@ -34,6 +34,7 @@ public sealed partial class AutoDoorsMod : Mod
     private const double RetryAfterSeconds = 3.0;
     private const double ModeKeyReach = 8.0;     // the Door Mode key picks a door within this many metres of you
     private const double SurvivorSearchRadius = 60.0;
+    private const double GuestReach = 8.0;       // a non-player guest for a camera open stands within this of the door
 
     private readonly ConcurrentQueue<(string Name, uint Guest, uint Host, uint Offer)> _outgoing = new();
     private readonly List<IDisposable> _bindings = new();
@@ -79,6 +80,9 @@ public sealed partial class AutoDoorsMod : Mod
         public Stage Stage;
         public bool Want;
         public uint Guest;
+        public string GuestKind = "";   // camera opens: what the guest is (player, survivor, animal, door)
+        public string Path = "";        // camera opens: how the door was moved (for the log)
+        public bool GuestTrial;         // camera opens: the toggle runs with a non-player guest; falls back to the player
         public ulong Due;
         public string RuntimeBefore = "";
         public string Why = "";
@@ -435,8 +439,11 @@ public sealed partial class AutoDoorsMod : Mod
                 if (now < d.RetryAt) continue;
                 if (Within(d, triggers, mode, open, height) is { } who)
                 {
+                    d.GuestKind = "";
+                    d.Path = "";
                     uint openGuest = who.Who == Who.Camera ? GuestOnSide(d, who.At, triggers, players, who.Entity) : who.Entity;
                     d.GuestSide = Side(d, who.At);
+                    d.GuestTrial = who.Who == Who.Camera && d.GuestKind != "player";
                     Start(d, true, openGuest, who.Who.ToString().ToLowerInvariant(), players);
                 }
                 continue;
@@ -455,33 +462,58 @@ public sealed partial class AutoDoorsMod : Mod
         d.Forward == Vector3.Zero ? 0 : (p.X - d.At.X) * d.Forward.X + (p.Y - d.At.Y) * d.Forward.Y + (p.Z - d.At.Z) * d.Forward.Z;
 
     // interaction_directional swings a door away from the toggle's guest, read from the guest's CurrentTransform. The build
-    // camera has no entity, and its player may stand on the other side (0.2.3: camera-opened doors always swung the same
-    // way). So the guest is an entity on the camera's side of the door: a player, a survivor or another door, the one
-    // nearest to the door. Any entity with a transform does; the toggle checks the offer, not the guest.
+    // camera has no entity, and its player may stand anywhere (0.2.3: camera-opened doors always swung the same way).
+    // 0.2.7's log: a toggle with a door 396 m away as guest did nothing, so the fallback accepted and toggled with the
+    // player, and the door swung away from the player again. Now the guest is an entity on the camera's side within
+    // GuestReach of the door: a player or survivor or animal first, else another door. If the toggle with a non-player
+    // guest does nothing, the door is accepted with that guest and toggled again; only then with the player (Follow).
+    // Kinds that never worked are skipped after two tries (_guestFails).
     private uint GuestOnSide(DoorState d, WorldPosition camera, List<Trigger> triggers, List<Player> players, uint fallback)
     {
         double want = Side(d, camera);
+        d.GuestKind = "player";
         if (Math.Abs(want) < 0.05) return fallback;
         uint best = fallback;
-        double bestDist = double.MaxValue;
-        void Consider(uint entity, WorldPosition at)
+        string bestKind = "player";
+        double bestScore = double.MaxValue;
+        var playerIds = new HashSet<uint>(players.Select(p => p.Entity.Value));
+        void Consider(uint entity, WorldPosition at, string kind, int rank)
         {
             if (entity == d.Id.Value) return;
+            if (_guestFails.TryGetValue(kind, out var f) && f.Fails >= 2 && f.Works == 0) return;
             double side = Side(d, at);
             if (Math.Sign(side) != Math.Sign(want) || Math.Abs(side) < 0.3) return;
             double dist = Distance(at, d.At);
-            if (dist < bestDist) { bestDist = dist; best = entity; }
+            if (kind != "player" && dist > GuestReach) return;
+            double score = rank * 1000 + dist;
+            if (score < bestScore) { bestScore = score; best = entity; bestKind = kind; }
         }
-        foreach (var p in players) if (p.Position is { } at) Consider(p.Entity.Value, at);
-        foreach (var t in triggers) if (t.Who is Who.Survivor or Who.Animal) Consider(t.Entity, t.At);
-        foreach (var other in _doors.Values) Consider(other.Id.Value, other.At);
-        if (_sideLogs++ < 20)
-            Log.Info($"auto doors: build camera at door {d.Id.Value}: camera {(want > 0 ? "in front" : "behind")} ({want:0.0} m), guest {best}" +
-                     (best == fallback ? " (no entity on that side, the player)" : $" ({bestDist:0.0} m from the door)"));
+        foreach (var p in players) if (p.Position is { } at) Consider(p.Entity.Value, at, "player", 0);
+        foreach (var t in triggers)
+            if (t.Who is Who.Survivor or Who.Animal && !playerIds.Contains(t.Entity))
+                Consider(t.Entity, t.At, t.Who == Who.Survivor ? "survivor" : "animal", 0);
+        foreach (var other in _doors.Values) Consider(other.Id.Value, other.At, "door", 1);
+        d.GuestKind = bestKind;
+        if (_sideLogs++ < 30)
+        {
+            var me = players.FirstOrDefault(p => p.Entity.Value == fallback);
+            string you = me?.Position is { } pos ? $"; you stand {(Side(d, pos) >= 0 ? "in front" : "behind")} ({Side(d, pos):0.00} m)" : "";
+            Log.Info($"auto doors: build camera at door {d.Id.Value}: camera {(want > 0 ? "in front" : "behind")} ({want:0.0} m), guest {best} ({bestKind}" +
+                     (best == fallback ? ", none on that side" : $", {bestScore % 1000:0.0} m from the door") + $"){you}");
+        }
         return best;
     }
 
-    private int _sideLogs, _directionLogs;
+    // Which guest kinds moved a door for the camera, and which did not.
+    private readonly Dictionary<string, (int Works, int Fails)> _guestFails = new();
+
+    private void GuestResult(string kind, bool worked)
+    {
+        _guestFails.TryGetValue(kind, out var f);
+        _guestFails[kind] = worked ? (f.Works + 1, f.Fails) : (f.Works, f.Fails + 1);
+    }
+
+    private int _sideLogs, _directionLogs, _cameraOpenLogs;
 
     private static uint? NearestPlayer(DoorState d, List<Player> players)
     {
@@ -503,6 +535,7 @@ public sealed partial class AutoDoorsMod : Mod
         d.Want = open;
         d.Why = why;
         d.ClearSince = -1;
+        if (!open) d.GuestTrial = false;
         uint offer = ReadRuntime(d.Id, AcceptedOfferOffset);
         if (offer != 0)
         {
@@ -510,6 +543,12 @@ public sealed partial class AutoDoorsMod : Mod
             d.Guest = guest;
             d.Stage = Stage.Toggled;
             d.Due = _step + CheckAfterSteps;
+            return;
+        }
+        if (d.GuestTrial)
+        {
+            d.Path = "accepted with the guest";
+            AcceptAs(d, guest);
             return;
         }
         Accept(d, players);
@@ -529,6 +568,25 @@ public sealed partial class AutoDoorsMod : Mod
         d.Due = _step + AcceptWaitSteps;
     }
 
+    private void FallBackToPlayer(DoorState d, List<Player> players, string why)
+    {
+        Log.Info($"auto doors: door {d.Id.Value}: {d.GuestKind} {d.Guest} as guest: {why}; using you");
+        GuestResult(d.GuestKind, false);
+        d.GuestTrial = false;
+        d.GuestKind = "player";
+        d.Path = "fell back to you";
+        Accept(d, players);
+    }
+
+    private void AcceptAs(DoorState d, uint guest)
+    {
+        d.Guest = guest;
+        d.RuntimeBefore = RuntimeKey(d.Id);
+        Send("AcceptOfferedInteractionEvent", guest, d.Id.Value, ReadRuntime(d.Id, OfferIdOffset));
+        d.Stage = Stage.Accepting;
+        d.Due = _step + AcceptWaitSteps;
+    }
+
     private void Follow(DoorState d, bool isOpen, List<Player> players)
     {
         if (d.Stage is Stage.Toggled or Stage.ToggledAfterAccept && isOpen == d.Want)
@@ -539,18 +597,39 @@ public sealed partial class AutoDoorsMod : Mod
         switch (d.Stage)
         {
             case Stage.Toggled when _step >= d.Due:
-                Accept(d, players);   // the toggle alone did nothing: accept with a player, then toggle again
+                if (d.GuestTrial)
+                {
+                    // the toggle with a non-player guest did nothing: accept with that guest, then toggle again
+                    Log.Info($"auto doors: door {d.Id.Value}: toggle with {d.GuestKind} {d.Guest} as guest did nothing; accepting with it");
+                    d.Path = "accepted with the guest";
+                    AcceptAs(d, d.Guest);
+                }
+                else
+                {
+                    if (d.Why == "camera") d.Path = "accepted with you";
+                    Accept(d, players);   // the toggle alone did nothing: accept with a player, then toggle again
+                }
                 break;
             case Stage.Accepting:
                 // wait until the accept landed (the runtime changed), at most AcceptWaitSteps
                 if (RuntimeKey(d.Id) == d.RuntimeBefore && _step < d.Due) break;
                 uint offer = ReadRuntime(d.Id, AcceptedOfferOffset);
-                if (offer == 0) { Fail(d, "the door did not accept"); break; }
+                if (offer == 0)
+                {
+                    if (d.GuestTrial) FallBackToPlayer(d, players, "the door did not accept it");
+                    else Fail(d, "the door did not accept");
+                    break;
+                }
                 Send("ToggleInteractionEvent", d.Guest, d.Id.Value, offer);
                 d.Stage = Stage.ToggledAfterAccept;
                 d.Due = _step + CheckAfterSteps;
                 break;
             case Stage.ToggledAfterAccept when _step >= d.Due:
+                if (d.GuestTrial)
+                {
+                    FallBackToPlayer(d, players, "no move after an accept either");
+                    break;
+                }
                 Fail(d, "the door did not move");
                 break;
         }
@@ -566,6 +645,15 @@ public sealed partial class AutoDoorsMod : Mod
         if (_opened + _closed <= 20)
             Log.Info($"auto doors: {(isOpen ? "opened" : "closed")} door {d.Id.Value} at {d.Key} ({d.Why})");
         // which DirectionalInteraction state goes with which side, to check the front/back reading above
+        if (isOpen && d.Why == "camera")
+        {
+            if (d.GuestTrial) GuestResult(d.GuestKind, true);
+            d.GuestTrial = false;
+            if (_cameraOpenLogs++ < 30 && World.ReadBytes(d.Id, "DirectionalInteraction") is { Length: >= 4 } cam)
+                Log.Info($"auto doors: door {d.Id.Value} opened for the camera {(d.GuestSide > 0 ? "in front" : "behind")} ({d.GuestSide:0.0} m) " +
+                         $"with {d.GuestKind} {d.Guest} as guest ({(d.Path.Length > 0 ? d.Path : "toggle only")}): directional state {BitConverter.ToUInt32(cam, 0)} " +
+                         $"({(BitConverter.ToUInt32(cam, 0) == (d.GuestSide > 0 ? 1u : 2u) ? "away from the camera" : "TOWARD the camera")})");
+        }
         if (isOpen && _directionLogs++ < 12 && World.ReadBytes(d.Id, "DirectionalInteraction") is { Length: >= 4 } dir)
             Log.Info($"auto doors: door {d.Id.Value} opened ({d.Why}) with the one who came {(d.GuestSide > 0 ? "in front" : "behind")} ({d.GuestSide:0.0} m): directional state {BitConverter.ToUInt32(dir, 0)}");
     }

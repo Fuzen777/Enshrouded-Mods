@@ -2,6 +2,11 @@
 
 A rebuild of Auto Doors (SellTheWorldGames, closed source) as a Kiln mod, from its described behaviour, not its code. Doors are toggled by sending the game's own `ToggleInteractionEvent {guest, host, offer}` from the mod's ECS program `door_toggle` (`src\kiln.programs.json`); `interaction_toggle_new` flips `ServerToggleState` and `interaction_directional` swings the door away from the guest.
 
+## 0.2.8
+
+- Build camera swing (Fuzen: still wrong in 0.2.7). 0.2.7's log: the camera in front got the player as guest (nobody on its side), state 1; the camera behind got a door 396 m away as guest, whose toggle did nothing (24 steps, past the 15-step check), so the fallback accepted and toggled with the player, state 1 again: every camera open swung away from the player. Now the guest is a player, survivor or animal on the camera's side, else another door, within 8 m of the door (players at any distance). If the toggle with a non-player guest does nothing, the door is accepted with that guest and toggled again; only then with you. A guest kind that never works is skipped after two failures.
+- The log says, for 30 camera opens, where you stand, the guest and its kind, how the door was moved and whether it swung away from the camera or toward it.
+
 ## 0.2.7
 
 - Labels in Title Case, no sentences (Fuzen): Mod Enabled; Bases Only (checked = base doors only, the default; replaces Work outside bases); Who Opens Doors, Build Camera, Open Distance, Close Distance, Height Reach, Close Delay, Doors Used By Hand, Respect Hand Toggles, Close Doors Opened By Hand, On Screen, Door Label; key hints as "Door Mode: Shift + Middle Mouse / LB + Y" and "Settings: Shift + F7"; "No World Loaded". The Shift hint moved into the distance tooltips.
