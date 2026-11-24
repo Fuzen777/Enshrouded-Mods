@@ -36,7 +36,11 @@ Modes are saved per world. When you look at a door inside your base whose mode i
 
 ### Secret Doors
 
-Secret doors, shelves, floors and stairs in your base are left alone by default (**Manual**), so they stay secret. Look at one and press **Shift + MMB** (LB + Y) to switch it to **Close Only**: it never opens by itself, but closes once every player has left. Press again to go back to Manual. Only the message tells you the mode; there is no label.
+Secret doors, shelves, floors and stairs only ever work in your base. Look at one and press **Shift + MMB** (LB + Y) to change its mode. Only the message tells you the mode; there is no label.
+
+- **Close Only** (Default) : never opens by itself, closes once every player has left.
+- **Players** : opens and closes for players, like a door.
+- **Manual** : same as if the mod were off.
 
 ### Opening/Closing by Hand
 

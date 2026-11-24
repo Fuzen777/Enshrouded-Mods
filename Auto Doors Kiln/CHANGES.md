@@ -2,6 +2,11 @@
 
 A rebuild of Auto Doors (SellTheWorldGames, closed source) as a Kiln mod, from its described behaviour, not its code. Doors are toggled by sending the game's own `ToggleInteractionEvent {guest, host, offer}` from the mod's ECS program `door_toggle` (`src\kiln.programs.json`); `interaction_toggle_new` flips `ServerToggleState` and `interaction_directional` swings the door away from the guest.
 
+## 0.2.10
+
+- Secret pieces (Fuzen): Close Only is their default; the Door Mode key cycles Close Only, Players (opens and closes for players and the build camera, like a door), Manual. They only ever work inside a base, also with Bases Only off. The world's door list stores Players and Manual for them; Close Only is not listed.
+- 0.2.9 was never installed (published only).
+
 ## 0.2.9
 
 - Build camera swing, from 0.2.8's log: a toggle only moves a door when its guest is the door's last accepted guest (InteractionOfferRuntime.lastAcceptData.guestId, +24). Survivors' toggles did nothing until accepted, then the door swung away from them; the player toggled doors from 25 m away. So the mod now accepts with the guest first whenever the door's last accepted guest is someone else (no more 15-step wait on a failed toggle), for every open and close. Camera guests: a player, survivor or animal on the camera's side at any distance, else another door on that side at any distance (0.2.8's 8 m found none: neighbouring doors share the wall's plane). A door guest that is not accepted falls back to you, and that kind is skipped after two failures.

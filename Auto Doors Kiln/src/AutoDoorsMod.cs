@@ -222,8 +222,12 @@ public sealed partial class AutoDoorsMod : Mod
         return KeyOf(new WorldPosition(v[0], v[1], v[2]));
     }
 
-    private DoorMode ModeOf(DoorState d) =>
-        _modes.TryGetValue(d.Key, out var m) && (!d.Secret || m == DoorMode.CloseOnly) ? m : d.Secret ? DoorMode.Manual : DoorMode.Everyone;
+    // Secret pieces: Close Only (default), Players or Manual (Fuzen, 24 Nov 2026). Doors: never Close Only.
+    private DoorMode ModeOf(DoorState d) => d.Secret
+        ? (_modes.TryGetValue(d.Key, out var sm) && sm is DoorMode.Players or DoorMode.Manual ? sm : DoorMode.CloseOnly)
+        : (_modes.TryGetValue(d.Key, out var m) && m != DoorMode.CloseOnly ? m : DoorMode.Everyone);
+
+    private static DoorMode DefaultMode(DoorState d) => d.Secret ? DoorMode.CloseOnly : DoorMode.Everyone;
 
     // -------------------------------------------------------------------------------------------------- doors ----
 
@@ -458,7 +462,7 @@ public sealed partial class AutoDoorsMod : Mod
             }
             d.LastSeen = isOpen;
 
-            // modes are set and kept for base doors only; secret pieces outside bases are left alone
+            // modes are set and kept for base doors only; secret pieces outside bases are always left alone
             var mode = d.InBase ? ModeOf(d) : d.Secret ? DoorMode.Manual : DoorMode.Everyone;
             if (mode == DoorMode.Manual || (s.OnlyInsideBases && !d.InBase)) continue;
 
@@ -734,9 +738,9 @@ public sealed partial class AutoDoorsMod : Mod
         if (_doors.Count == 0 || _step - _lastScan >= RescanEverySteps) Rescan();
         if (Aimed(player) is not { } d || !d.InBase) return;   // the key was let through to the game
         var next = d.Secret
-            ? (ModeOf(d) == DoorMode.CloseOnly ? DoorMode.Manual : DoorMode.CloseOnly)
+            ? ModeOf(d) switch { DoorMode.CloseOnly => DoorMode.Players, DoorMode.Players => DoorMode.Manual, _ => DoorMode.CloseOnly }
             : (DoorMode)(((int)ModeOf(d) + 1) % 4);
-        if (next == DoorMode.Everyone || (d.Secret && next == DoorMode.Manual)) _modes.Remove(d.Key); else _modes[d.Key] = next;
+        if (next == DefaultMode(d)) _modes.Remove(d.Key); else _modes[d.Key] = next;
         SaveModes();
         d.HandHold = false;
         d.ClearSince = -1;

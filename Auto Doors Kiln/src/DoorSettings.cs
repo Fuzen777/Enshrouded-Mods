@@ -77,7 +77,7 @@ public sealed class DoorSettings
 public sealed class DoorWorldRules
 {
     [ConfigKey("doors")]
-    [Comment("Doors with their own mode, as x,y,z=mode (mode: Players, PlayersAndSurvivors or Manual; CloseOnly for secret doors). Doors not listed open for everyone; secret doors not listed are manual. Set with the Door Mode key (Shift + middle mouse button, or LB + Y on a controller) while looking at a door.")]
+    [Comment("Doors with their own mode, as x,y,z=mode (mode: Players, PlayersAndSurvivors or Manual). Doors not listed open for everyone; secret doors not listed are Close Only (listed: Players or Manual). Set with the Door Mode key (Shift + middle mouse button, or LB + Y on a controller) while looking at a door.")]
     public List<string> Doors { get; set; } = new();
 }
 
@@ -88,7 +88,7 @@ public enum DoorMode
     Players,              // players and their build camera
     PlayersAndSurvivors,  // players, their build camera and survivors (no animals)
     Manual,               // the mod leaves the door alone
-    CloseOnly,            // secret pieces only: never opens by itself, closes once the players have left
+    CloseOnly,            // secret pieces only (their default): never opens by itself, closes once the players have left
 }
 
 /// <summary>Limits shared by the settings and the code.</summary>
