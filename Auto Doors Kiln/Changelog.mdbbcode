@@ -1,9 +1,5 @@
-## 1.1.0
+1.1.0
+Much lighter on your world: the mod searched every entity in the world for survivors and animals 30 times a second, and now does it once every half second, only while you are within 60 m of a door that a survivor or an animal could open, so survivors walking up to a door still open it right away. Doors are now looked for every 5 seconds and secret pieces every 30 seconds (both were every 2.5 seconds), so a secret door, shelf, floor or stair placed in your base starts working within 30 seconds. The build camera now opens a door taller than the Height Reach anywhere up to the top of its doorway, for example the 6 m Round Ancient Door, which used to open only near its foot; players, survivors and animals keep the plain Height Reach, so standing on a floor above a tall door does not open it.
 
-- **Performance**: much lighter on your world. Each search for survivors and animals goes through every entity in the world, and the mod ran 30 of them a second. It now runs one every half second, and only while you are within 60 m of a door that a survivor or an animal could open. Survivors walking up to a door still open it right away.
-- Doors are looked for every 5 seconds and secret pieces every 30 seconds (both were every 2.5 seconds). A secret door, shelf, floor or stair placed in your base starts working within 30 seconds.
-- **Tall Doors**: the build camera now opens a door taller than the Height Reach anywhere up to the top of its doorway. The Round Ancient Door (6 m tall) used to open only when the camera was near its foot. Players, survivors and animals keep the plain Height Reach, so standing on a floor above a tall door does not open it.
-
-## 1.0.0
-
-- First release.
+1.0.0
+First release.
