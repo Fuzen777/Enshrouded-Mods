@@ -4,6 +4,11 @@ Kiln mod (C#, id `grimoire`) that keeps spells out of the backpack in slots of t
 
 It was the spellbook of Better Spells (3.3.0-dev.1 to dev.11, 23 and 24 Nov 2026); that history, with what was found in game, is in `..\Better Spells\CHANGES.md`.
 
+## 0.1.2 (not released)
+
+- **Fix: a spell the game equipped from the backpack no longer joins the grimoire.** Seen by the user in 0.1.0: a looted Shroud Beam joined it during a switch. kiln.log, 24 Nov 2026 06:17: the game switched to the Shroud Beam in the backpack (`10546:5`) by itself, leaving Light Burst unequipped in the Equipment page's Spell cell; a pick 2 s later tried to move the Shroud Beam to the Equipment page, but GiveEquip found that cell taken ("no empty unselected equipment slot is available"), so the mod swapped the picked spell in, and the swap put the Shroud Beam into the storage. Now a pick first files back a stack left in the Equipment page (as the 5 s settle does, which worked: Light Burst filed back at 06:17:17), and an equipped backpack spell the grimoire doesn't hold is unequipped where it lies instead of moved; if it stays equipped, nothing is swapped.
+- To clear the Shroud Beam: right-click it in the F3 screen (Take Out).
+
 ## 0.1.1 (not released)
 
 - **Fix: the HUD count of the equipped spell follows casts.** Seen by the user in 0.1.0: Ball Lightning stayed at x10 while casting and showed the right count only after leaving the HUD and coming back. The equipped stack sits in the Equipment page, which the game's own rows don't list (kiln.log: `game rows []`), so a cast changed nothing the HUD list is rebuilt for, and the count came from the mod's last picture. The mod now looks at the equipped stack's count four times a second and refreshes the list when it changed.

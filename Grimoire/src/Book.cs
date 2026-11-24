@@ -302,9 +302,10 @@ internal sealed class Book : IDisposable
 
     private OrderData Order(EntityId player) => CharacterData.Carried.Get<OrderData>(player, _kind.OrderKey);
 
-    // Equips a stored item. The equipped stack is out of the backpack first (Reseat); an empty slot gets the stack given straight into
-    // the Equipment page's cell (then the stored stack is taken), an occupied one a swap with the stored stack, the old one going into
-    // the storage slot.
+    // Equips a stored item. First a stack stranded in the Equipment page goes back into the storage, and an equipped backpack stack
+    // leaves the slot: a grimoire spell moves to the Equipment page (Reseat), any other is unequipped where it lies. Then an empty slot
+    // gets the stack given straight into the Equipment page's cell (the stored stack is taken), an occupied one a swap with the stored
+    // stack, the old one going into the storage slot.
     private async Task Equip(EntityId player, uint item, string why)
     {
         PlayerStorage? storage = Ready(player, why);
@@ -323,10 +324,32 @@ internal sealed class Book : IDisposable
             Log.Info($"{Tag} ({why}): {ItemName(new ItemId(item))} is not in the grimoire");
             return;
         }
+        // A stack left in the Equipment page by a switch of the game's own holds the cell GiveEquip needs (0.1.0: "no empty unselected
+        // equipment slot is available"): it goes back into the storage first.
+        await FileStranded(player, storage, why);
+        equipped = Equipped(player, storage);
         if (equipped != null && equipped.InBackpack)
         {
-            await Reseat(player, storage, why);
+            uint equippedItem = equipped.Stack.Item.Value;
+            if (Stored(player, storage).Any(s => s.Stack.Item.Value == equippedItem))
+            {
+                // A grimoire spell equipped from the backpack: it moves to the Equipment page and stays in the grimoire.
+                await Reseat(player, storage, why);
+            }
+            else
+            {
+                // A backpack spell the game equipped: it stays in the backpack, unequipped. A swap would have put it into the storage
+                // (0.1.0: a looted Shroud Beam joined the grimoire this way).
+                EquipResult off = await Items.Unequip(player, _kind.Slot);
+                Log.Info($"{Tag} ({why}): {ItemName(equipped.Stack.Item)} x{equipped.Stack.Count}, equipped from the backpack, unequipped where it lies -> {off}");
+            }
             equipped = Equipped(player, storage);
+            if (equipped != null && equipped.InBackpack)
+            {
+                Log.Info($"{Tag} ({why}): {ItemName(equipped.Stack.Item)} is still equipped in the backpack; nothing is swapped into the grimoire");
+                Hud.Toast($"Grimoire: {ItemName(new ItemId(item))} Not Equipped", ToastKind.Info, 3);
+                return;
+            }
             stored = Stored(player, storage).FirstOrDefault(s => s.Stack.Item.Value == item);
             if (stored == null)
             {
@@ -449,6 +472,12 @@ internal sealed class Book : IDisposable
         {
             return;
         }
+        await FileStranded(player, storage, "settled");
+    }
+
+    // Files every stack of this kind that lies in an Equipment page but is not equipped back into the storage.
+    private async Task FileStranded(EntityId player, PlayerStorage storage, string why)
+    {
         EquippedStack? equipped = Equipped(player, storage);
         List<InventorySlot> stranded = Items.Read(player)?.Slots
             .Where(s => !s.IsEmpty && s.Category == InventoryCategory.Equipment && _kind.Holds(s.Item) && !s.IsEquipped
@@ -456,7 +485,7 @@ internal sealed class Book : IDisposable
         foreach (InventorySlot stack in stranded)
         {
             MoveResult moved = await Store(player, storage, stack);
-            Log.Info($"{Tag}: settled, {ItemName(stack.Item)} x{stack.Count} left at {stack.Slot} filed back -> {moved}");
+            Log.Info($"{Tag} ({why}): {ItemName(stack.Item)} x{stack.Count} left at {stack.Slot}, not equipped, filed back -> {moved}");
         }
     }
 
