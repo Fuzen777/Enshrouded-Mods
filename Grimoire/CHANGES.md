@@ -4,6 +4,12 @@ Kiln mod (C#, id `grimoire`) that keeps spells out of the backpack in slots of t
 
 It was the spellbook of Better Spells (3.3.0-dev.1 to dev.11, 23 and 24 Nov 2026); that history, with what was found in game, is in `..\Better Spells\CHANGES.md`.
 
+## 0.1.1 (not released)
+
+- **Fix: the HUD count of the equipped spell follows casts.** Seen by the user in 0.1.0: Ball Lightning stayed at x10 while casting and showed the right count only after leaving the HUD and coming back. The equipped stack sits in the Equipment page, which the game's own rows don't list (kiln.log: `game rows []`), so a cast changed nothing the HUD list is rebuilt for, and the count came from the mod's last picture. The mod now looks at the equipped stack's count four times a second and refreshes the list when it changed.
+
+Seen in game with 0.1.0 (the user, 24 Nov 2026: "everything seems to work"): the equipped spell takes no backpack slot. kiln.log: the equipped Hollow Wretch in backpack cell `10525:2` was unequipped, given into the Equipment page (`10526:7`) and its backpack stack taken; every later pick from the HUD list swapped into `10526:7`.
+
 ## 0.1.0 (not released)
 
 - **Moved out of Better Spells** (asked 24 Nov 2026: Better Spells stays on spell settings, and the book will hold arrows too). Built on what Better Spells 3.3.0-dev.11 tested: Kiln's player storage (`Items.RegisterPlayerStorage`, Kiln 0.2.0-dev.31), here `grimoire:spells`, 32 slots, spells only, kept on death. The book kept in character data (dev.8) is dropped. Nothing moves over from Better Spells: its storage `better-spells:spellbook` was emptied by the user on 24 Nov 2026 at 05:41 (kiln.log).

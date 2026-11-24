@@ -47,7 +47,7 @@ internal sealed class Book : IDisposable
     }
     private sealed record BagEntry(uint Item, string Name, int Count, bool Equipped);
     private sealed record View(Entry[] Entries, BagEntry[] Bag, uint[] Shown, IReadOnlyDictionary<uint, int> Stored, uint Equipped, int EquippedCount,
-        int Limit, bool Enabled, string? NotReady)
+        int Limit, bool Enabled, string? NotReady, bool EquippedInEquipmentPage = false)
     {
         public static readonly View Empty = new View(Array.Empty<Entry>(), Array.Empty<BagEntry>(), Array.Empty<uint>(), new Dictionary<uint, int>(), 0, 0,
             GrimoireRules.DefaultSlots, false, "not read yet");
@@ -77,6 +77,11 @@ internal sealed class Book : IDisposable
     private int _slotChanges;
     private ulong _loggedRevision = ulong.MaxValue;
     private bool _giveEquipMissingLogged;
+    // The equipped stack's count, looked at a few times a second: the game's own rows don't list a stack in the Equipment page, so
+    // casting changes nothing the HUD list is rebuilt for (seen in 0.1.0: Ball Lightning's count stayed at 10 until the HUD reopened).
+    private static readonly TimeSpan CountPollPeriod = TimeSpan.FromMilliseconds(250);
+    private Timer? _countPoll;
+    private int _countPollQueued;
 
     public Book(Mod mod, BookKind kind, Func<int> limit, Func<bool> enabled)
     {
@@ -132,12 +137,15 @@ internal sealed class Book : IDisposable
             Log.Info($"{Tag}: Ctrl+click can't add to the grimoire on this build: {error.Message}");
         }
         Ui.Inventory.ScreenChanged += OnScreenChanged;
+        _countPoll = new Timer(_ => QueueCountPoll(), null, CountPollPeriod, CountPollPeriod);
         Log.Info($"{Tag}: ready. HUD list {(_rows != null ? "follows the grimoire" : "is the game's")}");
         QueueRefresh();
     }
 
     public void Dispose()
     {
+        _countPoll?.Dispose();
+        _countPoll = null;
         if (Ui.Available)
         {
             Ui.Inventory.ScreenChanged -= OnScreenChanged;
@@ -610,6 +618,32 @@ internal sealed class Book : IDisposable
         });
     }
 
+    // Refreshes the view when the equipped stack's count (or item) is no longer what the HUD list shows.
+    private void QueueCountPoll()
+    {
+        View view = _view;
+        if (view.Equipped == 0 || !view.EquippedInEquipmentPage || !view.Enabled || _busy || Interlocked.Exchange(ref _countPollQueued, 1) == 1)
+        {
+            return;
+        }
+        _mod.Context.Scheduler.Post(() =>
+        {
+            Interlocked.Exchange(ref _countPollQueued, 0);
+            EntityId player = Client.Available ? Client.LocalPlayer : EntityId.None;
+            if (player.IsNone || !Client.IsHosting || _busy)
+            {
+                return;
+            }
+            View now = _view;
+            int count = Items.Read(player)?.Slots.Where(s => !s.IsEmpty && s.Category == InventoryCategory.Equipment && s.Item.Value == now.Equipped)
+                .Sum(s => s.Count) ?? 0;
+            if (count != now.EquippedCount)
+            {
+                Refresh(player);
+            }
+        });
+    }
+
     private void Refresh(EntityId player)
     {
         Interlocked.Exchange(ref _refreshedAt, Environment.TickCount64);
@@ -653,7 +687,8 @@ internal sealed class Book : IDisposable
                 bag.Add(new BagEntry(group.Key, ItemName(new ItemId(group.Key)), group.Sum(s => s.Count), isEquipped));
             }
         }
-        _view = new View(entries, bag.ToArray(), shown.ToArray(), counts, bookEquipped, equippedCount, limit, enabled, null);
+        _view = new View(entries, bag.ToArray(), shown.ToArray(), counts, bookEquipped, equippedCount, limit, enabled, null,
+            equipped != null && !equipped.InStorage && equipped.Stack.Category == InventoryCategory.Equipment);
         _rows?.Refresh();
     }
 
