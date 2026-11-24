@@ -33,7 +33,7 @@ public sealed class DoorSettings
     public int CloseDelaySeconds { get; set; } = 0;
 
     [ConfigKey("onlyInsideBases")]
-    [Comment("Only Inside Bases. Only doors inside a flame altar's area open by themselves. Off (Work Outside Bases in the settings window): every door in the world does; door modes, their key and the label stay for base doors.")]
+    [Comment("Only Inside Bases. Only doors inside a flame altar's area open by themselves. Off: every door in the world does; door modes, their key and the label stay for base doors.")]
     public bool OnlyInsideBases { get; set; } = true;
 
     [ConfigKey("openForPlayers")]

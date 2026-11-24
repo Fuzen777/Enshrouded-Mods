@@ -2,6 +2,11 @@
 
 A rebuild of Auto Doors (SellTheWorldGames, closed source) as a Kiln mod, from its described behaviour, not its code. Doors are toggled by sending the game's own `ToggleInteractionEvent {guest, host, offer}` from the mod's ECS program `door_toggle` (`src\kiln.programs.json`); `interaction_toggle_new` flips `ServerToggleState` and `interaction_directional` swings the door away from the guest.
 
+## 0.2.7
+
+- Labels in Title Case, no sentences (Fuzen): Mod Enabled; Bases Only (checked = base doors only, the default; replaces Work outside bases); Who Opens Doors, Build Camera, Open Distance, Close Distance, Height Reach, Close Delay, Doors Used By Hand, Respect Hand Toggles, Close Doors Opened By Hand, On Screen, Door Label; key hints as "Door Mode: Shift + Middle Mouse / LB + Y" and "Settings: Shift + F7"; "No World Loaded". The Shift hint moved into the distance tooltips.
+- 0.2.6 was never installed (the game was running).
+
 ## 0.2.6
 
 - Shift + F7 opens the mod's settings window (Fuzen; it switched the mod on and off): the on/off switch at the top, then Where, Who opens doors, Distances, Doors used by hand and On screen. Distances in metres with - and + buttons (0.1 m, Shift 0.5 m), changed values in the accent colour, a tooltip on every setting, Defaults (keeps on/off and door modes). Also opened from a button on the mod's page of the Kiln menu. The window draws from a copy of the settings and writes each change on the tick thread.

@@ -34,7 +34,7 @@ public sealed partial class AutoDoorsMod
     {
         if (ui.Button("Open Settings Window", 0, 0)) _screen?.Open();
         ui.SameLine(0, -1);
-        ui.TextDisabled("or press Shift + F7 in game.");
+        ui.TextDisabled("Shift + F7 In Game");
     }
 
     // Render thread. Changes go through Change: the copy shows them at once, the tick thread stores them.
@@ -69,59 +69,58 @@ public sealed partial class AutoDoorsMod
         bool shift = (ui.HeldMods & KeyMods.Shift) != 0;
 
         bool on = s.Enabled;
-        if (ui.Checkbox("Auto Doors on", ref on)) Change(x => x.Enabled = on);
+        if (ui.Checkbox("Mod Enabled", ref on)) Change(x => x.Enabled = on);
         ui.Tooltip("Doors open and close by themselves. Off: every door stays as it is until you use it.");
-        if (Now - _lastTickAt > 2) ui.TextDisabled("Changes apply once you are in a world you host.");
+        if (Now - _lastTickAt > 2) ui.TextDisabled("No World Loaded");
 
         ui.Spacing();
         ui.Separator("Where");
-        Toggle(ui, "Work outside bases", !s.OnlyInsideBases, (x, v) => x.OnlyInsideBases = !v,
-            "Doors outside a flame altar's area open and close too. Door modes, their key and the label stay for doors in your base.");
+        Toggle(ui, "Bases Only", s.OnlyInsideBases, (x, v) => x.OnlyInsideBases = v,
+            "Only doors inside a flame altar's area open and close by themselves. Off: doors everywhere do. Door modes, their key and the label are for doors in your base either way.");
 
         ui.Spacing();
-        ui.Separator("Who opens doors");
+        ui.Separator("Who Opens Doors");
         Toggle(ui, "Players", s.OpenForPlayers, (x, v) => x.OpenForPlayers = v, "You and the players in your world.");
         Toggle(ui, "Survivors", s.OpenForSurvivors, (x, v) => x.OpenForSurvivors = v, "Survivors and workshop NPCs as they walk about the base.");
-        Toggle(ui, "Build camera", s.OpenForBuildCamera, (x, v) => x.OpenForBuildCamera = v, "The free camera of build mode, swinging the door away from it.");
+        Toggle(ui, "Build Camera", s.OpenForBuildCamera, (x, v) => x.OpenForBuildCamera = v, "The free camera of build mode, swinging the door away from it.");
         Toggle(ui, "Animals", s.OpenForAnimals, (x, v) => x.OpenForAnimals = v, "Farm animals and pets. They may wander out.");
 
         ui.Spacing();
         ui.Separator("Distances");
         var metres = (Func<int, string>)(dm => $"{dm / 10.0:0.0} m");
         int step = shift ? ShiftSteps : 1;
-        Number(ui, "open", "Open distance", s.OpenDistanceDm, 40, metres, step, x => x.OpenDistanceDm, (x, v) =>
+        Number(ui, "open", "Open Distance", s.OpenDistanceDm, 40, metres, step, x => x.OpenDistanceDm, (x, v) =>
         {
             x.OpenDistanceDm = Math.Clamp(v, DoorRules.MinDistanceDm, DoorRules.MaxOpenDistanceDm);
             x.CloseDistanceDm = Math.Max(x.CloseDistanceDm, x.OpenDistanceDm);
         }, "How close someone has to come, along the ground, for a door to open.");
-        Number(ui, "close", "Close distance", s.CloseDistanceDm, 46, metres, step, x => x.CloseDistanceDm,
+        Number(ui, "close", "Close Distance", s.CloseDistanceDm, 46, metres, step, x => x.CloseDistanceDm,
             (x, v) => x.CloseDistanceDm = Math.Clamp(v, x.OpenDistanceDm, DoorRules.MaxCloseDistanceDm),
             "A door closes once everyone is farther than this. Never less than the open distance.");
-        Number(ui, "height", "Height reach", s.HeightReachDm, 25, metres, step, x => x.HeightReachDm,
+        Number(ui, "height", "Height Reach", s.HeightReachDm, 25, metres, step, x => x.HeightReachDm,
             (x, v) => x.HeightReachDm = Math.Clamp(v, DoorRules.MinHeightReachDm, DoorRules.MaxHeightReachDm),
             "Someone farther than this above or below a door, on another floor, neither opens it nor keeps it open.");
-        Number(ui, "delay", "Close delay", s.CloseDelaySeconds, 0, sec => $"{sec} s", step, x => x.CloseDelaySeconds,
+        Number(ui, "delay", "Close Delay", s.CloseDelaySeconds, 0, sec => $"{sec} s", step, x => x.CloseDelaySeconds,
             (x, v) => x.CloseDelaySeconds = Math.Clamp(v, 0, 30),
             "How long a door stays open after everyone has left.");
-        ui.TextDisabled($"Hold Shift for {ShiftSteps} steps at a time.");
 
         ui.Spacing();
-        ui.Separator("Doors used by hand");
-        Toggle(ui, "Keep them as you left them", s.RespectHandToggles, (x, v) => x.RespectHandToggles = v,
+        ui.Separator("Doors Used By Hand");
+        Toggle(ui, "Respect Hand Toggles", s.RespectHandToggles, (x, v) => x.RespectHandToggles = v,
             "A door you open or close by hand stays that way while you are near it, then works on its own again once everyone has left.");
-        Toggle(ui, "Close them too", s.CloseDoorsOpenedByHand, (x, v) => x.CloseDoorsOpenedByHand = v,
+        Toggle(ui, "Close Doors Opened By Hand", s.CloseDoorsOpenedByHand, (x, v) => x.CloseDoorsOpenedByHand = v,
             "A door someone opened by hand closes too once everyone has left. Off: only doors the mod opened close by themselves.");
 
         ui.Spacing();
-        ui.Separator("On screen");
-        Toggle(ui, "Door label", s.DoorLabel, (x, v) => x.DoorLabel = v,
+        ui.Separator("On Screen");
+        Toggle(ui, "Door Label", s.DoorLabel, (x, v) => x.DoorLabel = v,
             "Looking at a door in your base shows its mode under the crosshair (Players, Players & Survivors or Manual); nothing for Everyone.");
         Toggle(ui, "Messages", s.Toasts, (x, v) => x.Toasts = v, "A message on screen when the Door Mode key changes a door's mode.");
 
         ui.Spacing();
         ui.Separator();
-        ui.TextDisabled("Shift + middle mouse (LB + Y): change the mode of the");
-        ui.TextDisabled("door you look at in your base. Shift + F7: this window.");
+        ui.TextDisabled("Door Mode: Shift + Middle Mouse / LB + Y");
+        ui.TextDisabled("Settings: Shift + F7");
         ui.Spacing();
         if (ui.Button("Defaults", 0, 0))
         {
@@ -151,6 +150,7 @@ public sealed partial class AutoDoorsMod
     private void Number(UiDraw ui, string id, string label, int value, int def, Func<int, string> format, int step,
         Func<DoorSettings, int> get, Action<DoorSettings, int> set, string tip)
     {
+        tip += $" Hold Shift for {ShiftSteps} steps at a time.";
         using var scope = ui.Id(id);
         float size = (float)Math.Ceiling(ui.MeasureText("X", 0).Height * 1.5f);
         float gap = (float)Math.Ceiling(size * 0.3f);
