@@ -87,6 +87,8 @@ public sealed class StreamlinedLogisticsMod : Mod
 
     private static readonly Color FavoriteColor = new(255, 200, 60);
     private static readonly SlotMark FavoriteSlotMark = new(FavoriteColor, SlotMarkStyle.Border, 3);
+    // A favorite's slot background in the game's own screens (Ui.Inventory.TintWhen).
+    private static readonly Color FavoriteTint = new(255, 190, 40, 150);
     private static readonly Color SelectedColor = new(255, 255, 255);
     private static readonly Color CountBackground = new(0, 0, 0, 180);
     private static readonly Color WarningColor = new(255, 190, 80);
@@ -212,6 +214,11 @@ public sealed class StreamlinedLogisticsMod : Mod
     private int _stationsLogged;
     private bool? _otherQuickDepositRuns;
     private IDisposable? _favoriteMarks;
+    private IDisposable? _favoriteTints;
+    // The Link Chest / Unlink Chest button in a chest's own action row (Kiln 0.2.0-dev.31), and the caption it was made with.
+    private IDisposable? _chestButton;
+    private string? _chestButtonCaption;
+    private bool _chestButtonBroken;
     private long _marksScreenCheckedUntil;
     private bool _marksInPlay;
     private IDisposable? _favoriteClicks;
@@ -333,6 +340,7 @@ public sealed class StreamlinedLogisticsMod : Mod
         _pickups?.Dispose();
         _pickups = null;
         DropGameScreenFavorites();
+        DropChestButton();
         _renderFrames?.Dispose();
         _renderFrames = null;
         DropChestHighlights();
@@ -374,7 +382,7 @@ public sealed class StreamlinedLogisticsMod : Mod
     {
         if (!Client.IsHosting)
         {
-            if (_snapshot != null || _linkedChests.Count > 0 || _chestKinds.Count > 0 || _keepRules.Count > 0 || _slotKeepRules.Count > 0 || _craftSources.Count > 0 || _pickups != null || _clientActions != null || _otherQuickDepositRuns != null || _favoriteMarks != null || _favoriteClicks != null || _depositHighlight != null)
+            if (_snapshot != null || _linkedChests.Count > 0 || _chestKinds.Count > 0 || _keepRules.Count > 0 || _slotKeepRules.Count > 0 || _craftSources.Count > 0 || _pickups != null || _clientActions != null || _otherQuickDepositRuns != null || _favoriteMarks != null || _favoriteTints != null || _favoriteClicks != null || _chestButton != null || _depositHighlight != null)
             {
                 _snapshot = null;
                 _linkedChests.Clear();
@@ -384,7 +392,8 @@ public sealed class StreamlinedLogisticsMod : Mod
                 _clientActions?.Dispose();
                 _clientActions = null;
                 DropGameScreenFavorites();
-                        DropChestHighlights();
+                DropChestButton();
+                DropChestHighlights();
                 _otherQuickDepositRuns = null;
                 _playerInventoryOwners.Clear();
                 _interactions?.Dispose();
@@ -419,6 +428,7 @@ public sealed class StreamlinedLogisticsMod : Mod
             }
             SalvageLootSoon();
             AutoStationsSoon();
+            SyncChestButton();
             if (_pickupCheckPending && _salvageQueue.Count == 0)
             {
                 CheckBackpackAfterLoot();
@@ -1037,7 +1047,7 @@ public sealed class StreamlinedLogisticsMod : Mod
         if (!wanted)
         {
             // The game's screens still mark favorite gear by the slots read here.
-            if (_favoriteMarks != null)
+            if (_favoriteMarks != null || _favoriteTints != null)
             {
                 FavoriteGearSlots(player);
             }
@@ -2634,7 +2644,7 @@ public sealed class StreamlinedLogisticsMod : Mod
         SettingToggle(ui, "allFavoritesInTabs", "All Favorites In Every Tab", settings.AllFavoritesInTabs,
             "Off: a category tab shows its own favorites at the top. On: it shows all of them.");
         SettingToggle(ui, "favoritesInGameScreens", "Favorites In The Game's Screens", settings.FavoritesInGameScreens,
-            "A favorite has a gold border in the game's own inventory and chest screens. (Shift + RMB, L3 or R3 on a slot there always marks or unmarks it.)");
+            "A favorite's slot is gold in the game's own inventory and chest screens. (Shift + RMB, L3 or R3 on a slot there always marks or unmarks it.)");
         ui.Separator("Quick Deposit");
         SettingToggle(ui, "quickDeposit", "Quick Deposit", settings.QuickDeposit,
             "Inside a base, Sort Inventory pressed twice (G) or a Quick Stack Station puts your backpack's items into the base's chests.");
@@ -2838,31 +2848,47 @@ public sealed class StreamlinedLogisticsMod : Mod
             }
         }
         bool wanted = (_settings?.Value.FavoritesInGameScreens ?? true) && !_gameScreenFavoritesBroken;
-        if (wanted && _favoriteMarks == null)
+        if (wanted && _favoriteMarks == null && _favoriteTints == null)
         {
+            RefreshMarkedFavorites();
             try
             {
-                RefreshMarkedFavorites();
-                _favoriteMarks = Ui.Inventory.MarkWhen(MarkFavoriteSlot);
-                Log.Info("favorites have a gold border in the game's own inventory and chest screens");
+                // The game's own slot background (Kiln 0.2.0-dev.31); Kiln's drawn borders only where that is not available.
+                _favoriteTints = Ui.Inventory.TintWhen(TintFavoriteSlot);
+                Log.Info("favorites have a gold background in the game's own inventory and chest screens");
             }
             catch (Exception problem)
             {
-                _gameScreenFavoritesBroken = true;
-                _favoriteMarks?.Dispose();
-                _favoriteMarks = null;
-                Problem($"favorites can't be shown in the game's own screens here ({problem.GetType().Name}: {problem.Message})");
+                _favoriteTints?.Dispose();
+                _favoriteTints = null;
+                Log.Info($"favorites: the game's slot colours can't be changed here ({problem.GetType().Name}: {problem.Message}): gold borders instead");
+                try
+                {
+                    _favoriteMarks = Ui.Inventory.MarkWhen(MarkFavoriteSlot);
+                    Log.Info("favorites have a gold border in the game's own inventory and chest screens");
+                }
+                catch (Exception markProblem)
+                {
+                    _gameScreenFavoritesBroken = true;
+                    _favoriteMarks?.Dispose();
+                    _favoriteMarks = null;
+                    Problem($"favorites can't be shown in the game's own screens here ({markProblem.GetType().Name}: {markProblem.Message})");
+                }
             }
         }
-        else if (!wanted && _favoriteMarks != null)
+        else if (!wanted)
         {
-            _favoriteMarks.Dispose();
+            _favoriteTints?.Dispose();
+            _favoriteTints = null;
+            _favoriteMarks?.Dispose();
             _favoriteMarks = null;
         }
     }
 
     private void DropGameScreenFavorites()
     {
+        _favoriteTints?.Dispose();
+        _favoriteTints = null;
         _favoriteMarks?.Dispose();
         _favoriteMarks = null;
         _favoriteClicks?.Dispose();
@@ -2873,38 +2899,120 @@ public sealed class StreamlinedLogisticsMod : Mod
         _favoritePadClicksRight = null;
     }
 
-    // Kiln's render thread, once per slot the game draws: a lookup, nothing more. No mark while the game is not in play (a
-    // loading screen still draws the hotbar's slots under it); the game's screen is asked at most ten times a second.
-    private SlotMark? MarkFavoriteSlot(VisibleSlot slot)
+    // ---- Link Chest / Unlink Chest in a chest's own screen (since 0.10.35, Kiln 0.2.0-dev.31's Ui.Inventory.AddChestButton). ----
+    //
+    // The world's thread, every step: the caption follows the open chest's link. The game draws the button every frame, so a new
+    // caption shows at once. Kiln has four such buttons for all mods together.
+    private const string LinkChestCaption = "Link Chest";
+    private const string UnlinkChestCaption = "Unlink Chest";
+
+    private void SyncChestButton()
     {
-        if (slot.Item.Value == 0)
+        if (_chestButtonBroken)
+        {
+            return;
+        }
+        string? caption = null;
+        if (Ui.Inventory.Screen is { Kind: InventoryScreenKind.Chest, Hud: HudScreen.StorageChest } screen && !screen.Container.IsNone)
+        {
+            caption = ChestButtonCaption(screen.Container);
+        }
+        if (caption == _chestButtonCaption)
+        {
+            return;
+        }
+        DropChestButton();
+        if (caption == null)
+        {
+            return;
+        }
+        bool linking = caption == LinkChestCaption;
+        try
+        {
+            _chestButton = Ui.Inventory.AddChestButton(caption, pressed => OnChestButton(pressed, linking));
+            _chestButtonCaption = caption;
+        }
+        catch (Exception problem)
+        {
+            _chestButtonBroken = true;
+            _chestButton?.Dispose();
+            _chestButton = null;
+            Log.Info($"no Link Chest button in the chests' own screens here ({problem.GetType().Name}: {problem.Message})");
+        }
+    }
+
+    // Unlink Chest for a linked chest; Link Chest for a chest the Chests tab offers (Magic, or any with Link Regular Chests on);
+    // null (no button) for any other container.
+    private string? ChestButtonCaption(EntityId chest)
+    {
+        LoadStateOnce();
+        if (!World.TryGetPosition(chest, out WorldPosition position))
         {
             return null;
         }
-        // The Construction Hammer's and the summoning staff's slots hold their selection: the tool's favorite stands for them.
-        uint favoriteItem = _toolEntries.TryGetValue(slot.Item.Value, out uint toolKey) ? toolKey : slot.Item.Value;
-        if (!_markedFavorites.Contains(favoriteItem))
+        if (ChestRules.FindLink(_state.Links, ToChestPosition(position)) >= 0)
         {
-            // Gear with a favorite rarity: only the slots whose item is one of the player's favorite pieces, by its entity.
-            if (!_markedGearItems.Contains(slot.Item.Value))
-            {
-                return null;
-            }
-            HashSet<uint> entities = _markedGearEntities;
-            // Since Kiln 0.2.0-dev.30.5 a slot says its item's rarity: any slot of favorite gear is marked, chests' included. Older
-            // Kilns: the player's own pieces, by their entities.
-            bool matched = slot.Rarity is { } rarity
-                ? _markedGearKeys.Contains(FavoriteSet.GearKey(slot.Item.Value, (int)rarity))
-                : (!slot.ServerEntity.IsNone && entities.Contains(slot.ServerEntity.Value)) || (!slot.ClientEntity.IsNone && entities.Contains(slot.ClientEntity.Value));
-            // Logged once the favorite pieces are known (0.10.6 logged its six before they were, which told nothing).
-            if (entities.Count > 0 && _gearMarkChecksLogged < 6 && Interlocked.Increment(ref _gearMarkChecksLogged) <= 6)
-            {
-                Log.Info($"favorite gear mark check: item 0x{slot.Item.Value:x8}, server entity {slot.ServerEntity.Value}, client entity {slot.ClientEntity.Value}, holder flags {slot.HolderFlags}: {(matched ? "a favorite piece" : "no match")} among {entities.Count} favorite piece(s) carried");
-            }
-            if (!matched)
-            {
-                return null;
-            }
+            return UnlinkChestCaption;
+        }
+        ChestKind kind = KindOf(chest);
+        bool offered = kind == ChestKind.Magic || (kind == ChestKind.Regular && (_settings?.Value.LinkRegularChests ?? false));
+        return offered ? LinkChestCaption : null;
+    }
+
+    // The game's UI thread: the press goes to the world's thread with the chest the screen shows now.
+    private void OnChestButton(InventoryScreen screen, bool linking)
+    {
+        if (screen.Container.IsNone || !Client.IsHosting)
+        {
+            return;
+        }
+        EntityId chest = screen.Container;
+        Post(() => SetOpenChestLinked(chest, linking));
+    }
+
+    private Task SetOpenChestLinked(EntityId chest, bool linking)
+    {
+        LoadStateOnce();
+        if (!World.TryGetPosition(chest, out WorldPosition position))
+        {
+            return Task.CompletedTask;
+        }
+        ChestPosition chestPosition = ToChestPosition(position);
+        int linkIndex = ChestRules.FindLink(_state.Links, chestPosition);
+        ChestKind kind = KindOf(chest);
+        string label = ContainerNameOrNull(chest) ?? (kind == ChestKind.Magic ? "Magic Chest" : "Chest");
+        if (linking && linkIndex < 0 && kind is ChestKind.Magic or ChestKind.Regular)
+        {
+            _state.Links.Add(chestPosition);
+            SaveState();
+            Hud.Toast("Linked: " + label, ToastKind.Info, 2);
+            Log.Info($"chest button: linked {label} ({chest.Value}); {_state.Links.Count} link(s)");
+        }
+        else if (!linking && linkIndex >= 0)
+        {
+            _state.Links.RemoveAt(linkIndex);
+            SaveState();
+            Hud.Toast("Unlinked: " + label, ToastKind.Info, 2);
+            Log.Info($"chest button: unlinked {label} ({chest.Value}); {_state.Links.Count} link(s)");
+        }
+        return Task.CompletedTask;
+    }
+
+    private void DropChestButton()
+    {
+        _chestButton?.Dispose();
+        _chestButton = null;
+        _chestButtonCaption = null;
+    }
+
+    // Kiln's render thread, once per slot the game draws: a lookup, nothing more. No mark while the game is not in play (a
+    // loading screen still draws the hotbar's slots under it); the game's screen is asked at most ten times a second. Used only
+    // when the game's own slot colours can't be changed (TintFavoriteSlot below).
+    private SlotMark? MarkFavoriteSlot(VisibleSlot slot)
+    {
+        if (!IsFavoriteSlot(slot.Item.Value, slot.Rarity is { } rarity ? (int)rarity : -1, slot.ServerEntity.Value, slot.ClientEntity.Value, slot.HolderFlags.ToString()))
+        {
+            return null;
         }
         long now = Environment.TickCount64;
         if (now >= _marksScreenCheckedUntil)
@@ -2914,6 +3022,46 @@ public sealed class StreamlinedLogisticsMod : Mod
             _marksScreenCheckedUntil = now + 100;
         }
         return _marksInPlay ? FavoriteSlotMark : null;
+    }
+
+    // The game's UI thread, once per slot it draws: a favorite's slot background turns gold (Kiln 0.2.0-dev.31). The game draws
+    // it as its own background, so its item menu (RMB on an item) stays on top, which the borders were not (kiln#117).
+    private Color? TintFavoriteSlot(UiItemView slot)
+    {
+        return IsFavoriteSlot(slot.Item.Value, (int)slot.Rarity, slot.ServerEntity.Value, slot.ClientEntity.Value, null) ? FavoriteTint : null;
+    }
+
+    // Whether a slot of the game's screens holds a favorite. rarity: the slot's item's rarity, -1 when the slot view has none.
+    // holderFlags: for the log line of the gear check, null when the caller has none.
+    private bool IsFavoriteSlot(uint item, int rarity, uint serverEntity, uint clientEntity, string? holderFlags)
+    {
+        if (item == 0)
+        {
+            return false;
+        }
+        // The Construction Hammer's and the summoning staff's slots hold their selection: the tool's favorite stands for them.
+        uint favoriteItem = _toolEntries.TryGetValue(item, out uint toolKey) ? toolKey : item;
+        if (_markedFavorites.Contains(favoriteItem))
+        {
+            return true;
+        }
+        // Gear with a favorite rarity: only the slots whose item is one of the player's favorite pieces.
+        if (!_markedGearItems.Contains(item))
+        {
+            return false;
+        }
+        HashSet<uint> entities = _markedGearEntities;
+        // Since Kiln 0.2.0-dev.30.5 a slot says its item's rarity: any slot of favorite gear is marked, chests' included. Older
+        // Kilns: the player's own pieces, by their entities.
+        bool matched = rarity >= 0
+            ? _markedGearKeys.Contains(FavoriteSet.GearKey(item, rarity))
+            : (serverEntity != 0 && entities.Contains(serverEntity)) || (clientEntity != 0 && entities.Contains(clientEntity));
+        // Logged once the favorite pieces are known (0.10.6 logged its six before they were, which told nothing).
+        if (entities.Count > 0 && _gearMarkChecksLogged < 6 && Interlocked.Increment(ref _gearMarkChecksLogged) <= 6)
+        {
+            Log.Info($"favorite gear mark check: item 0x{item:x8}, rarity {rarity}, server entity {serverEntity}, client entity {clientEntity}{(holderFlags != null ? ", holder flags " + holderFlags : "")}: {(matched ? "a favorite piece" : "no match")} among {entities.Count} favorite piece(s) carried");
+        }
+        return matched;
     }
 
     // The game's main thread: Shift + RMB on a slot of the game's own screens. Kiln keeps the press from the game.

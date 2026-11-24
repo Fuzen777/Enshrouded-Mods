@@ -26,7 +26,7 @@ public sealed class ChestSettings
     public bool AllFavoritesInTabs { get; set; }
 
     [ConfigKey("favoritesInGameScreens")]
-    [Comment("Favorites In The Game's Screens. On: a favorite has a gold border in the game's own inventory and chest screens, and Shift + RMB on a slot there marks or unmarks its item.")]
+    [Comment("Favorites In The Game's Screens. On: a favorite's slot is gold in the game's own inventory and chest screens, and Shift + RMB on a slot there marks or unmarks its item.")]
     public bool FavoritesInGameScreens { get; set; } = true;
 
     [ConfigKey("quickDeposit")]

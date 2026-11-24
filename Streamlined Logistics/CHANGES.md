@@ -7,6 +7,18 @@ How it works: the screen is a Kiln screen (`Ui.Screen`) drawn in the player's ga
 `Scripts\Build.ps1` runs the tests (`tests\ChestRulesTests`), builds against Kiln's assemblies in `<game>\kiln\host` and puts the mod in `dist\streamlined-logistics`; `-Install` copies it to `<game>\kiln\mods\streamlined-logistics`, where Kiln loads it as a drop-in (game closed).
 
 
+## 0.10.35
+
+Kiln 0.2.0-dev.31 (mod API 0.2.17). The mod asks for API 0.2.17.
+
+- **Favorites in the game's screens are a gold slot background** (`Ui.Inventory.TintWhen`) instead of Kiln's drawn border, so the game's item menu (RMB on an item) is no longer covered by the border. Where the game's slot colours can't be changed, the border comes back.
+- **Link Chest / Unlink Chest in a chest's own screen:** a button in the chest's action row (`Ui.Inventory.AddChestButton`) links or unlinks the open chest. It shows Link Chest on a chest the Chests tab offers (Magic Chests, or any with Link Regular Chests on), Unlink Chest on a linked one, and nothing on other containers.
+- **Crafting from linked chests still does nothing on Kiln 0.2.0-dev.31**, Cross-Base Storage off: at the first crafting menu Kiln logs "linked craft preview stands down: InventoryPay is patched by another module or cannot be checked", and the only hook on InventoryPay in kiln.log is Kiln's own (kiln.rules). Kiln's side, report 23 in the Kiln Report Tracker.
+- Not used: the container kinds of `Items.FindInventoryOwners` / `Bases.Chests`. They don't tell crops or fruit trees from chests (a crop is Unknown like an ordinary chest, a planted fruit tree is BaseStorage like a Magic Chest), and the chest list already keeps to the chests' templates, so crops and trees were never in it.
+
+> [!warning]
+> Not yet seen in game.
+
 ## 0.10.34
 
 0.10.33 seen in game (kiln.log, 23 Nov 2026 19:37): a Magic Chest was named Auto-Stations and got 20 Bones for its Bonemeal station, then again at each pass. The user: "since it only stores 10 crafts, if I queue [n] crafts for a station, I have to wait 30s until the next batch arrives ... Any way we could have some kind of \"restock immediately if less than 50%\" feature without tanking perfs ?"
