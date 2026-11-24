@@ -4,7 +4,18 @@ Kiln mod (C#, id `grimoire`) that keeps spells out of the backpack in slots of t
 
 It was the spellbook of Better Spells (3.3.0-dev.1 to dev.11, 23 and 24 Nov 2026); that history, with what was found in game, is in `..\Better Spells\CHANGES.md`.
 
+## 0.1.3 (not released)
+
+- **Fix: no spell can be lost any more; the equipped spell takes one backpack slot again** (the user's choice of three, 24 Nov 2026, with a Kiln report so it can go back to none). In 0.1.2 the user found switching broken (the HUD snapped back to the first backpack spell) and Eternal Pillar Of Flames gone. kiln.log: the Pillar was equipped in the Equipment page cell `10385:7` when the game was quit at 06:35, and at the next load it was nowhere (not equipped, not stored, not in the backpack). The game does not keep a spell in that cell across a reload, or does not keep a stack Kiln's GiveEquip made there; the log can't tell which. The snap-back has the same cause: the game doesn't see a spell in that cell as equipped, so with any spell in the backpack it equipped that one within about 60 ms.
+- Every step is now a plain move: no GiveEquip, no TakeSlot, nothing created or destroyed. A pick swaps the stored spell with the equipped one when that is a grimoire spell (the picked spell takes its backpack cell, as in Better Spells dev.11); a spell that isn't the grimoire's is unequipped and stays in the backpack, and the picked spell moves into a free backpack cell and is equipped there (backpack full: nothing happens).
+- **Bringing back what 0.1.0 to 0.1.2 left in the Equipment page**: at every pick, take out, add and settle (and 5 s after the storage is restored at load), an equipped spell in an Equipment page cell is unequipped into the backpack by the game's own unequip and equipped again there, and one that isn't equipped is filed into the storage.
+- A grimoire spell the game switched away from (a backpack spell picked from the game's own rows) stays in the backpack and is filed back 5 s later; the player's own backpack spells stay. A spell is the grimoire's while it is in the player's order or stored; Take Out removes it from the order.
+- The four-times-a-second count check of 0.1.1 is gone: with the equipped spell in the backpack, the game's own rows carry its live count again.
+
 ## 0.1.2 (not released)
+
+> [!danger]
+> Withdrawn by 0.1.3: a spell equipped when the game is quit is lost (see 0.1.3).
 
 - **Fix: a spell the game equipped from the backpack no longer joins the grimoire.** Seen by the user in 0.1.0: a looted Shroud Beam joined it during a switch. kiln.log, 24 Nov 2026 06:17: the game switched to the Shroud Beam in the backpack (`10546:5`) by itself, leaving Light Burst unequipped in the Equipment page's Spell cell; a pick 2 s later tried to move the Shroud Beam to the Equipment page, but GiveEquip found that cell taken ("no empty unselected equipment slot is available"), so the mod swapped the picked spell in, and the swap put the Shroud Beam into the storage. Now a pick first files back a stack left in the Equipment page (as the 5 s settle does, which worked: Light Burst filed back at 06:17:17), and an equipped backpack spell the grimoire doesn't hold is unequipped where it lies instead of moved; if it stays equipped, nothing is swapped.
 - To clear the Shroud Beam: right-click it in the F3 screen (Take Out).

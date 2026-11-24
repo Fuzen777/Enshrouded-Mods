@@ -12,17 +12,16 @@ namespace Grimoire;
 /// One book of the grimoire (spells today, arrows later): the player's stacks of one kind of ammunition kept in Kiln's player storage
 /// (key "grimoire:spells", 32 slots, that kind only, kept at death), shown and equipped in the player's own order. Works in a world this
 /// player hosts (single player or hosted co-op): the screen, the clicks and the HUD list act on the local player.
-/// - The equipped stack lives in the Spell cell of the player's Equipment page, never in the backpack. The game equips a spell where it
-///   lies, so a swap from the storage lands in the cell of the spell equipped before: when that cell is a backpack cell, the stack is
-///   moved to the Equipment page first (Reseat). Kiln's GiveEquip creates a stack in the Equipment page only while the Spell slot is
-///   empty (native give_equip_run: an equipped cell is reused, Generic cells included for arrows, spells and bait).
+/// - The equipped stack lives in a backpack cell, where the game expects it, and every step is a plain move (no item is created or
+///   destroyed). 0.1.0 to 0.1.2 kept it in an Equipment page cell (Kiln's GiveEquip): the game did not keep a spell there across a
+///   reload, and with any spell in the backpack it equipped that one over it. Secure brings back what those versions left there.
 /// - The order is the player's (CharacterData.Carried, key "order-spells"): a swap puts the old spell into the picked storage slot, so
 ///   the storage's own slot order changes on every switch and the list follows the order instead.
 /// - The HUD's list is replaced (Ui.AmmoList, Replace): the book in its order, then the game's other rows. A pick of a stored spell
 ///   equips it.
 /// - Running out: the next entry in the order is equipped (more of the same spell first).
-/// - A spell the game switched away from by itself stays in the Equipment page, where the player can't see it; five seconds after the
-///   last change of the slot it is filed back into the storage (Settle).
+/// - A grimoire spell the game switched away from by itself stays in the backpack; five seconds after the last change of the slot it
+///   is filed back into the storage (Settle). The player's own backpack spells stay.
 /// Every step is logged with the book's name ("spells:").
 /// </summary>
 internal sealed class Book : IDisposable
@@ -47,7 +46,7 @@ internal sealed class Book : IDisposable
     }
     private sealed record BagEntry(uint Item, string Name, int Count, bool Equipped);
     private sealed record View(Entry[] Entries, BagEntry[] Bag, uint[] Shown, IReadOnlyDictionary<uint, int> Stored, uint Equipped, int EquippedCount,
-        int Limit, bool Enabled, string? NotReady, bool EquippedInEquipmentPage = false)
+        int Limit, bool Enabled, string? NotReady)
     {
         public static readonly View Empty = new View(Array.Empty<Entry>(), Array.Empty<BagEntry>(), Array.Empty<uint>(), new Dictionary<uint, int>(), 0, 0,
             GrimoireRules.DefaultSlots, false, "not read yet");
@@ -76,12 +75,6 @@ internal sealed class Book : IDisposable
     // Bumped at every change of the slot; the settling waits until it stays the same for SettleDelay.
     private int _slotChanges;
     private ulong _loggedRevision = ulong.MaxValue;
-    private bool _giveEquipMissingLogged;
-    // The equipped stack's count, looked at a few times a second: the game's own rows don't list a stack in the Equipment page, so
-    // casting changes nothing the HUD list is rebuilt for (seen in 0.1.0: Ball Lightning's count stayed at 10 until the HUD reopened).
-    private static readonly TimeSpan CountPollPeriod = TimeSpan.FromMilliseconds(250);
-    private Timer? _countPoll;
-    private int _countPollQueued;
 
     public Book(Mod mod, BookKind kind, Func<int> limit, Func<bool> enabled)
     {
@@ -137,15 +130,12 @@ internal sealed class Book : IDisposable
             Log.Info($"{Tag}: Ctrl+click can't add to the grimoire on this build: {error.Message}");
         }
         Ui.Inventory.ScreenChanged += OnScreenChanged;
-        _countPoll = new Timer(_ => QueueCountPoll(), null, CountPollPeriod, CountPollPeriod);
         Log.Info($"{Tag}: ready. HUD list {(_rows != null ? "follows the grimoire" : "is the game's")}");
         QueueRefresh();
     }
 
     public void Dispose()
     {
-        _countPoll?.Dispose();
-        _countPoll = null;
         if (Ui.Available)
         {
             Ui.Inventory.ScreenChanged -= OnScreenChanged;
@@ -193,6 +183,7 @@ internal sealed class Book : IDisposable
         {
             Log.Info($"{Tag}: storage {what}");
             QueueRefresh();
+            ScheduleSettle(); // brings back what an older version left in the Equipment page
         }
     }
 
@@ -302,10 +293,13 @@ internal sealed class Book : IDisposable
 
     private OrderData Order(EntityId player) => CharacterData.Carried.Get<OrderData>(player, _kind.OrderKey);
 
-    // Equips a stored item. First a stack stranded in the Equipment page goes back into the storage, and an equipped backpack stack
-    // leaves the slot: a grimoire spell moves to the Equipment page (Reseat), any other is unequipped where it lies. Then an empty slot
-    // gets the stack given straight into the Equipment page's cell (the stored stack is taken), an occupied one a swap with the stored
-    // stack, the old one going into the storage slot.
+    // Equips a stored item with plain moves only: no step creates or destroys an item. The equipped stack lives in a backpack cell,
+    // where the game expects it. 0.1.0 to 0.1.2 kept it in an Equipment page cell through Kiln's GiveEquip: the game did not keep it there
+    // across a reload (Eternal Pillar Of Flames lost, 24 Nov 2026), and with any spell in the backpack the game equipped that one over it.
+    // - The slot holds a grimoire spell (in the backpack): a swap with the stored stack (Items.Equip from the storage slot); the picked
+    //   stack takes the backpack cell, the old one the storage slot.
+    // - The slot holds a spell the grimoire doesn't keep: it is unequipped and stays in the backpack, then as for an empty slot.
+    // - Empty: the stored stack moves into the backpack and is equipped there. No free backpack cell: nothing happens.
     private async Task Equip(EntityId player, uint item, string why)
     {
         PlayerStorage? storage = Ready(player, why);
@@ -313,6 +307,7 @@ internal sealed class Book : IDisposable
         {
             return;
         }
+        await Secure(player, storage, why);
         EquippedStack? equipped = Equipped(player, storage);
         if (equipped != null && equipped.Stack.Item.Value == item)
         {
@@ -324,118 +319,86 @@ internal sealed class Book : IDisposable
             Log.Info($"{Tag} ({why}): {ItemName(new ItemId(item))} is not in the grimoire");
             return;
         }
-        // A stack left in the Equipment page by a switch of the game's own holds the cell GiveEquip needs (0.1.0: "no empty unselected
-        // equipment slot is available"): it goes back into the storage first.
-        await FileStranded(player, storage, why);
-        equipped = Equipped(player, storage);
-        if (equipped != null && equipped.InBackpack)
-        {
-            uint equippedItem = equipped.Stack.Item.Value;
-            if (Stored(player, storage).Any(s => s.Stack.Item.Value == equippedItem))
-            {
-                // A grimoire spell equipped from the backpack: it moves to the Equipment page and stays in the grimoire.
-                await Reseat(player, storage, why);
-            }
-            else
-            {
-                // A backpack spell the game equipped: it stays in the backpack, unequipped. A swap would have put it into the storage
-                // (0.1.0: a looted Shroud Beam joined the grimoire this way).
-                EquipResult off = await Items.Unequip(player, _kind.Slot);
-                Log.Info($"{Tag} ({why}): {ItemName(equipped.Stack.Item)} x{equipped.Stack.Count}, equipped from the backpack, unequipped where it lies -> {off}");
-            }
-            equipped = Equipped(player, storage);
-            if (equipped != null && equipped.InBackpack)
-            {
-                Log.Info($"{Tag} ({why}): {ItemName(equipped.Stack.Item)} is still equipped in the backpack; nothing is swapped into the grimoire");
-                Hud.Toast($"Grimoire: {ItemName(new ItemId(item))} Not Equipped", ToastKind.Info, 3);
-                return;
-            }
-            stored = Stored(player, storage).FirstOrDefault(s => s.Stack.Item.Value == item);
-            if (stored == null)
-            {
-                return;
-            }
-        }
         string name = ItemName(stored.Stack.Item);
-        if (equipped == null && Items.GiveEquipAvailable)
+        if (equipped != null && !equipped.InBackpack)
         {
-            EquipResult given = await Items.GiveEquip(player, stored.Stack.Item, stored.Stack.Count, _kind.Slot, new GiveEquipOptions { Replaced = Replaced.Backpack });
-            Log.Info($"{Tag} ({why}): {name} x{stored.Stack.Count} given into the empty slot -> {given}");
-            if (!given.Ok)
+            Log.Info($"{Tag} ({why}): the equipped {ItemName(equipped.Stack.Item)} is still outside the backpack ({Where(equipped)}); nothing is swapped");
+            Hud.Toast("Grimoire: Free A Backpack Slot To Switch", ToastKind.Info, 4);
+            return;
+        }
+        if (equipped != null && Kept(player, storage, equipped.Stack.Item.Value))
+        {
+            EquipResult swapped = await Items.Equip(player, stored.Stack.Slot, _kind.Slot, EquipOptions.None, stored.Stack.ItemEntity);
+            Log.Info($"{Tag} ({why}): {name} x{stored.Stack.Count} in slot {stored.Index} swapped with {ItemName(equipped.Stack.Item)} -> {swapped}; now in {Where(Equipped(player, storage))}");
+            if (!swapped.Ok)
             {
-                Hud.Toast($"Grimoire: {name} Not Equipped ({given.Reason})", ToastKind.Error, 4);
+                Hud.Toast($"Grimoire: {name} Not Equipped ({swapped.Reason})", ToastKind.Error, 4);
+            }
+            return;
+        }
+        if (equipped != null)
+        {
+            EquipResult off = await Items.Unequip(player, _kind.Slot);
+            Log.Info($"{Tag} ({why}): {ItemName(equipped.Stack.Item)} x{equipped.Stack.Count}, not the grimoire's, unequipped where it lies -> {off}");
+            if (!off.Ok || Equipped(player, storage) != null)
+            {
+                Hud.Toast($"Grimoire: {name} Not Equipped", ToastKind.Info, 3);
                 return;
             }
-            ItemsResult taken = await Items.TakeSlot(storage.EntityOf(player), stored.Stack);
-            Log.Info($"{Tag} ({why}): its stored stack in slot {stored.Index} taken -> {taken}");
-            if (!taken.Succeeded)
-            {
-                Log.Warn($"{Tag} ({why}): the stored {name} could not be taken after it was given: the player has one stack more");
-            }
-            return;
         }
-        EquipResult swapped = await Items.Equip(player, stored.Stack.Slot, _kind.Slot, EquipOptions.None, stored.Stack.ItemEntity);
-        Log.Info($"{Tag} ({why}): {name} x{stored.Stack.Count} in slot {stored.Index} -> {swapped}; now in {Where(Equipped(player, storage))}");
-        if (!swapped.Ok)
+        MoveResult moved = await storage.Retrieve(player, stored.Index);
+        Log.Info($"{Tag} ({why}): {name} x{stored.Stack.Count} from slot {stored.Index} into the backpack -> {moved}");
+        if (!moved.Succeeded)
         {
-            Hud.Toast($"Grimoire: {name} Not Equipped ({swapped.Reason})", ToastKind.Error, 4);
+            Hud.Toast($"Grimoire: Backpack Full, {name} Not Equipped", ToastKind.Info, 4);
             return;
         }
-        await Reseat(player, storage, why);
-    }
-
-    // Moves the equipped stack out of a backpack cell into the Equipment page's cell: the game's unequip empties the slot, Kiln's
-    // GiveEquip then creates the same stack in the Equipment page (it only does so for an empty slot), and the backpack stack is taken.
-    private async Task Reseat(EntityId player, PlayerStorage storage, string why)
-    {
-        EquippedStack? equipped = Equipped(player, storage);
-        if (equipped == null || !equipped.InBackpack)
-        {
-            return;
-        }
-        if (!Items.GiveEquipAvailable)
-        {
-            if (!_giveEquipMissingLogged)
-            {
-                _giveEquipMissingLogged = true;
-                Log.Warn($"{Tag}: the equipped stack stays in the backpack: {Capabilities.Why("items.give_equip")}");
-            }
-            return;
-        }
-        InventorySlot stack = equipped.Stack;
-        string name = ItemName(stack.Item);
-        EquipResult off = await Items.Unequip(player, _kind.Slot);
-        Log.Info($"{Tag} ({why}): {name} x{stack.Count} is equipped in backpack cell {stack.Slot}: unequipped -> {off}");
-        if (!off.Ok)
-        {
-            if (off.Status == ItemsStatus.NoRoom)
-            {
-                Hud.Toast($"Grimoire: Backpack Full, {name} Stays In The Backpack", ToastKind.Info, 4);
-            }
-            return;
-        }
-        InventoryContents? inventory = Items.Read(player);
-        InventorySlot? loose = inventory?.Slots.FirstOrDefault(s => !s.IsEmpty && s.Slot == off.To && s.Item == stack.Item)
-            ?? inventory?.Slots.FirstOrDefault(s => !s.IsEmpty && s.Slot == stack.Slot && s.Item == stack.Item);
+        InventorySlot? loose = Items.Read(player)?.Slots.FirstOrDefault(s => !s.IsEmpty && s.Category == InventoryCategory.Generic && s.Item.Value == item
+            && (stored.Stack.ItemEntity.IsNone || s.ItemEntity == stored.Stack.ItemEntity));
         if (loose == null)
         {
-            Log.Warn($"{Tag} ({why}): {name} is not found after the unequip; nothing more is done");
+            Log.Warn($"{Tag} ({why}): {name} is not found in the backpack after the move");
             return;
         }
-        EquipResult given = await Items.GiveEquip(player, loose.Item, loose.Count, _kind.Slot, new GiveEquipOptions { Replaced = Replaced.Backpack });
-        Log.Info($"{Tag} ({why}): {name} x{loose.Count} given into the Equipment page -> {given}");
-        if (!given.Ok)
+        EquipResult on = await Items.Equip(player, loose.Slot, _kind.Slot, EquipOptions.None, loose.ItemEntity);
+        Log.Info($"{Tag} ({why}): {name} x{loose.Count} equipped in backpack cell {loose.Slot} -> {on}");
+        if (!on.Ok)
         {
-            EquipResult back = await Items.Equip(player, loose.Slot, _kind.Slot, EquipOptions.None, loose.ItemEntity);
-            Log.Info($"{Tag} ({why}): {name} equipped again where it was -> {back}");
-            return;
+            MoveResult back = await Store(player, storage, loose);
+            Log.Info($"{Tag} ({why}): {name} back into the grimoire -> {back}");
+            Hud.Toast($"Grimoire: {name} Not Equipped ({on.Reason})", ToastKind.Error, 4);
         }
-        ItemsResult taken = await Items.TakeSlot(player, loose);
-        Log.Info($"{Tag} ({why}): {name}'s backpack stack at {loose.Slot} taken -> {taken}; now in {Where(Equipped(player, storage))}");
-        if (!taken.Succeeded)
+    }
+
+    // Whether the grimoire keeps this item: it is in the player's order or stored. Anything else in the backpack is the player's own.
+    private bool Kept(EntityId player, PlayerStorage storage, uint item) =>
+        Order(player).Items.Contains(item) || Stored(player, storage).Any(s => s.Stack.Item.Value == item);
+
+    // Brings back what 0.1.0 to 0.1.2 left in an Equipment page: an equipped stack there is unequipped into the backpack (the game's own
+    // unequip, a move) and equipped again where it landed; a stack there that isn't equipped goes into the storage.
+    private async Task Secure(EntityId player, PlayerStorage storage, string why)
+    {
+        EquippedStack? equipped = Equipped(player, storage);
+        if (equipped != null && !equipped.InStorage && equipped.Stack.Category == InventoryCategory.Equipment)
         {
-            Log.Warn($"{Tag} ({why}): the backpack {name} could not be taken after it was given: the player has one stack more");
+            InventorySlot stack = equipped.Stack;
+            string name = ItemName(stack.Item);
+            EquipResult off = await Items.Unequip(player, _kind.Slot);
+            Log.Info($"{Tag} ({why}): {name} x{stack.Count} equipped in Equipment page cell {stack.Slot}: unequipped into the backpack -> {off}");
+            if (!off.Ok)
+            {
+                Hud.Toast($"Grimoire: Free A Backpack Slot For {name}", ToastKind.Error, 6);
+                return;
+            }
+            InventorySlot? landed = Items.Read(player)?.Slots.FirstOrDefault(s => !s.IsEmpty && s.Category == InventoryCategory.Generic && s.Item == stack.Item
+                && (s.Slot == off.To || (!stack.ItemEntity.IsNone && s.ItemEntity == stack.ItemEntity)));
+            if (landed != null)
+            {
+                EquipResult on = await Items.Equip(player, landed.Slot, _kind.Slot, EquipOptions.None, landed.ItemEntity);
+                Log.Info($"{Tag} ({why}): {name} equipped again in backpack cell {landed.Slot} -> {on}");
+            }
         }
+        await FileStranded(player, storage, why);
     }
 
     // The slot emptied: a stack that is nowhere in the player's inventory ran out, and the next entry is equipped (more of it first).
@@ -463,8 +426,8 @@ internal sealed class Book : IDisposable
         }
     }
 
-    // The player is done switching: a stack of this kind left in an Equipment page but not equipped (the game switched to a backpack
-    // stack) is filed back into the storage.
+    // The player is done switching: what was left outside the storage goes back. A grimoire spell the game switched away from stays in
+    // the backpack, unequipped, and is filed back; the player's own backpack spells stay.
     private async Task Settle(EntityId player)
     {
         PlayerStorage? storage = Ready(player, "settle", quiet: true);
@@ -472,7 +435,17 @@ internal sealed class Book : IDisposable
         {
             return;
         }
-        await FileStranded(player, storage, "settled");
+        await Secure(player, storage, "settled");
+        EquippedStack? equipped = Equipped(player, storage);
+        List<InventorySlot> loose = Items.Read(player)?.Slots
+            .Where(s => !s.IsEmpty && s.Category == InventoryCategory.Generic && _kind.Holds(s.Item) && !s.IsEquipped
+                        && !(equipped != null && !equipped.InStorage && equipped.Stack.Slot == s.Slot) && Kept(player, storage, s.Item.Value)).ToList()
+            ?? new List<InventorySlot>();
+        foreach (InventorySlot stack in loose)
+        {
+            MoveResult moved = await Store(player, storage, stack);
+            Log.Info($"{Tag} (settled): {ItemName(stack.Item)} x{stack.Count} in the backpack, not equipped, filed back -> {moved}");
+        }
     }
 
     // Files every stack of this kind that lies in an Equipment page but is not equipped back into the storage.
@@ -489,8 +462,8 @@ internal sealed class Book : IDisposable
         }
     }
 
-    // Adds an item: every backpack stack of it into its storage slot or a free one. The equipped stack, when it is in the backpack, is
-    // moved to the Equipment page and counts as added.
+    // Adds an item: every backpack stack of it that isn't equipped into its storage slot or a free one. The equipped stack stays where it
+    // is, in the backpack, and counts as added.
     private async Task Add(EntityId player, uint item)
     {
         PlayerStorage? storage = Ready(player, "add");
@@ -506,14 +479,9 @@ internal sealed class Book : IDisposable
             Hud.Toast($"Grimoire: {_kind.Name} Full ({limit} Slots)", ToastKind.Info, 3);
             return;
         }
+        await Secure(player, storage, "add");
         EquippedStack? equipped = Equipped(player, storage);
-        bool addedEquipped = false;
-        if (equipped != null && equipped.InBackpack && equipped.Stack.Item.Value == item)
-        {
-            await Reseat(player, storage, "add");
-            equipped = Equipped(player, storage);
-            addedEquipped = equipped != null && !equipped.InBackpack && equipped.Stack.Item.Value == item;
-        }
+        bool equippedIsIt = equipped != null && equipped.Stack.Item.Value == item;
         List<InventorySlot> stacks = Items.Read(player)?.Slots
             .Where(s => !s.IsEmpty && s.Item.Value == item && s.Category == InventoryCategory.Generic && !s.IsEquipped
                         && !(equipped != null && !equipped.InStorage && equipped.Stack.Slot == s.Slot)).ToList() ?? new List<InventorySlot>();
@@ -529,12 +497,12 @@ internal sealed class Book : IDisposable
             }
             added += Math.Max(0, moved.Done);
         }
-        if (added > 0 || addedEquipped)
+        if (added > 0 || equippedIsIt)
         {
             GrimoireRules.Merge(Order(player).Items, new[] { item });
             Hud.Toast($"Grimoire: {name} Added", ToastKind.Info, 2);
         }
-        else if (stacks.Count == 0 && !addedEquipped)
+        else if (stacks.Count == 0)
         {
             Hud.Toast($"Grimoire: No {name} In The Backpack", ToastKind.Info, 2);
         }
@@ -573,7 +541,7 @@ internal sealed class Book : IDisposable
         return await Items.Move(player, stack.Slot, storage.EntityOf(player), 0, options, storage.Slot(player, index));
     }
 
-    // Takes an entry out: its stored stacks into the backpack, and the equipped stack too (the game's unequip).
+    // Takes an entry out: its stored stacks into the backpack. The equipped stack is in the backpack already and stays equipped.
     private async Task TakeOut(EntityId player, uint item)
     {
         PlayerStorage? storage = Ready(player, "take out");
@@ -581,6 +549,7 @@ internal sealed class Book : IDisposable
         {
             return;
         }
+        await Secure(player, storage, "take out");
         string name = ItemName(new ItemId(item));
         bool left = false;
         foreach (StoredStack stored in Stored(player, storage).Where(s => s.Stack.Item.Value == item).ToList())
@@ -588,13 +557,6 @@ internal sealed class Book : IDisposable
             MoveResult moved = await storage.Retrieve(player, stored.Index);
             Log.Info($"{Tag} (take out): {name} x{stored.Stack.Count} from slot {stored.Index} -> {moved}");
             left |= !moved.Succeeded || moved.Done < stored.Stack.Count;
-        }
-        EquippedStack? equipped = Equipped(player, storage);
-        if (!left && equipped != null && !equipped.InBackpack && equipped.Stack.Item.Value == item)
-        {
-            EquipResult off = await Items.Unequip(player, _kind.Slot);
-            Log.Info($"{Tag} (take out): the equipped {name} -> {off}");
-            left |= !off.Ok;
         }
         if (left)
         {
@@ -647,32 +609,6 @@ internal sealed class Book : IDisposable
         });
     }
 
-    // Refreshes the view when the equipped stack's count (or item) is no longer what the HUD list shows.
-    private void QueueCountPoll()
-    {
-        View view = _view;
-        if (view.Equipped == 0 || !view.EquippedInEquipmentPage || !view.Enabled || _busy || Interlocked.Exchange(ref _countPollQueued, 1) == 1)
-        {
-            return;
-        }
-        _mod.Context.Scheduler.Post(() =>
-        {
-            Interlocked.Exchange(ref _countPollQueued, 0);
-            EntityId player = Client.Available ? Client.LocalPlayer : EntityId.None;
-            if (player.IsNone || !Client.IsHosting || _busy)
-            {
-                return;
-            }
-            View now = _view;
-            int count = Items.Read(player)?.Slots.Where(s => !s.IsEmpty && s.Category == InventoryCategory.Equipment && s.Item.Value == now.Equipped)
-                .Sum(s => s.Count) ?? 0;
-            if (count != now.EquippedCount)
-            {
-                Refresh(player);
-            }
-        });
-    }
-
     private void Refresh(EntityId player)
     {
         Interlocked.Exchange(ref _refreshedAt, Environment.TickCount64);
@@ -692,8 +628,8 @@ internal sealed class Book : IDisposable
             counts[stack.Stack.Item.Value] = counts.GetValueOrDefault(stack.Stack.Item.Value) + stack.Stack.Count;
         }
         EquippedStack? equipped = Equipped(player, _storage);
-        // The equipped stack belongs to the book unless it lies in the backpack (a spell the game equipped from there).
-        uint bookEquipped = equipped != null && !equipped.InBackpack ? equipped.Stack.Item.Value : 0;
+        // The equipped stack is the grimoire's when the grimoire keeps its item (in the order or stored); else it is the player's own.
+        uint bookEquipped = equipped != null && Kept(player, _storage, equipped.Stack.Item.Value) ? equipped.Stack.Item.Value : 0;
         var present = new List<uint>(stored.Select(s => s.Stack.Item.Value));
         if (bookEquipped != 0)
         {
@@ -713,11 +649,15 @@ internal sealed class Book : IDisposable
                          .Where(s => !s.IsEmpty && s.Category == InventoryCategory.Generic && _kind.Holds(s.Item)).GroupBy(s => s.Item.Value))
             {
                 bool isEquipped = equipped != null && equipped.InBackpack && group.Any(s => s.Slot == equipped.Stack.Slot);
-                bag.Add(new BagEntry(group.Key, ItemName(new ItemId(group.Key)), group.Sum(s => s.Count), isEquipped));
+                // The grimoire's own equipped stack is shown on its entry, not here.
+                List<InventorySlot> own = group.Where(s => !(isEquipped && bookEquipped == group.Key && s.Slot == equipped!.Stack.Slot)).ToList();
+                if (own.Count > 0)
+                {
+                    bag.Add(new BagEntry(group.Key, ItemName(new ItemId(group.Key)), own.Sum(s => s.Count), isEquipped && bookEquipped != group.Key));
+                }
             }
         }
-        _view = new View(entries, bag.ToArray(), shown.ToArray(), counts, bookEquipped, equippedCount, limit, enabled, null,
-            equipped != null && !equipped.InStorage && equipped.Stack.Category == InventoryCategory.Equipment);
+        _view = new View(entries, bag.ToArray(), shown.ToArray(), counts, bookEquipped, equippedCount, limit, enabled, null);
         _rows?.Refresh();
     }
 
