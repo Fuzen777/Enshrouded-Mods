@@ -2,6 +2,10 @@
 
 A rebuild of Auto Doors (SellTheWorldGames, closed source) as a Kiln mod, from its described behaviour, not its code. Doors are toggled by sending the game's own `ToggleInteractionEvent {guest, host, offer}` from the mod's ECS program `door_toggle` (`src\kiln.programs.json`); `interaction_toggle_new` flips `ServerToggleState` and `interaction_directional` swings the door away from the guest.
 
+## 0.2.11
+
+- Secret pieces (Fuzen: 0.2.10 gave no message and no change on a secret door, a bookcase and a secret floor). Secret pieces are now also found by template name ("Secret" in the name), not only through the toggle components. For its first three scans with a base loaded, the log lists what it finds: `auto doors: secret pieces: N found; ...` with each candidate's id, template, whether it toggles and whether it is in a base.
+
 ## 0.2.10
 
 - Secret pieces (Fuzen): Close Only is their default; the Door Mode key cycles Close Only, Players (opens and closes for players and the build camera, like a door), Manual. They only ever work inside a base, also with Bases Only off. The world's door list stores Players and Manual for them; Close Only is not listed.

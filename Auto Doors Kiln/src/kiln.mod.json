@@ -1,7 +1,7 @@
 {
   "id": "auto-doors-kiln",
   "name": "Auto Doors",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "description": "Doors open when you, a survivor or the build camera come near and close again once everyone has left. Distances, who opens doors and a mode for each door are settings. Rebuilt on Kiln from Auto Doors' described behaviour. Works in a world you host.",
   "authors": [
     "Fuzen777"
