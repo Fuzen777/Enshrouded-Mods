@@ -21,7 +21,7 @@ There is no on-screen prompt for any of this, so here is everything you can do.
 ## Controls
 
 - **Shift + MMB** (controller: **LB + Y**) while looking at a door : look at a door and press it to change that door's mode. Each press moves to the next mode and a message tells you which one it is now.
-- **Shift + F7**: switch the whole mod on or off.
+- **Shift + F7**:  opens the Settings menu. (Same as Kiln settings, nicer to look at.)
 
 Both keys can be changed in the **Keys** tab of Kiln's menu. Normally, it should only take away MMB while looking at a door, leaving it usable for normal operations otherwise. Tell me if it misbehaves. 
 
@@ -46,17 +46,16 @@ You can still use any door as usual. A door you open or close by hand **stays th
 
 ## Settings
 
-In Kiln's menu: **Mods → Auto Doors**. Every change applies at once.
+Press **Shift + F7** in game (or **Open Settings Window** on the mod's page in Kiln's menu). Every change applies at once; hover a setting to see what it does.
 
-- **Open Distance** and **Close Distance**: how close someone has to be for a door to open, and how far everyone has to be for it to close. In decimetres: 40 = 4 m.
-- **Height Reach**: someone on another floor (above or below this distance) neither opens a door nor keeps it open.
-- **Close Delay**: seconds a door stays open after everyone has left.
-- **Only Inside Bases**: on by default. Turn it off and every door in the world works.
-- **Open For Players / Survivors / Build Camera / Animals**: who opens doors. Animals are off by default, so your farm stays in.
-- **Close Doors Opened By Hand**: off, and only doors the mod opened close by themselves.
-- **Respect Hand Toggles**: the "stays that way while you are near it" rule above.
-- **Door Label**: the mode under the crosshair.
-- **Messages**: the on-screen message when you change a mode or switch the mod.
+- **Auto Doors on**: the whole mod on or off.
+- **Work outside bases**: off by default. Turn it on and doors everywhere open and close by themselves. Door modes, their key and the label stay for doors in your base.
+- **Who opens doors**: players, survivors, the build camera, animals. Animals are off by default, so your farm stays in.
+- **Open distance** and **Close distance**: how close someone has to be for a door to open, and how far everyone has to be for it to close (hold Shift on the - and + buttons for bigger steps).
+- **Height reach**: someone on another floor (above or below this distance) neither opens a door nor keeps it open.
+- **Close delay**: seconds a door stays open after everyone has left.
+- **Doors used by hand**: keep them as you left them while you are near (the rule above), and whether the mod closes doors someone opened by hand.
+- **Door label** and **Messages**: the mode under the crosshair and the message when you change a mode.
 
 ---
 

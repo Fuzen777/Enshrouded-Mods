@@ -3,13 +3,13 @@ using Kiln;
 
 namespace AutoDoorsKiln;
 
-/// <summary>The mod's settings: kiln config auto-doors-kiln.json, changed from the Kiln menu (Insert, Mods, Auto Doors) or by
-/// saving the file. Distances are whole numbers of decimetres so Kiln's sliders move in steps of 10 cm (Kiln draws a whole
+/// <summary>The mod's settings: kiln config auto-doors-kiln.json, changed in the mod's settings window (Shift+F7), the Kiln menu
+/// (Insert, Mods, Auto Doors) or by saving the file. Distances are whole numbers of decimetres so Kiln's sliders move in steps of 10 cm (Kiln draws a whole
 /// number as a slider with steps and a decimal number as a free one). Every setting applies at once.</summary>
 public sealed class DoorSettings
 {
     [ConfigKey("enabled")]
-    [Comment("Enabled. Doors open and close by themselves. The Toggle Auto Doors key (Shift+F7; Kiln menu, Keys) switches this.")]
+    [Comment("Enabled. Doors open and close by themselves. Switched in the settings window (Shift+F7).")]
     public bool Enabled { get; set; } = true;
 
     [ConfigKey("openDistanceDm")]
@@ -33,7 +33,7 @@ public sealed class DoorSettings
     public int CloseDelaySeconds { get; set; } = 0;
 
     [ConfigKey("onlyInsideBases")]
-    [Comment("Only Inside Bases. Only doors inside a flame altar's area open by themselves. Off: every door in the world does.")]
+    [Comment("Only Inside Bases. Only doors inside a flame altar's area open by themselves. Off (Work Outside Bases in the settings window): every door in the world does; door modes, their key and the label stay for base doors.")]
     public bool OnlyInsideBases { get; set; } = true;
 
     [ConfigKey("openForPlayers")]
@@ -65,8 +65,11 @@ public sealed class DoorSettings
     public bool DoorLabel { get; set; } = true;
 
     [ConfigKey("toasts")]
-    [Comment("Messages. Show a message on screen when a key changes a door's mode or switches the mod.")]
+    [Comment("Messages. Show a message on screen when the Door Mode key changes a door's mode.")]
     public bool Toasts { get; set; } = true;
+
+    /// <summary>A copy, for the settings window to show while a change is on its way to the tick thread.</summary>
+    public DoorSettings Clone() => (DoorSettings)MemberwiseClone();
 }
 
 /// <summary>Per-door modes of the open world: kiln/data/worlds/&lt;world&gt;/config/auto-doors-kiln-doors-world.json. Set with the

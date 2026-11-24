@@ -2,6 +2,11 @@
 
 A rebuild of Auto Doors (SellTheWorldGames, closed source) as a Kiln mod, from its described behaviour, not its code. Doors are toggled by sending the game's own `ToggleInteractionEvent {guest, host, offer}` from the mod's ECS program `door_toggle` (`src\kiln.programs.json`); `interaction_toggle_new` flips `ServerToggleState` and `interaction_directional` swings the door away from the guest.
 
+## 0.2.6
+
+- Shift + F7 opens the mod's settings window (Fuzen; it switched the mod on and off): the on/off switch at the top, then Where, Who opens doors, Distances, Doors used by hand and On screen. Distances in metres with - and + buttons (0.1 m, Shift 0.5 m), changed values in the accent colour, a tooltip on every setting, Defaults (keeps on/off and door modes). Also opened from a button on the mod's page of the Kiln menu. The window draws from a copy of the settings and writes each change on the tick thread.
+- Work outside bases (the Only Inside Bases setting, inverted in the window): doors everywhere open and close by themselves. Door modes stay for base doors: the Door Mode keys and the label only work on doors inside a flame altar's area, whatever this setting, and a door outside a base always counts as Everyone.
+
 ## 0.2.5
 
 - Door Mode is on Shift + middle mouse button by default (Fuzen; was F7). The Door Mode keys (mouse and LB + Y) now fire, and keep the press from the game, only while you look at a door the mod works on (inside a base, or any door with Only Inside Bases off); everywhere else the press goes to the game as usual. A press with no such door says nothing (0.2.4 showed "look at a door").

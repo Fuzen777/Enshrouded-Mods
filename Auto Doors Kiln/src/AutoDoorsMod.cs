@@ -22,7 +22,7 @@ namespace AutoDoorsKiln;
 ///
 /// The logic runs on the world's tick thread of the game that hosts the world (a hosted game or a dedicated server).
 /// </summary>
-public sealed class AutoDoorsMod : Mod
+public sealed partial class AutoDoorsMod : Mod
 {
     private const int EventSize = 24;
     private const int AcceptedOfferOffset = 36;
@@ -100,8 +100,7 @@ public sealed class AutoDoorsMod : Mod
             SetModeKeys(false);
             _bindings.Add(_modeKey);
             _bindings.Add(_modePad);
-            _bindings.Add(KeyBindings.Register("auto-doors-kiln.toggle", "Shift+F7", () => OnTickThread("switch", ToggleEnabled),
-                "Auto Doors: Switch On or Off", Context.Info.Name));
+            CreateSettingsScreen();
             Events.On<RenderFrameEvent>(OnFrame);
         }
         Log.Info($"auto doors {Context.Info.Version}: loaded; open {_settings.Value.OpenDistanceDm / 10.0:0.0} m, close {_settings.Value.CloseDistanceDm / 10.0:0.0} m");
@@ -365,6 +364,7 @@ public sealed class AutoDoorsMod : Mod
     private void OnTick(in TickInfo tick)
     {
         _step = tick.Step;
+        _lastTickAt = Now;
         try
         {
             if (_program == null && (tick.Step % 25 == 0 || _step < 3)) EnsureProgram();
@@ -420,7 +420,7 @@ public sealed class AutoDoorsMod : Mod
             }
             d.LastSeen = isOpen;
 
-            var mode = ModeOf(d);
+            var mode = d.InBase ? ModeOf(d) : DoorMode.Everyone;   // modes are set and kept for base doors only
             if (mode == DoorMode.Manual || (s.OnlyInsideBases && !d.InBase)) continue;
 
             var keepOpen = Within(d, triggers, mode, close, height);
@@ -601,20 +601,11 @@ public sealed class AutoDoorsMod : Mod
         });
     }
 
-    private void ToggleEnabled(Player player)
-    {
-        if (_settings == null) return;
-        bool on = !_settings.Value.Enabled;
-        _settings.Value.Enabled = on;
-        _settings.Save();
-        Say(on ? "Auto Doors: on" : "Auto Doors: off", ToastKind.Info);
-    }
-
     private void CycleDoorMode(Player player)
     {
         EnsureWorldRules();
         if (_doors.Count == 0 || _step - _lastScan >= RescanEverySteps) Rescan();
-        if (Aimed(player) is not { } d || (!d.InBase && S.OnlyInsideBases)) return;   // the key was let through to the game
+        if (Aimed(player) is not { } d || !d.InBase) return;   // the key was let through to the game
         var next = (DoorMode)(((int)ModeOf(d) + 1) % 4);
         if (next == DoorMode.Everyone) _modes.Remove(d.Key); else _modes[d.Key] = next;
         SaveModes();
@@ -673,9 +664,11 @@ public sealed class AutoDoorsMod : Mod
     private void UpdateLabel(DoorSettings s)
     {
         var d = Ui.Available && Players.All.FirstOrDefault() is { } player ? Aimed(player) : null;
-        bool works = d != null && (d.InBase || !s.OnlyInsideBases);
-        SetModeKeys(works);
-        if (!works || !s.DoorLabel || !d!.InBase || ModeOf(d) is var mode && mode == DoorMode.Everyone)
+        // Door modes are for base doors only, also with Work Outside Bases on (Fuzen, 24 Nov 2026): outside a base the
+        // key stays the game's and there is no label.
+        bool inBase = d is { InBase: true };
+        SetModeKeys(inBase);
+        if (!inBase || !s.DoorLabel || ModeOf(d!) is var mode && mode == DoorMode.Everyone)
         {
             _label = null;
             return;
