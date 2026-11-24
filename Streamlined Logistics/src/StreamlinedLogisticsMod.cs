@@ -2788,7 +2788,7 @@ public sealed class StreamlinedLogisticsMod : Mod
         SettingToggle(ui, "allFavoritesInTabs", "All Favorites In Every Tab", settings.AllFavoritesInTabs,
             "Off: a category tab shows its own favorites at the top. On: it shows all of them.");
         SettingToggle(ui, "favoritesInGameScreens", "Favorites In The Game's Screens", settings.FavoritesInGameScreens,
-            "A favorite's slot is gold in the game's own inventory and chest screens. (Shift + RMB or R3 on a slot there always marks or unmarks it.)");
+            "A favorite's slot is gold in the game's own inventory and chest screens. (Shift + RMB or L3 on a slot there always marks or unmarks it.)");
         ui.Separator("Quick Deposit");
         SettingToggle(ui, "quickDeposit", "Quick Deposit", settings.QuickDeposit,
             "Inside a base, Sort Inventory pressed twice (G) or a Quick Stack Station puts your backpack's items into the base's chests.");
@@ -2962,7 +2962,7 @@ public sealed class StreamlinedLogisticsMod : Mod
     // 0.2.0-dev.30.3. 0.5.3 to 0.9.1 placed the borders and tested the pointer themselves, while Kiln put them at twice their place
     // on a 4K screen.
 
-    // The gold marks follow Favorites In The Game's Screens; marking with Shift + RMB or R3 always works (since 0.10.27, the
+    // The gold marks follow Favorites In The Game's Screens; marking with Shift + RMB or L3 always works (since 0.10.27, the
     // user: "R3 and Shift + RMB should work in inventory even if the Favorites in inventory settings is turned off").
     private void SyncGameScreenFavorites()
     {
@@ -2975,10 +2975,10 @@ public sealed class StreamlinedLogisticsMod : Mod
                 Log.Info("favorites: Shift + RMB on a slot of the game's own screens marks or unmarks its item");
                 try
                 {
-                    // A controller: R3 on the selected slot (Kiln 0.2.0-dev.30.5). L3 did it too from 0.10.25 to 0.10.39; since 0.10.40
-                    // only R3 (the user: "both L3 and R3 trigger the favorite behavior").
-                    _favoritePadClicks = Ui.Inventory.OnClick(new SlotClickOptions { Pad = KeyChord.Parse("Pad:RS") }, OnFavoriteSlotClicked);
-                    Log.Info("favorites: R3 on a controller marks or unmarks the selected slot's item");
+                    // A controller: L3 on the selected slot (Kiln 0.2.0-dev.30.5). R3 did it too from 0.10.27 to 0.10.39 and alone in
+                    // 0.10.40; since 0.10.41 only L3 (the user: "the game already uses R3 to open a tutorial overlay in the inventory").
+                    _favoritePadClicks = Ui.Inventory.OnClick(new SlotClickOptions { Pad = KeyChord.Parse("Pad:LS") }, OnFavoriteSlotClicked);
+                    Log.Info("favorites: L3 on a controller marks or unmarks the selected slot's item");
                 }
                 catch (Exception problem)
                 {

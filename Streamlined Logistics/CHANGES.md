@@ -7,6 +7,13 @@ How it works: the screen is a Kiln screen (`Ui.Screen`) drawn in the player's ga
 `Scripts\Build.ps1` runs the tests (`tests\ChestRulesTests`), builds against Kiln's assemblies in `<game>\kiln\host` and puts the mod in `dist\streamlined-logistics`; `-Install` copies it to `<game>\kiln\mods\streamlined-logistics`, where Kiln loads it as a drop-in (game closed).
 
 
+## 0.10.41
+
+- **Fix, the controller's favorite button is L3** (the user: "L3 ; the game already uses R3 to open a tutorial overlay in the inventory."): L3 marks or unmarks the selected slot's item; R3 is the game's own again. 0.10.40 had kept R3.
+
+> [!warning]
+> Not yet seen in game.
+
 ## 0.10.40
 
 - **The window keeps its size** (the user: "Can we make the window remember its size while still opening centered each time ?"): the F2 window opens centred at the size it had when it was last closed (`windowWidth` / `windowHeight` in the state file, at UI scale 1). Kiln sizes a screen from its options at each opening, so a new screen with the kept size is made before the opening.
