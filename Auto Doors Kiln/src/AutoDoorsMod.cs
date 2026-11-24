@@ -40,6 +40,8 @@ public sealed partial class AutoDoorsMod : Mod
     private const int CheckAfterSteps = 15;      // 0.25 s; a toggle moved the door within 3 steps in probe 4
     private const int AcceptWaitSteps = 10;
     private const double RetryAfterSeconds = 3.0;
+    // A door move that would name a player in a menu as guest waits this long and is tried again (1.1.1).
+    private const double BusyRetrySeconds = 0.5;
     private const double ModeKeyReach = 8.0;     // the Door Mode key picks a door within this many metres of you
     private const double SurvivorSearchRadius = 60.0;
 
@@ -538,6 +540,7 @@ public sealed partial class AutoDoorsMod : Mod
     {
         var triggers = Triggers(s);
         var players = Players.All.ToList();
+        FindBusyPlayers(players);
         double open = s.OpenDistance;
         double close = Math.Max(s.CloseDistance, s.OpenDistance);
         double height = s.HeightReach;
@@ -595,7 +598,8 @@ public sealed partial class AutoDoorsMod : Mod
             if (!d.OpenedByMod && !s.CloseDoorsOpenedByHand && mode != DoorMode.CloseOnly) continue;
             if (d.ClearSince < 0) d.ClearSince = now;
             if (now - d.ClearSince < s.CloseDelaySeconds || now < d.RetryAt) continue;
-            if (NearestPlayer(d, players) is { } guest) Start(d, false, guest, "everyone left", players);
+            if (CloseGuest(d, players) is { } guest) Start(d, false, guest, "everyone left", players);
+            else Wait(d, "everyone left");
         }
     }
 
@@ -629,7 +633,7 @@ public sealed partial class AutoDoorsMod : Mod
             double score = rank * 1000 + dist;
             if (score < bestScore) { bestScore = score; best = entity; bestKind = kind; }
         }
-        foreach (var p in players) if (p.Position is { } at) Consider(p.Entity.Value, at, "player", 0);
+        foreach (var p in players) if (p.Position is { } at && !_busy.Contains(p.Entity.Value)) Consider(p.Entity.Value, at, "player", 0);
         foreach (var t in triggers)
             if (t.Who is Who.Survivor or Who.Animal && !playerIds.Contains(t.Entity))
                 Consider(t.Entity, t.At, t.Who == Who.Survivor ? "survivor" : "animal", 0);
@@ -656,13 +660,50 @@ public sealed partial class AutoDoorsMod : Mod
 
     private int _sideLogs, _directionLogs, _cameraOpenLogs;
 
-    private static uint? NearestPlayer(DoorState d, List<Player> players)
+    // Players in a menu (1.1.1, a user's report, reproduced by Fuzen: a survivor walking through a door closed the
+    // player's backpack, storage or crafting menu). The close after the survivor had gone accepted the door's offer
+    // with the nearest player as guest, and an accept as a player ends that player's open interaction and its menu.
+    // Now no door event names a player in a full-screen menu or a looting menu as guest: the move waits until the menu
+    // is closed (or uses someone else), and closes use the door's last accepted guest without a new accept.
+    private readonly HashSet<uint> _busy = new();
+    private int _busyLogs;
+
+    private void FindBusyPlayers(List<Player> players)
+    {
+        _busy.Clear();
+        foreach (var p in players)
+            if (p.Check(PlayerStateId.InFullScreenUi) == true || p.Check(PlayerStateId.ClientUiIsInLootingMenu) == true)
+                _busy.Add(p.Entity.Value);
+    }
+
+    private void Wait(DoorState d, string why)
+    {
+        d.Stage = Stage.None;
+        d.LastSeen = IsOpen(d.Id);
+        d.RetryAt = Now + BusyRetrySeconds;
+        if (_busyLogs++ < 10)
+            Log.Info($"auto doors: door {d.Id.Value} ({why}) waits: the player it would name is in a menu");
+    }
+
+    // Who closes a door: its last accepted guest while that one still exists, so the toggle needs no new accept (a
+    // survivor who walked through stays the guest). Else the nearest player not in a menu; null when there is none.
+    private uint? CloseGuest(DoorState d, List<Player> players)
+    {
+        uint accepted = ReadRuntime(d.Id, AcceptedGuestOffset);
+        if (accepted != 0 && ReadRuntime(d.Id, AcceptedOfferOffset) != 0 && !_busy.Contains(accepted) &&
+            World.Exists(new EntityId(accepted)))
+            return accepted;
+        return NearestPlayer(d, players);
+    }
+
+    // The nearest player not in a menu.
+    private uint? NearestPlayer(DoorState d, List<Player> players)
     {
         uint? best = null;
         double bestDist = double.MaxValue;
         foreach (var p in players)
         {
-            if (p.Position is not { } at) continue;
+            if (p.Position is not { } at || _busy.Contains(p.Entity.Value)) continue;
             double dist = Distance(at, d.At);
             if (dist < bestDist) { bestDist = dist; best = p.Entity.Value; }
         }
@@ -673,6 +714,7 @@ public sealed partial class AutoDoorsMod : Mod
     // A door never accepted (offer 0) gets an accept first, with a player as guest.
     private void Start(DoorState d, bool open, uint guest, string why, List<Player> players)
     {
+        if (_busy.Contains(guest)) { Wait(d, why); return; }
         d.Want = open;
         d.Why = why;
         d.ClearSince = -1;
@@ -702,7 +744,8 @@ public sealed partial class AutoDoorsMod : Mod
     {
         if (NearestPlayer(d, players) is not { } player)
         {
-            Fail(d, "no player to accept the door");
+            if (_busy.Count > 0) Wait(d, d.Why);
+            else Fail(d, "no player to accept the door");
             return;
         }
         d.Guest = player;
@@ -733,6 +776,12 @@ public sealed partial class AutoDoorsMod : Mod
 
     private void Follow(DoorState d, bool isOpen, List<Player> players)
     {
+        // the guest went into a menu meanwhile: before the next event with it, stop and start again once the menu is closed
+        if (_busy.Contains(d.Guest) && isOpen != d.Want && (d.Stage == Stage.Accepting || d.Stage == Stage.Toggled && _step >= d.Due))
+        {
+            Wait(d, d.Why);
+            return;
+        }
         if (d.Stage is Stage.Toggled or Stage.ToggledAfterAccept && isOpen == d.Want)
         {
             Done(d, isOpen);

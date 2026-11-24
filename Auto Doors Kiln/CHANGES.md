@@ -2,6 +2,10 @@
 
 A rebuild of Auto Doors (SellTheWorldGames, closed source) as a Kiln mod, from its described behaviour, not its code. Doors are toggled by sending the game's own `ToggleInteractionEvent {guest, host, offer}` from the mod's ECS program `door_toggle` (`src\kiln.programs.json`); `interaction_toggle_new` flips `ServerToggleState` and `interaction_directional` swings the door away from the guest.
 
+## 1.1.1
+
+- Menus closing by themselves (a user's report, reproduced by Fuzen: a survivor walking through a door closed the player's backpack, storage or crafting menu). After the survivor had gone, the close accepted the door's offer with the nearest player as guest, and an accept as a player ends that player's open interaction and its menu. Closes now toggle with the door's last accepted guest (the survivor) while it exists, with no new accept. No door event names a player whose `InFullScreenUi` or `ClientUiIsInLootingMenu` flag is set: the move waits 0.5 s and tries again, or uses another player; the build camera's guest skips such players too. The log says so for the first 10 waits.
+
 ## 1.1.0
 
 - Nexus release of 1.0.1 and 1.0.2, no code change (the DLL is 1.0.2's; only the version in `kiln.mod.json` moved). From now on a Nexus upload of a published mod takes the next minor version and a build that is not uploaded takes a patch; `Changelog.mdbbcode` holds the player-facing notes of each upload.
