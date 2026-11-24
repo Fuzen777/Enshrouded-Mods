@@ -1,7 +1,7 @@
 {
   "id": "perennial-crops",
   "name": "Perennial Crops",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Planted crops keep producing after harvest, the way the game's own banana, coconut and coffee do, with one regrowth time and an optional shared growth time. Harvesting one by hand also harvests the ripe ones of the same kind around it. Shift+F6 opens the settings.",
   "authors": [
     "Fuzen777"

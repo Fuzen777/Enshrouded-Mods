@@ -39,3 +39,12 @@ The 64 planted growth roots of game build 26430625: 5 perennials, 40 one-shot cr
 - A settings window, Shift+F6 (a Kiln key binding, so it can be changed on Kiln's Keys page): the crop settings (marked Restart The Game To Apply when they differ from the ones this start was made with) and the area harvest settings, which apply at once.
 - The plan in the mod's data folder is now `plan.json`: the settings OnBoot used, the refill produce and the perennial ripe stages.
 - Tests: Sync Growth Time off (no growth root patched, the same 39 + 5 crops), the 44 area harvest stages, same kind against Harvest Any Crop, growing stages never taken, the area limits and the square's edges.
+
+> [!note]
+> In game on 24 Nov 2026, area harvest never ran: `area harvest can't run here: queries.overlap_origins (crops in an area) not available`. The mod checked Kiln's services in `OnLoad`, which for a both-sides mod runs in the main menu, before the hosted world's services are up.
+
+---
+
+## 1.0.2
+
+- Area harvest checks Kiln's services at a hand harvest in a hosted world instead of at load, asks again at the next harvest while one is missing (saying so once per world), and logs `area harvest ready: 44 perennial crop kinds` once it can run.

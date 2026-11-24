@@ -32,7 +32,8 @@ public sealed class PerennialCropsMod : Mod
     private ModConfig<HarvestSettings>? _harvest;
     private CropSettings? _bootCrops;
     private HashSet<string> _perennialStages = new HashSet<string>(StringComparer.Ordinal);
-    private bool _harvestReady;
+    private bool? _harvestReady;
+    private bool _missingLogged;
     private readonly Dictionary<uint, long> _queuedAt = new Dictionary<uint, long>();
     private readonly Queue<(EntityId Player, EntityId Crop, uint Offer, bool LootAll)> _pending = new Queue<(EntityId, EntityId, uint, bool)>();
     private int _harvestLines;
@@ -186,6 +187,17 @@ public sealed class PerennialCropsMod : Mod
 
     private void StartAreaHarvest()
     {
+        Context.Tick.Pre += OnTick;
+    }
+
+    /// <summary>Whether area harvest can run in the world being hosted. Asked at hand harvests, not at load: a both-sides mod loads in the main
+    /// menu, where the server-side services (crops in an area) are not up yet (1.0.1 asked there and never ran).</summary>
+    private bool HarvestReady()
+    {
+        if (_harvestReady is bool known)
+        {
+            return known;
+        }
         var missing = new List<string>();
         if (!Capabilities.Is("kiln.spawn"))
         {
@@ -199,12 +211,19 @@ public sealed class PerennialCropsMod : Mod
         {
             missing.Add("InteractionOfferRuntime (" + (Ecs.Available ? Ecs.WhyNot<Ecs.InteractionOfferRuntime>() : "kiln.world is off") + ")");
         }
-        _harvestReady = missing.Count == 0 && _perennialStages.Count > 0;
-        Context.Tick.Pre += OnTick;
         if (missing.Count > 0)
         {
-            Log.Warn($"area harvest can't run here: {string.Join(", ", missing)} not available");
+            // Asked again at the next hand harvest: a service may come up later. Said once per hosted world.
+            if (!_missingLogged)
+            {
+                _missingLogged = true;
+                Log.Warn($"area harvest can't run yet: {string.Join(", ", missing)} not available");
+            }
+            return false;
         }
+        _harvestReady = _perennialStages.Count > 0;
+        Log.Info($"area harvest ready: {_perennialStages.Count} perennial crop kinds");
+        return _harvestReady.Value;
     }
 
     [Subscribe]
@@ -217,7 +236,7 @@ public sealed class PerennialCropsMod : Mod
             return;
         }
         HarvestSettings? settings = _harvest?.Value;
-        if (!_harvestReady || settings == null || !settings.AreaHarvest || !Lifecycle.IsServerRunning || !e.ByPlayer || e.Guest.Value == 0 || e.Host.Value == 0)
+        if (settings == null || !settings.AreaHarvest || !Lifecycle.IsServerRunning || !e.ByPlayer || e.Guest.Value == 0 || e.Host.Value == 0 || !HarvestReady())
         {
             return;
         }
@@ -257,6 +276,8 @@ public sealed class PerennialCropsMod : Mod
     [Subscribe]
     private void OnStarted(ServerStartedEvent _)
     {
+        _harvestReady = null;
+        _missingLogged = false;
         Forget();
     }
 
