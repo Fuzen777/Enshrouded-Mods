@@ -17,6 +17,10 @@
     <Reference Include="Kiln.Blocks" HintPath="$(KilnHost)\Kiln.Blocks.dll" Private="false" />
     <Reference Include="Kiln.Content" HintPath="$(KilnHost)\Kiln.Content.dll" Private="false" />
     <Reference Include="Kiln.Creatures" HintPath="$(KilnHost)\Kiln.Creatures.dll" Private="false" />
+    <Reference Include="Kiln.Client" HintPath="$(KilnHost)\Kiln.Client.dll" Private="false" />
+    <Reference Include="Kiln.Items" HintPath="$(KilnHost)\Kiln.Items.dll" Private="false" />
+    <Reference Include="Kiln.Players" HintPath="$(KilnHost)\Kiln.Players.dll" Private="false" />
+    <Reference Include="Kiln.Saves" HintPath="$(KilnHost)\Kiln.Saves.dll" Private="false" />
     <Reference Include="Kiln.Ui" HintPath="$(KilnHost)\Kiln.Ui.dll" Private="false" />
   </ItemGroup>
 

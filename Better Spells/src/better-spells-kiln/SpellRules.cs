@@ -60,6 +60,11 @@ public static class SpellRules
     public const double MaxBallHitRate = 10.0;
     public const double CastingStep = 0.05;
 
+    // The spellbook: how many spells it holds, one slot per spell.
+    public const int MinSpellbookSlots = 1;
+    public const int MaxSpellbookSlots = 32;
+    public const int DefaultSpellbookSlots = 12;
+
     public const int MinSummonsPerCast = 1;
     public const int MaxSummonsPerCast = 5;
 
