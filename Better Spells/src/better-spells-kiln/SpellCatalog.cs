@@ -34,7 +34,7 @@ public sealed record ItemSpell(string Name, Regex Items, string DamageKey, strin
 public sealed record CardLine(string Label, string Key);
 
 /// <summary>A spell of the settings window: its name, the items whose icon stands for it, and its card's lines.</summary>
-public sealed record WindowSpell(string Spell, Regex? IconItem, CardLine[] Lines, string? ButtonText = null);
+public sealed record WindowSpell(string Spell, Regex? IconItem, CardLine[] Lines);
 
 /// <summary>A section of the settings window: a row of spell icons under a name.</summary>
 public sealed record WindowSection(string Name, WindowSpell[] Spells);
@@ -51,12 +51,6 @@ public static class SpellCatalog
     public const string GroupCost = "Cost";
     public const string GroupCastTime = "Cast Time";
     public const string GroupGeneral = "General";
-    public const string GroupSpellbook = "Spellbook";
-
-    // The spellbook (Spellbook.cs): on or off, and how many spells it holds. Not spell values: changing them applies nothing to the game's data.
-    public const string SpellbookEnabledKey = "spellbookEnabled";
-    public const string SpellbookSlotsKey = "spellbookSlots";
-    public const string SpellbookCard = "Spellbook";
 
     // The General card: one multiplier per kind of setting for every spell, and whether it multiplies with the spells' own or is a
     // floor under them.
@@ -237,13 +231,10 @@ public static class SpellCatalog
         new SettingInfo(ChainLockOnKey, "Chain Lightning Lock-On Range", GroupCasting, SettingKind.Multiplier, SpellRules.MinLockOn, SpellRules.MaxLockOn, SpellRules.CastingStep, 1),
         new SettingInfo(BallSpeedKey, "Ball Lightning Speed", GroupCasting, SettingKind.Multiplier, SpellRules.MinBallSpeed, SpellRules.MaxBallSpeed, SpellRules.CastingStep, 1),
         new SettingInfo(BallHitRateKey, "Ball Lightning Hit Rate", GroupCasting, SettingKind.Multiplier, SpellRules.MinBallHitRate, SpellRules.MaxBallHitRate, SpellRules.CastingStep, 1),
-
-        new SettingInfo(SpellbookEnabledKey, "Spellbook", GroupSpellbook, SettingKind.Toggle, 0, 1, 1, 1),
-        new SettingInfo(SpellbookSlotsKey, "Spellbook Slots", GroupSpellbook, SettingKind.Count, SpellRules.MinSpellbookSlots, SpellRules.MaxSpellbookSlots, 1, SpellRules.DefaultSpellbookSlots),
     });
 
     /// <summary>The groups of the settings page, in its order.</summary>
-    public static readonly IReadOnlyList<string> Groups = new[] { GroupSummons, GroupDuration, GroupDamage, GroupRadius, GroupCasting, GroupHealth, GroupCost, GroupCastTime, GroupGeneral, GroupSpellbook };
+    public static readonly IReadOnlyList<string> Groups = new[] { GroupSummons, GroupDuration, GroupDamage, GroupRadius, GroupCasting, GroupHealth, GroupCost, GroupCastTime, GroupGeneral };
 
     // Root's and Blizzard's zones hold enemies and slow them for the spell's main duration (their DebuffDuration config), so it follows the setting.
     public static readonly IReadOnlyList<DurationSpell> DurationSpells = new[]
@@ -396,10 +387,6 @@ public static class SpellCatalog
                 Line("Per Use", FireWispsPerUseKey)),
             Spell("Meteor Shower Scroll", ItemSpells[2].Items, Line("Damage", "meteorShowerScrollDamageMultiplier")),
             Spell("Crawler Bomb", ItemSpells[3].Items, Line("Duration", "crawlerBombDurationMultiplier"), Line("Damage", "crawlerBombDamageMultiplier"), Line("Health", "crawlerBombHealthMultiplier")),
-        }),
-        new WindowSection("Spellbook", new[]
-        {
-            new WindowSpell(SpellbookCard, null, new[] { Line("Spellbook", SpellbookEnabledKey), Line("Slots", SpellbookSlotsKey) }, "Book"),
         }),
     };
 

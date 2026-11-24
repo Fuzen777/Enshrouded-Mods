@@ -13,7 +13,7 @@ namespace BetterSpells;
 /// to what is cast afterwards. Every value is changed through Kiln's game data service as this mod's layer over the game's own value:
 /// a setting at its neutral value gives the layer back, and unloading the mod gives back all of them.
 /// Items, templates and casts are found by name (SpellCatalog); each spell item names the template it places.
-/// The settings window (F3, or the button on the mod's page in Kiln's menu) has a row per spell with a stepped control
+/// The settings window (Shift+F3, or the button on the mod's page in Kiln's menu) has a row per spell with a stepped control
 /// per setting; Kiln's own sliders on the mod's page are free and land on the nearest step.
 /// </summary>
 public sealed class BetterSpellsMod : Mod
@@ -78,16 +78,12 @@ public sealed class BetterSpellsMod : Mod
 
     private const int MaxRefusalLines = 40;
     private const string WindowBindingId = "better-spells.window";
-    private const string WindowDefaultKey = "F3";
+    private const string WindowDefaultKey = "Shift+F3";
     private const string WindowTitle = "Better Spells";
     // The screen's size before the overlay's scale. A Kiln screen has a fixed size (it doesn't fit its contents): this fits the
     // longest card (Totems) under the six rows of icons, with the hint wrapped to the width.
     private const float ScreenWidth = 370f;
     private const float ScreenHeight = 760f;
-    // The spellbook's column on the right of the settings, in the same screen (pixels at scale 1); the settings keep ScreenWidth.
-    private const float SpellbookGap = 12f;
-    // The screen's own margin on each side, which the settings' column leaves out of ScreenWidth.
-    private const float ScreenMargin = 12f;
     // The tables' ids. The overlay keeps a table's column widths by id, so a changed layout gets new ids and starts from fitted widths.
     // A row's height, before the overlay's scale: the spell's icon is a square of it, and so are the - and + buttons.
     private const float RowHeight = 26f;
@@ -105,8 +101,6 @@ public sealed class BetterSpellsMod : Mod
     private float _contentLeft;
     private float _contentRight;
     private KeyBinding? _windowKey;
-    // The spellbook (Spellbook.cs): its panel beside the backpack and the HUD spell list in the book's order.
-    private Spellbook? _spellbook;
     // The mouse wheel: a notch over a value steps it. The listener runs on the game's window thread, the window on the render side.
     private KeyListener? _wheelListener;
     private const uint WheelUpKey = 0x100;
@@ -174,9 +168,6 @@ public sealed class BetterSpellsMod : Mod
     public override void OnLoad()
     {
         _settings = Config.Register<SpellSettings>(ConfigKind.Common, null);
-        _spellbook = new Spellbook(this, () => (int)StoredSetting(SpellCatalog.SpellbookSlotsKey), () => StoredSetting(SpellCatalog.SpellbookEnabledKey) != 0);
-        _spellbook.Start();
-        _settings.Changed += OnSpellbookSettingsChanged;
         if (!Content.Available || !Content.GameDataAvailable)
         {
             Log.Warn($"loaded {Context.Info.Version}, but it can't change spells here: Kiln's content and game data services are not both available");
@@ -189,7 +180,7 @@ public sealed class BetterSpellsMod : Mod
         if (Ui.Available)
         {
             ReadDescriptions();
-            _window = Ui.Screen(WindowTitle, DrawWindow, new UiScreenOptions { Width = ScreenWidth + SpellbookGap + Spellbook.PanelWidth, Height = ScreenHeight, DimBackground = false });
+            _window = Ui.Screen(WindowTitle, DrawWindow, new UiScreenOptions { Width = ScreenWidth, Height = ScreenHeight, DimBackground = false });
             _windowKey = KeyBindings.Register(WindowBindingId, WindowDefaultKey, () => _window?.Toggle(), "Open Settings Window", Context.Info.Name);
             _wheelListener = KeyInput.Listen(OnKeyOrWheel);
             if (!_wheelListener.Ok || !_wheelListener.Mouse)
@@ -203,12 +194,6 @@ public sealed class BetterSpellsMod : Mod
 
     public override void OnUnload()
     {
-        if (_settings != null)
-        {
-            _settings.Changed -= OnSpellbookSettingsChanged;
-        }
-        _spellbook?.Dispose();
-        _spellbook = null;
         if (_subscribed && _settings != null)
         {
             _settings.Changed -= OnSettingsChanged;
@@ -222,33 +207,6 @@ public sealed class BetterSpellsMod : Mod
         _wheelListener = null;
         _window?.Dispose();
         _window = null;
-    }
-
-    [Subscribe]
-    private void OnEquipmentChanged(PlayerEquipmentChangedEvent e) => _spellbook?.OnEquipmentChanged(e);
-
-    [Subscribe]
-    private void OnStorageRestored(PlayerStorageRestoredEvent e) => _spellbook?.OnStorageEvent(e.Key, e.ToString());
-
-    [Subscribe]
-    private void OnStorageParked(PlayerStorageParkedEvent e) => _spellbook?.OnStorageEvent(e.Key, e.ToString());
-
-    [Subscribe]
-    private void OnStorageDeath(PlayerStorageDeathEvent e) => _spellbook?.OnStorageEvent(e.Key, e.ToString());
-
-    private void OnSpellbookSettingsChanged(ConfigChangedEvent change)
-    {
-        if (change.Changed.Any(key => key == SpellCatalog.SpellbookEnabledKey || key == SpellCatalog.SpellbookSlotsKey))
-        {
-            _spellbook?.SettingsChanged();
-        }
-    }
-
-    // A spellbook setting as the file holds it, inside its range and on its step (any thread).
-    private double StoredSetting(string key)
-    {
-        SettingInfo setting = SpellCatalog.Setting(key);
-        return setting.IsToggle ? StoredValue(setting) : SpellRules.Snap(setting, StoredValue(setting));
     }
 
     // Settings ----------------------------------------------------------------------------------------------------
@@ -272,7 +230,7 @@ public sealed class BetterSpellsMod : Mod
     private string AppliedValues()
     {
         var values = new System.Text.StringBuilder();
-        foreach (SettingInfo setting in SpellCatalog.Settings.Where(setting => setting.Group != SpellCatalog.GroupSpellbook))
+        foreach (SettingInfo setting in SpellCatalog.Settings)
         {
             values.Append(Value(setting.Key).ToString("R", CultureInfo.InvariantCulture)).Append(';');
         }
@@ -397,28 +355,7 @@ public sealed class BetterSpellsMod : Mod
     // The settings window: a row of spell icons per section; clicking one opens its card below, with a line per setting. The card's
     // area keeps the height of the longest card, so the window does not change size from one spell to the next. Everything in a line
     // is as tall as the line or centered in it.
-    // The settings screen: the settings on the left, the spellbook's column on the right.
     private void DrawWindow(UiDraw ui)
-    {
-        if (_spellbook == null)
-        {
-            DrawSettings(ui);
-            return;
-        }
-        if (ui.BeginChild("##settings", (ScreenWidth - 2f * ScreenMargin) * ui.Scale, 0f))
-        {
-            DrawSettings(ui);
-        }
-        ui.EndChild();
-        ui.SameLine(0f, SpellbookGap * ui.Scale);
-        if (ui.BeginChild("##spellbook", 0f, 0f))
-        {
-            _spellbook.Draw(ui);
-        }
-        ui.EndChild();
-    }
-
-    private void DrawSettings(UiDraw ui)
     {
         _rowHeight = RowHeight * ui.Scale;
         _textHeight = ui.MeasureText("X").Height;
@@ -573,7 +510,7 @@ public sealed class BetterSpellsMod : Mod
     {
         string id = "##spell" + spellIndex.ToString(CultureInfo.InvariantCulture);
         UiImage? icon = iconItem != 0 ? Ui.ItemImage(new ItemId(iconItem)) : null;
-        string text = spell.ButtonText ?? (spell.IconItem == null ? SpellCatalog.GeneralButtonText : Initials(spell.Spell));
+        string text = spell.IconItem == null ? SpellCatalog.GeneralButtonText : Initials(spell.Spell);
         bool clicked = icon != null ? ui.ImageButtonTrimmed(id, icon, size, size) : ui.Button(text + id, size, size);
         if (clicked)
         {

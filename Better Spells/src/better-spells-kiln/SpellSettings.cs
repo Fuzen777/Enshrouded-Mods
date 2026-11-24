@@ -572,14 +572,4 @@ public sealed class SpellSettings
     [ConfigKey("generalAtLeast")]
     [Comment("General Mode. Off (Multiply): the General multipliers multiply each spell's own. On (At Least): each is a floor, so a spell keeps its own value only where it is better.")]
     public bool GeneralAtLeast { get; set; } = false;
-
-    // Spellbook
-    [ConfigKey("spellbookEnabled")]
-    [Comment("Spellbook. Keeps your spells in a book beside the backpack: only the equipped spell takes a backpack slot, and the HUD's spell list follows the book's order. Off: the game's own list; the book keeps its spells until it is on again. Works in a world you host.")]
-    public bool SpellbookEnabled { get; set; } = true;
-
-    [ConfigKey("spellbookSlots")]
-    [Comment("Spellbook Slots. How many spells the book holds, one slot per spell; a spell already in the book tops up its slot. Lowering it keeps the spells already in the book.")]
-    [Range(SpellRules.MinSpellbookSlots, SpellRules.MaxSpellbookSlots, 1)]
-    public int SpellbookSlots { get; set; } = SpellRules.DefaultSpellbookSlots;
 }

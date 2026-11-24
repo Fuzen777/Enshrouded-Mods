@@ -76,8 +76,8 @@ Check(SpellRules.ShapeKey(1744623269, 2) != 1744623269 && SpellRules.ShapeKey(17
 Check(SpellRules.ShapeKey(1744623269, 2) != SpellRules.ShapeKey(1744623269, 2.25), "two sizes get two keys");
 Check(SpellRules.Same(2.6, 2.5999999046325684) && !SpellRules.Same(2.6, 2.61), "a float32 and its double are the same value, 2.6 and 2.61 are not");
 
-// The settings: 115, each once, in a known group, and the settings file's entries agree with the list.
-Check(SpellCatalog.Settings.Count == 115, $"there are 115 settings (found {SpellCatalog.Settings.Count})");
+// The settings: 113, each once, in a known group, and the settings file's entries agree with the list.
+Check(SpellCatalog.Settings.Count == 113, $"there are 113 settings (found {SpellCatalog.Settings.Count})");
 Check(SpellCatalog.Settings.Select(setting => setting.Key).Distinct().Count() == SpellCatalog.Settings.Count, "no setting key is listed twice");
 Check(SpellCatalog.Settings.All(setting => SpellCatalog.Groups.Contains(setting.Group)), "every setting is in a group of the settings page");
 var fileDefaults = new SpellSettings();
@@ -116,9 +116,9 @@ foreach (string key in SpellCatalog.DurationSpells.Select(spell => spell.Setting
 
 // The settings window shows every setting on exactly one card, in the sections the user chose, and each card's labels are its own.
 List<string> windowKeys = SpellCatalog.WindowSpells.SelectMany(spell => spell.Lines.Select(line => line.Key)).ToList();
-Check(windowKeys.Count == SpellCatalog.Settings.Count && windowKeys.Distinct().Count() == windowKeys.Count, $"the window has each of the 115 settings once ({windowKeys.Count} lines, {windowKeys.Distinct().Count()} different)");
+Check(windowKeys.Count == SpellCatalog.Settings.Count && windowKeys.Distinct().Count() == windowKeys.Count, $"the window has each of the 113 settings once ({windowKeys.Count} lines, {windowKeys.Distinct().Count()} different)");
 Check(SpellCatalog.Settings.All(setting => windowKeys.Contains(setting.Key)), "no setting is missing from the window");
-Check(string.Join(", ", SpellCatalog.WindowSections.Select(section => section.Name)) == "General, Fire, Ice, Lightning, Shroud, Summons, Others, Items, Spellbook", "the sections are General, Fire, Ice, Lightning, Shroud, Summons, Others, Items, Spellbook");
+Check(string.Join(", ", SpellCatalog.WindowSections.Select(section => section.Name)) == "General, Fire, Ice, Lightning, Shroud, Summons, Others, Items", "the sections are General, Fire, Ice, Lightning, Shroud, Summons, Others, Items");
 Check(SpellCatalog.WindowSpells.Where(spell => spell.IconItem != null).All(spell => spell.Lines[0].Key == SpellCatalog.CostKey(spell.Spell)), "every spell's card starts with its Mana Cost");
 Check(SpellCatalog.CastTimeKey("Fire Bolt") == "fireBoltCastTimeMultiplier" && SpellCatalog.LowerIsBetter(SpellCatalog.GroupCastTime), "cast time keys, and a shorter cast time is the better one");
 Check(SpellCatalog.CastTimeSpellNames.All(name => SpellCatalog.WindowSpells.Any(spell => spell.Spell == name && spell.Lines.Any(line => line.Key == SpellCatalog.CastTimeKey(name)))), "every Cast Time setting is on its card");
@@ -141,12 +141,9 @@ Check(SpellCatalog.WindowSpells.Select(spell => spell.Spell).Distinct().Count() 
 foreach (WindowSpell spell in SpellCatalog.WindowSpells)
 {
     Check(spell.Lines.Length > 0, $"{spell.Spell}'s card has a setting");
-    Check(spell.IconItem != null || spell.Spell == SpellCatalog.GeneralSpell || spell.Spell == SpellCatalog.SpellbookCard, $"{spell.Spell} names the items its icon comes from");
+    Check(spell.IconItem != null || spell.Spell == SpellCatalog.GeneralSpell, $"{spell.Spell} names the items its icon comes from");
     Check(spell.Lines.Select(line => line.Label).Distinct().Count() == spell.Lines.Length, $"{spell.Spell}'s card has no label twice");
 }
-Check(SpellCatalog.WindowSections.Single(section => section.Name == "Spellbook").Spells.Single().Lines.Select(line => line.Key).SequenceEqual(new[] { SpellCatalog.SpellbookEnabledKey, SpellCatalog.SpellbookSlotsKey }), "the Spellbook card holds Spellbook and Slots");
-Check(SpellCatalog.Setting(SpellCatalog.SpellbookSlotsKey) is { Minimum: SpellRules.MinSpellbookSlots, Maximum: SpellRules.MaxSpellbookSlots, Default: SpellRules.DefaultSpellbookSlots }, "Spellbook Slots: 1 to 32, 12 by default");
-Check(SpellCatalog.Setting(SpellCatalog.SpellbookEnabledKey).Default == 1, "the spellbook is on by default");
 Check(SpellCatalog.WindowSections.Single(section => section.Name == "Summons").Spells.Select(spell => spell.Spell).SequenceEqual(new[] { "Totems", "Skeleton", "Lightning Wisp" }), "Summons holds Totems, Skeleton and Lightning Wisp");
 
 // Against the game's own data: the dump names its files <name>__<guid>.json.

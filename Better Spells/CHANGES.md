@@ -6,6 +6,12 @@ Its companion **Better Spells Live** (`src\better-spells-live`, id `better-spell
 
 Since 3.0.0 Better Spells is one **Kiln mod** (`src\better-spells-kiln`, id `better-spells`, C#) with every setting of the two Shroudforge mods above, all applied while playing. The Shroudforge mods (2.0.9 and Live 1.0.5) are retired. Their entries stay here as the record; their sources, tests, probes and build script were removed from the folder on 21 Nov 2026 on the user's request and are in the repository's history under the tags `better-spells/v2.0.9` and `better-spells-live/v1.0.5`, so paths below such as `src\better-spells`, `tests\test_live.py` or `Scripts\Build.ps1` name files of that history. `Scripts\Build-Kiln.ps1` runs the tests (`tests\SpellRulesTests`) and builds the mod into `dist\kiln\better-spells`; with `-Install` it copies it to `<game>\kiln\mods\better-spells` (game closed). The settings are in Kiln's profile (`%LOCALAPPDATA%\Kiln\profiles\my-mods\config\better-spells.json`), so an install never touches them. Tags are `better-spells/vX.Y.Z` as before. The Kiln Proof entry below is the small mod that tested the move.
 
+## 3.2.2 (not released)
+
+- **The spellbook moved to its own mod, Grimoire - Spells and Arrows Slots** (asked 24 Nov 2026: Better Spells stays on spell settings, and the book will hold arrows too). Gone from Better Spells: `Spellbook.cs`, `SpellbookStorage.cs`, the Spellbook card and its two settings (`spellbookEnabled`, `spellbookSlots`; a saved settings file keeps them, unread), the book's column beside the settings (the screen is 370 wide again), and the player storage `better-spells:spellbook`, which the user emptied on 24 Nov 2026 at 05:41. The 3.3.0-dev entries below are the spellbook's history; `..\Grimoire\CHANGES.md` goes on from there.
+- **The settings window opens with Shift+F3**: F3 is Grimoire's now (the user's choice).
+- Kept from 3.3.0-dev.11: every setting's `[Range]` carries its step (Kiln 0.2.0-dev.31, mod API 0.2.17).
+
 ## 3.3.0-dev.11 (not released)
 
 - **Kiln player storage test** (Kiln 0.2.0-dev.31, mod API 0.2.17): the book can also live in Kiln's player storage (`Items.RegisterPlayerStorage`, key `better-spells:spellbook`, 32 slots, spells only, kept on death), drawn as a "Storage test" part of the F3 column while **Spellbook** is off: move the book's spells in, store the backpack's spells, take everything back. Kiln 0.2.0-dev.30.7 to 30.9 could not build the storage on a hosted world (kiln#135, fixed in 0.2.0-dev.31); the user saw it ready and spells going in and out on 24 Nov 2026.
