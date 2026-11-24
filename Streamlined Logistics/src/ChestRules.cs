@@ -229,6 +229,8 @@ public sealed class StoredState
     public bool IncludeHotbar { get; set; } = true;
     /// <summary>True when the chests' content is shown chest by chest instead of as one list.</summary>
     public bool Ungrouped { get; set; }
+    /// <summary>True when the Items tab's navigation sidebar is folded to a strip (since 0.10.39).</summary>
+    public bool SidebarHidden { get; set; }
     /// <summary>The names of the categories left out of the list.</summary>
     public HashSet<string> HiddenCategories { get; } = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>The categories the category file had when the hidden ones were last settled: one that is not here yet is new.</summary>
@@ -1353,6 +1355,7 @@ public static class ChestRules
             ["gridView"] = state.GridView,
             ["includeHotbar"] = state.IncludeHotbar,
             ["ungrouped"] = state.Ungrouped,
+            ["sidebarHidden"] = state.SidebarHidden,
         };
         if (state.HiddenCategoriesChosen)
         {
@@ -1432,6 +1435,7 @@ public static class ChestRules
             state.GridView = root.TryGetProperty("gridView", out JsonElement gridView) ? gridView.ValueKind == JsonValueKind.True : state.GridView;
             state.IncludeHotbar = root.TryGetProperty("includeHotbar", out JsonElement includeHotbar) ? includeHotbar.ValueKind == JsonValueKind.True : state.IncludeHotbar;
             state.Ungrouped = root.TryGetProperty("ungrouped", out JsonElement ungrouped) && ungrouped.ValueKind == JsonValueKind.True;
+            state.SidebarHidden = root.TryGetProperty("sidebarHidden", out JsonElement sidebarHidden) && sidebarHidden.ValueKind == JsonValueKind.True;
             if (root.TryGetProperty("hiddenCategories", out JsonElement hiddenCategories) && hiddenCategories.ValueKind == JsonValueKind.Array)
             {
                 state.HiddenCategoriesChosen = true;

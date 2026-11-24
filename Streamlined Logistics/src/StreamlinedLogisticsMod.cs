@@ -199,6 +199,10 @@ public sealed class StreamlinedLogisticsMod : Mod
     private readonly Dictionary<uint, (int Section, string Order)> _placeOfItems = new();
     private volatile HashSet<string> _collapsedView = new(StringComparer.OrdinalIgnoreCase);
     private volatile string? _focusGroup;
+    // The navigation sidebar beside the stored items (since 0.10.39): hidden or shown (kept in the state file), and the header a
+    // click in it asked to scroll to, for the next frame of the list (render thread only).
+    private volatile bool _sidebarHiddenView;
+    private string? _jumpTo;
     private DateTime _categoriesFileTime;
     private string _categoriesNote = "";
     private EventSubscription? _clientActions;
@@ -2298,32 +2302,104 @@ public sealed class StreamlinedLogisticsMod : Mod
         }
         if (ui.Selectable(label))
         {
-            bool nowCollapsed = !collapsed;
-            var view = new HashSet<string>(_collapsedView, StringComparer.OrdinalIgnoreCase);
-            if (nowCollapsed)
-            {
-                view.Add(key);
-            }
-            else
-            {
-                view.Remove(key);
-            }
-            _collapsedView = view;
-            Context.Scheduler.Post(() =>
-            {
-                if (nowCollapsed)
-                {
-                    _state.Collapsed.Add(key);
-                }
-                else
-                {
-                    _state.Collapsed.Remove(key);
-                }
-                SaveState();
-            });
+            SetFolded(key, !collapsed);
         }
         ui.Tooltip(collapsed ? "LMB: Unfold" : "LMB: Fold");
         return !collapsed;
+    }
+
+    // Kiln's render thread: folds or unfolds a header now, and keeps it in the state file.
+    private void SetFolded(string key, bool collapsed)
+    {
+        if (_collapsedView.Contains(key) == collapsed)
+        {
+            return;
+        }
+        var view = new HashSet<string>(_collapsedView, StringComparer.OrdinalIgnoreCase);
+        if (collapsed)
+        {
+            view.Add(key);
+        }
+        else
+        {
+            view.Remove(key);
+        }
+        _collapsedView = view;
+        Context.Scheduler.Post(() =>
+        {
+            if (collapsed)
+            {
+                _state.Collapsed.Add(key);
+            }
+            else
+            {
+                _state.Collapsed.Remove(key);
+            }
+            SaveState();
+        });
+    }
+
+    // ---- The navigation sidebar (since 0.10.39, asked by the user on 24 Nov 2026): the groups and categories the list shows (or the
+    // chests, chest by chest), with their counts; a click scrolls the list to that header and unfolds it. "<" folds the sidebar to
+    // a strip, ">" brings it back. ----
+
+    private const float SidebarWidth = 190;
+    private const float SidebarStripWidth = 34;
+    private const string GroupJumpPrefix = "group-header:";
+
+    private sealed record NavEntry(string Label, string Target, int Depth, string? GroupFold, string? SectionFold);
+
+    private void DrawSidebar(UiDraw ui, IReadOnlyList<NavEntry> entries, bool chestByChest)
+    {
+        bool hidden = _sidebarHiddenView;
+        if (ui.Button(hidden ? ">##sidebar-toggle" : "<##sidebar-toggle"))
+        {
+            bool nowHidden = !hidden;
+            _sidebarHiddenView = nowHidden;
+            Context.Scheduler.Post(() =>
+            {
+                _state.SidebarHidden = nowHidden;
+                SaveState();
+            });
+        }
+        ui.Tooltip(hidden ? "Show Sidebar" : "Hide Sidebar");
+        if (hidden)
+        {
+            return;
+        }
+        ui.SameLine();
+        ui.Text(chestByChest ? "Chests" : "Categories");
+        ui.Separator();
+        if (entries.Count == 0)
+        {
+            ui.TextDisabled("Nothing Shown");
+            return;
+        }
+        foreach (NavEntry entry in entries)
+        {
+            if (ui.Selectable((entry.Depth > 0 ? "   " : "") + entry.Label + "##nav:" + entry.Target))
+            {
+                if (entry.GroupFold != null)
+                {
+                    SetFolded(entry.GroupFold, false);
+                }
+                if (entry.SectionFold != null)
+                {
+                    SetFolded(entry.SectionFold, false);
+                }
+                _jumpTo = entry.Target;
+            }
+        }
+    }
+
+    // Kiln's render thread, inside the list: scrolls so the header drawn next sits at the top, when it is the one asked for.
+    private void JumpIfAsked(UiDraw ui, string target)
+    {
+        if (_jumpTo == target)
+        {
+            ui.ScrollHere(0);
+            _jumpTo = null;
+        }
     }
 
     // Kiln's render thread: the bar above the grouped list, to show one group at a time.
@@ -4617,6 +4693,7 @@ public sealed class StreamlinedLogisticsMod : Mod
                 _state = state;
                 _markedFavorites = new HashSet<uint>(state.Favorites);
                 _collapsedView = new HashSet<string>(state.Collapsed, StringComparer.OrdinalIgnoreCase);
+                _sidebarHiddenView = state.SidebarHidden;
                 _rulesView = new RulesView(new List<GearRule>(state.DepositRules), new List<GearRule>(state.SalvageRules));
                 Log.Info($"{state.Links.Count} linked chest(s) and {state.Favorites.Count} favorite(s) read from {path}");
                 return;
@@ -4754,65 +4831,97 @@ public sealed class StreamlinedLogisticsMod : Mod
             DrawCategoryBar(ui, storedSections);
         }
 
-        float storageWidth = ui.WindowRect.Width * 0.62f;
-        if (ui.BeginChild("storage", storageWidth, 0))
+        int hiddenByCategory = 0;
+        // What each section and group shows, before the headers that say how many.
+        // A search looks through every tab (Search Every Tab, since 0.10.22, on by default).
+        bool searchEverywhere = (_settings?.Value.SearchAllTabs ?? true) && !string.IsNullOrWhiteSpace(_search);
+        string? focus = inTree && !searchEverywhere ? _focusGroup : null;
+        bool allFavorites = _settings?.Value.AllFavoritesInTabs ?? false;
+        if (focus != null && focus != CategoryTree.FavoritesKey && !allFavorites && snapshot.SectionGroups is { } sectionGroups)
         {
-            int drawn = 0;
-            int hiddenByCategory = 0;
-            // What each section and group shows, before the headers that say how many.
-            // A search looks through every tab (Search Every Tab, since 0.10.22, on by default).
-            bool searchEverywhere = (_settings?.Value.SearchAllTabs ?? true) && !string.IsNullOrWhiteSpace(_search);
-            string? focus = inTree && !searchEverywhere ? _focusGroup : null;
-            bool allFavorites = _settings?.Value.AllFavoritesInTabs ?? false;
-            if (focus != null && focus != CategoryTree.FavoritesKey && !allFavorites && snapshot.SectionGroups is { } sectionGroups)
+            // In a group's tab, the favorites at the top are that group's.
+            var tabSections = new List<ItemSection>(storedSections.Count);
+            foreach (ItemSection section in storedSections)
             {
-                // In a group's tab, the favorites at the top are that group's.
-                var tabSections = new List<ItemSection>(storedSections.Count);
-                foreach (ItemSection section in storedSections)
+                if (section.Key != CategoryTree.FavoritesKey)
                 {
-                    if (section.Key != CategoryTree.FavoritesKey)
-                    {
-                        tabSections.Add(section);
-                        continue;
-                    }
-                    var rows = new List<RowView>();
-                    foreach (RowView view in section.Rows)
-                    {
-                        if (view.Row.Section >= 0 && view.Row.Section < sectionGroups.Count && sectionGroups[view.Row.Section] == focus)
-                        {
-                            rows.Add(view);
-                        }
-                    }
-                    tabSections.Add(section with { Rows = rows });
-                }
-                storedSections = tabSections;
-            }
-            var shownCounts = new int[storedSections.Count];
-            var groupCounts = new Dictionary<string, int>();
-            for (int index = 0; index < storedSections.Count; index++)
-            {
-                ItemSection section = storedSections[index];
-                bool isFavorites = section.Key == CategoryTree.FavoritesKey;
-                if (focus != null && !isFavorites && section.Group != focus)
-                {
+                    tabSections.Add(section);
                     continue;
                 }
+                var rows = new List<RowView>();
                 foreach (RowView view in section.Rows)
                 {
-                    if (IsShownStored(view.Row, snapshot))
+                    if (view.Row.Section >= 0 && view.Row.Section < sectionGroups.Count && sectionGroups[view.Row.Section] == focus)
                     {
-                        shownCounts[index]++;
-                    }
-                    else if (!isFavorites && IsShown(view.Row, _favoritesOnly))
-                    {
-                        hiddenByCategory++;
+                        rows.Add(view);
                     }
                 }
-                if (section.Group.Length > 0)
+                tabSections.Add(section with { Rows = rows });
+            }
+            storedSections = tabSections;
+        }
+        var shownCounts = new int[storedSections.Count];
+        var groupCounts = new Dictionary<string, int>();
+        for (int index = 0; index < storedSections.Count; index++)
+        {
+            ItemSection section = storedSections[index];
+            bool isFavorites = section.Key == CategoryTree.FavoritesKey;
+            if (focus != null && !isFavorites && section.Group != focus)
+            {
+                continue;
+            }
+            foreach (RowView view in section.Rows)
+            {
+                if (IsShownStored(view.Row, snapshot))
                 {
-                    groupCounts[section.Group] = groupCounts.GetValueOrDefault(section.Group) + shownCounts[index];
+                    shownCounts[index]++;
+                }
+                else if (!isFavorites && IsShown(view.Row, _favoritesOnly))
+                {
+                    hiddenByCategory++;
                 }
             }
+            if (section.Group.Length > 0)
+            {
+                groupCounts[section.Group] = groupCounts.GetValueOrDefault(section.Group) + shownCounts[index];
+            }
+        }
+        // The sidebar's entries: what the list below shows, in its order.
+        var navEntries = new List<NavEntry>();
+        string? navGroup = null;
+        for (int index = 0; index < storedSections.Count; index++)
+        {
+            ItemSection section = storedSections[index];
+            if (shownCounts[index] == 0)
+            {
+                continue;
+            }
+            bool inGroup = inTree && section.Group.Length > 0;
+            if (inGroup && section.Group != navGroup)
+            {
+                navGroup = section.Group;
+                navEntries.Add(new NavEntry(string.Create(CultureInfo.InvariantCulture, $"{section.Group}  ({groupCounts.GetValueOrDefault(section.Group)})"),
+                    GroupJumpPrefix + section.Group, 0, section.Group, null));
+            }
+            else if (!inGroup)
+            {
+                navGroup = null;
+            }
+            navEntries.Add(new NavEntry(string.Create(CultureInfo.InvariantCulture, $"{section.Title}  ({shownCounts[index]})"), section.KeyPrefix,
+                inGroup ? 1 : 0, inGroup ? section.Group : null, inTree ? section.Key : null));
+        }
+
+        float storageWidth = ui.WindowRect.Width * 0.62f;
+        float sidebarWidth = (_sidebarHiddenView ? SidebarStripWidth : SidebarWidth) * ui.Scale;
+        if (ui.BeginChild("sidebar", sidebarWidth, 0))
+        {
+            DrawSidebar(ui, navEntries, snapshot.Ungrouped);
+        }
+        ui.EndChild();
+        ui.SameLine();
+        if (ui.BeginChild("storage", Math.Max(storageWidth - sidebarWidth - 8 * ui.Scale, 100 * ui.Scale), 0))
+        {
+            int drawn = 0;
             string? currentGroup = null;
             bool groupOpen = true;
             for (int index = 0; index < storedSections.Count; index++)
@@ -4832,12 +4941,14 @@ public sealed class StreamlinedLogisticsMod : Mod
                     else if (section.Group != currentGroup)
                     {
                         currentGroup = section.Group;
+                        JumpIfAsked(ui, GroupJumpPrefix + section.Group);
                         groupOpen = DrawFoldHeader(ui, section.Group, section.Group, 0, groupCounts.GetValueOrDefault(section.Group));
                     }
                     if (!groupOpen)
                     {
                         continue;
                     }
+                    JumpIfAsked(ui, section.KeyPrefix);
                     if (!DrawFoldHeader(ui, section.Key, section.Title, section.Group.Length > 0 ? 1 : 0, shownCounts[index]))
                     {
                         continue;
@@ -4845,10 +4956,13 @@ public sealed class StreamlinedLogisticsMod : Mod
                 }
                 else
                 {
+                    JumpIfAsked(ui, section.KeyPrefix);
                     ui.Separator(section.Title);
                 }
                 drawn += snapshot.GridView ? DrawSectionGrid(ui, snapshot, section, Side.Storage) : DrawStorageList(ui, snapshot, section, showChests: !snapshot.Ungrouped);
             }
+            // A header that was not drawn (filtered out meanwhile) is not waited for.
+            _jumpTo = null;
             if (drawn == 0)
             {
                 ui.TextDisabled(snapshot.StoredItemCount == 0 ? "Nothing here yet: link chests on the Chests tab." : "No item matches.");

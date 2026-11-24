@@ -7,6 +7,13 @@ How it works: the screen is a Kiln screen (`Ui.Screen`) drawn in the player's ga
 `Scripts\Build.ps1` runs the tests (`tests\ChestRulesTests`), builds against Kiln's assemblies in `<game>\kiln\host` and puts the mod in `dist\streamlined-logistics`; `-Install` copies it to `<game>\kiln\mods\streamlined-logistics`, where Kiln loads it as a drop-in (game closed).
 
 
+## 0.10.39
+
+- **Navigation sidebar** on the Items tab, left of the stored items (the user: "Can we add a navigation sidebar to SL to quickly jump to a category/subcategory ? Should be collapsible ideally."): the groups and their categories the list shows, with their counts (search, Favorites Only, the current group tab and hidden categories applied); chest by chest (Ungroup), the chests. A click scrolls the list to that header and unfolds it and its group. The < button folds the sidebar to a strip and > brings it back; that choice is kept (`sidebarHidden` in the state file). The group tabs stay.
+
+> [!warning]
+> Not yet seen in game.
+
 ## 0.10.38
 
 - **New Seedlings category** in Placeables, after Animals & Pets (the user: "Seedlings too should have their own category."): the 63 seedlings, the only items with the game's growth info, grouped by kind (vegetables, grains, fruit, herbs, teas, mushrooms, materials, trees, then the rest), then tier. They were in no section of the generated list, so the mod filed them in Decor.
