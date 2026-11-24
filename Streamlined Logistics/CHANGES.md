@@ -26,8 +26,8 @@ Kiln 0.2.0-dev.31 (mod API 0.2.17). The mod asks for API 0.2.17.
 - **Crafting from linked chests still does nothing on Kiln 0.2.0-dev.31**, Cross-Base Storage off: at the first crafting menu Kiln logs "linked craft preview stands down: InventoryPay is patched by another module or cannot be checked", Kiln's hooks.json shows Building Tools (a call inside InventoryPay) and Unified Tweaks Live's native DLL (a hook inside BaseStockForPlayer) setting that off, each even with its own option off. With both out, Kiln's check installs but crafting still does nothing, with no Kiln line saying why. Reported on Kiln's #132 (reports 23 and 23b in the Kiln Report Tracker).
 - Not used: the container kinds of `Items.FindInventoryOwners` / `Bases.Chests`. They don't tell crops or fruit trees from chests (a crop is Unknown like an ordinary chest, a planted fruit tree is BaseStorage like a Magic Chest), and the chest list already keeps to the chests' templates, so crops and trees were never in it.
 
-> [!warning]
-> Not yet seen in game.
+> [!info]
+> Seen in game (24 Nov 2026): the gold tint on favorites "looks great, and properly hides behind vanilla UI" (the user). The Link Chest button is not yet seen.
 
 ## 0.10.34
 
