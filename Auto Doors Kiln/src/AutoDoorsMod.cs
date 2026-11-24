@@ -65,6 +65,8 @@ public sealed class AutoDoorsMod : Mod
     {
         public required EntityId Id;
         public WorldPosition At;
+        public Vector3 Forward;      // the door's +Z (the game's forward axis): DirectionalInteraction has a front and a back
+        public double GuestSide;     // which side of the door the guest of the last open stood on (for the log)
         public bool InBase;
         public string Key = "";
         public string Name = "";
@@ -230,6 +232,7 @@ public sealed class AutoDoorsMod : Mod
                 _doors[id.Value] = d = new DoorState { Id = id, Name = DisplayName(Spawn.Inspect(id)?.TemplateName) };
             d.At = at;
             d.Key = KeyOf(at);
+            d.Forward = World.Transform(id) is { } tf ? Vector3.Transform(Vector3.UnitZ, tf.Rotation) : Vector3.Zero;
             d.InBase = bases.Any(b => b.Contains(at));
         }
         foreach (var gone in _doors.Keys.Where(k => !seen.Contains(k)).ToList()) _doors.Remove(gone);
@@ -425,7 +428,12 @@ public sealed class AutoDoorsMod : Mod
             if (!isOpen)
             {
                 if (now < d.RetryAt) continue;
-                if (Within(d, triggers, mode, open, height) is { } who) Start(d, true, who.Entity, who.Who.ToString().ToLowerInvariant(), players);
+                if (Within(d, triggers, mode, open, height) is { } who)
+                {
+                    uint openGuest = who.Who == Who.Camera ? GuestOnSide(d, who.At, triggers, players, who.Entity) : who.Entity;
+                    d.GuestSide = Side(d, who.At);
+                    Start(d, true, openGuest, who.Who.ToString().ToLowerInvariant(), players);
+                }
                 continue;
             }
 
@@ -436,6 +444,39 @@ public sealed class AutoDoorsMod : Mod
             if (NearestPlayer(d, players) is { } guest) Start(d, false, guest, "everyone left", players);
         }
     }
+
+    // Which side of the door a point is on: + in front (the door's +Z), - behind, metres from the door's plane.
+    private static double Side(DoorState d, WorldPosition p) =>
+        d.Forward == Vector3.Zero ? 0 : (p.X - d.At.X) * d.Forward.X + (p.Y - d.At.Y) * d.Forward.Y + (p.Z - d.At.Z) * d.Forward.Z;
+
+    // interaction_directional swings a door away from the toggle's guest, read from the guest's CurrentTransform. The build
+    // camera has no entity, and its player may stand on the other side (0.2.3: camera-opened doors always swung the same
+    // way). So the guest is an entity on the camera's side of the door: a player, a survivor or another door, the one
+    // nearest to the door. Any entity with a transform does; the toggle checks the offer, not the guest.
+    private uint GuestOnSide(DoorState d, WorldPosition camera, List<Trigger> triggers, List<Player> players, uint fallback)
+    {
+        double want = Side(d, camera);
+        if (Math.Abs(want) < 0.05) return fallback;
+        uint best = fallback;
+        double bestDist = double.MaxValue;
+        void Consider(uint entity, WorldPosition at)
+        {
+            if (entity == d.Id.Value) return;
+            double side = Side(d, at);
+            if (Math.Sign(side) != Math.Sign(want) || Math.Abs(side) < 0.3) return;
+            double dist = Distance(at, d.At);
+            if (dist < bestDist) { bestDist = dist; best = entity; }
+        }
+        foreach (var p in players) if (p.Position is { } at) Consider(p.Entity.Value, at);
+        foreach (var t in triggers) if (t.Who is Who.Survivor or Who.Animal) Consider(t.Entity, t.At);
+        foreach (var other in _doors.Values) Consider(other.Id.Value, other.At);
+        if (_sideLogs++ < 20)
+            Log.Info($"auto doors: build camera at door {d.Id.Value}: camera {(want > 0 ? "in front" : "behind")} ({want:0.0} m), guest {best}" +
+                     (best == fallback ? " (no entity on that side, the player)" : $" ({bestDist:0.0} m from the door)"));
+        return best;
+    }
+
+    private int _sideLogs, _directionLogs;
 
     private static uint? NearestPlayer(DoorState d, List<Player> players)
     {
@@ -519,6 +560,9 @@ public sealed class AutoDoorsMod : Mod
         if (isOpen) _opened++; else _closed++;
         if (_opened + _closed <= 20)
             Log.Info($"auto doors: {(isOpen ? "opened" : "closed")} door {d.Id.Value} at {d.Key} ({d.Why})");
+        // which DirectionalInteraction state goes with which side, to check the front/back reading above
+        if (isOpen && _directionLogs++ < 12 && World.ReadBytes(d.Id, "DirectionalInteraction") is { Length: >= 4 } dir)
+            Log.Info($"auto doors: door {d.Id.Value} opened ({d.Why}) with the one who came {(d.GuestSide > 0 ? "in front" : "behind")} ({d.GuestSide:0.0} m): directional state {BitConverter.ToUInt32(dir, 0)}");
     }
 
     private void Fail(DoorState d, string reason)

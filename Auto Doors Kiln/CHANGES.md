@@ -2,6 +2,11 @@
 
 A rebuild of Auto Doors (SellTheWorldGames, closed source) as a Kiln mod, from its described behaviour, not its code. Doors are toggled by sending the game's own `ToggleInteractionEvent {guest, host, offer}` from the mod's ECS program `door_toggle` (`src\kiln.programs.json`); `interaction_toggle_new` flips `ServerToggleState` and `interaction_directional` swings the door away from the guest.
 
+## 0.2.4
+
+- Build camera (Fuzen): it opens doors, but they always swung the same way. interaction_directional swings a door away from the toggle's guest, read from the guest's transform, and the guest was the player, wherever the character stood. The guest is now an entity on the camera's side of the door (the door's +Z is its front): a player, a survivor or another door, the one nearest to the door; the player if there is none. Any entity with a transform does, the toggle checks the offer and not the guest (survivors as guests worked since 0.1.0).
+- The log says, for the first 12 openings, which side the one who came stood on and the door's DirectionalInteraction state, to confirm that front is +Z; and for the first 20 build-camera openings, the camera's side and the guest chosen.
+
 ## 0.2.3
 
 - Door label (Fuzen): only the door's mode, on doors inside a flame altar's area whose mode is not Everyone (Players, Players & Survivors, Manual). No name, no open or closed; nothing on other doors.
