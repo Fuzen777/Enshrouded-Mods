@@ -72,6 +72,7 @@ public sealed partial class AutoDoorsMod : Mod
         public bool Secret;          // a secret door, shelf, floor, stair or mechanism: Manual or Close Only, no label
         public string Key = "";
         public string Name = "";
+        public double Height;        // how tall the doorway is (DoorHeights), 0 when it is not taller than the Height Reach
         public bool? LastSeen;
         public bool OpenedByMod;
         public bool HandHold;
@@ -243,7 +244,10 @@ public sealed partial class AutoDoorsMod : Mod
             if (World.Position(id) is not { } at) continue;
             seen.Add(id.Value);
             if (!_doors.TryGetValue(id.Value, out var d))
-                _doors[id.Value] = d = new DoorState { Id = id, Name = DisplayName(Spawn.Inspect(id)?.TemplateName) };
+            {
+                string? template = Spawn.Inspect(id)?.TemplateName;
+                _doors[id.Value] = d = new DoorState { Id = id, Name = DisplayName(template), Height = DoorHeight(template) };
+            }
             d.At = at;
             d.Key = KeyOf(at);
             d.Forward = World.Transform(id) is { } tf ? Vector3.Transform(Vector3.UnitZ, tf.Rotation) : Vector3.Zero;
@@ -396,6 +400,42 @@ public sealed partial class AutoDoorsMod : Mod
         return Math.Sqrt(dx * dx + dy * dy + dz * dz);
     }
 
+    // Someone on the door's floor: within the Height Reach above or below the door's foot. The build camera also counts
+    // anywhere up to the top of a doorway taller than that (1.0.1, Fuzen: the Round Ancient Door, 6 m tall, only opened for
+    // a camera near the floor). Walkers keep the plain reach, so a floor above a tall door does not open it.
+    private static bool InHeight(DoorState d, Trigger t, double height)
+    {
+        double dy = t.At.Y - d.At.Y;
+        return t.Who == Who.Camera ? dy >= -height && dy <= Math.Max(height, d.Height) : Math.Abs(dy) <= height;
+    }
+
+    // Doorways taller than 2.6 m: the top of their solid colliders above the door's foot, from the game's door templates
+    // (offline dump of game build 26430625). Other doors use the Height Reach alone.
+    private static readonly Dictionary<string, double> DoorHeights = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["_Prop_Door_HollowHalls_Huge"] = 12.0, ["Base_Door_Giant_Interact"] = 12.0, ["_060_Prop_Door_Huge_ColdHeights_HASBUGS"] = 11.0,
+        ["_Prop_Door_HollowHalls_Fence"] = 8.0, ["Prop_Door_Huge_ColdHeights_02"] = 7.0,
+        ["_Prop_Door_HollowHalls_Large"] = 6.0, ["Prop_Door_Round_Ancient_Crafted"] = 6.0, ["Prop_Door_Large_Wetland_Temple"] = 6.0,
+        ["Prop_Door_Huge_Ancient_01"] = 6.0, ["Prop_Door_Ancient_night_unlocked_PLAYER_CRAFTED"] = 6.0,
+        ["Prop_Door_Ancient_night_unlocked"] = 6.0, ["Prop_Door_Ancient_night_locked"] = 6.0, ["Prop_Door_Round_Ancient"] = 5.65,
+        ["Prop_Door_Large_Vukah"] = 5.0, ["Prop_Door_Large_Iron"] = 5.0, ["Prop_Door_Huge_Desert"] = 5.0, ["Base_Door_Huge_Interact"] = 5.0,
+        ["Prop_Door_Small_Watergate"] = 4.16, ["Prop_Door_Large_Dungeon"] = 4.0, ["Prop_Door_Large_Ancient"] = 4.0,
+        ["Prop_Door_Large_Steppe_Crafted"] = 3.7, ["Prop_Door_Large_Steppe"] = 3.7, ["Prop_Door_Large_Nation01"] = 3.65,
+        ["Prop_Door_Small_Watergate_02"] = 3.6, ["Prop_Door_Pine_silver_Large_ColdHeights_Crafted"] = 3.5,
+        ["Prop_Door_Large_Wood_Crafted"] = 3.5, ["Prop_Door_Large_Wood"] = 3.5, ["Prop_Door_Large_T5_Crafted"] = 3.5,
+        ["Prop_Door_Large_T1_Crafted"] = 3.5, ["Prop_Door_Large_T1"] = 3.5, ["Prop_Door_Large_T0_Crafted"] = 3.5, ["Prop_Door_Large_T0"] = 3.5,
+        ["Prop_Door_Large_Steel_Crafted"] = 3.5, ["Prop_Door_Large_Steel"] = 3.5, ["Prop_Door_Large_Quarters"] = 3.5,
+        ["Prop_Door_Large_Iron_02"] = 3.5, ["Prop_Door_Large_Desert_Crafted"] = 3.5, ["Prop_Door_Large_Desert"] = 3.5,
+        ["Prop_Door_Large_ColdHeights"] = 3.5, ["Prop_Door_Large_Castle_Crafted"] = 3.5, ["Prop_Door_Large_Castle_02_Crafted"] = 3.5,
+        ["Prop_Door_Large_Castle_02"] = 3.5, ["Prop_Door_Large_Castle"] = 3.5, ["Base_Door_Large_Interact"] = 3.5,
+        ["Prop_Door_Round_Vault_Crafted"] = 3.0, ["Prop_Door_Round_Vault"] = 3.0, ["Prop_Door_Round_T1_Crafted"] = 3.0,
+        ["Prop_Door_Round_T1"] = 3.0, ["Prop_Door_Round_Roughwood_Crafted"] = 3.0, ["Prop_Door_Round_Roughwood"] = 3.0,
+        ["Base_Door_Round_Interact"] = 3.0,
+    };
+
+    private static double DoorHeight(string? template) =>
+        template != null && DoorHeights.TryGetValue(template, out double h) ? h : 0;
+
     // The trigger nearest to the door within reach, or null.
     private static Trigger? Within(DoorState d, List<Trigger> triggers, DoorMode mode, double reach, double height)
     {
@@ -403,7 +443,7 @@ public sealed partial class AutoDoorsMod : Mod
         double bestDist = double.MaxValue;
         foreach (var t in triggers)
         {
-            if (!Allowed(mode, t.Who) || Math.Abs(t.At.Y - d.At.Y) > height) continue;
+            if (!Allowed(mode, t.Who) || !InHeight(d, t, height)) continue;
             double dist = Ground(t.At, d.At);
             if (dist <= reach && dist < bestDist) { best = t; bestDist = dist; }
         }

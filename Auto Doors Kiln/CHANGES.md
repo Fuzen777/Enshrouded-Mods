@@ -2,6 +2,10 @@
 
 A rebuild of Auto Doors (SellTheWorldGames, closed source) as a Kiln mod, from its described behaviour, not its code. Doors are toggled by sending the game's own `ToggleInteractionEvent {guest, host, offer}` from the mod's ECS program `door_toggle` (`src\kiln.programs.json`); `interaction_toggle_new` flips `ServerToggleState` and `interaction_directional` swings the door away from the guest.
 
+## 1.0.1
+
+- Tall doors and the build camera (Fuzen: the Round Ancient Door only opened for the camera near its foot). Height Reach was measured from a door's foot only, and the Round Ancient Door is 6 m tall. The build camera now also counts anywhere up to the top of a doorway taller than the Height Reach. Door heights are the top of each door template's solid colliders, from the game data (Large doors 3.5 m, Round doors 3 m, Round Ancient 6 m, ...). Players, survivors and animals keep the plain Height Reach, so a floor above a tall door does not open it.
+
 ## 1.0.0
 
 - First Nexus release: 0.3.0 with its version set to 1.0.0, no code change. Fuzen tested secret doors (0.2.11) and the settings window (0.3.0).
