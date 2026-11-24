@@ -1,0 +1,126 @@
+NAME
+Better Spells
+
+VERSION
+1.0.0
+
+SUMMARY (paste into the Brief Overview field)
+One set of settings per spell, applied while you play: mana cost, cast time, damage, duration, radius, summon health, summons per cast and more, plus a General card for all spells at once. Every setting starts at vanilla and goes both ways. Settings window on Shift+F3. Needs Kiln.
+
+DESCRIPTION (Markdown, paste into the Detailed Description field)
+
+# Better Spells
+
+*Tune every spell to your liking: longer, stronger, wider, cheaper, faster, more summons. Or nerf them. All while you play.*
+
+---
+
+Better Spells is a **Kiln** mod that gives every spell in Enshrouded its own settings: mana cost, cast time, damage, duration, radius, summon health, summons per cast and more. Press **Shift+F3** in game, click a spell, and change it. Every change applies right away to what you cast next, with no restart.
+
+Every setting starts at the game's own value, so nothing changes until you decide it should. Multipliers go both ways: buff the spells you love, or make the game harder.
+
+---
+
+## Features
+
+### A settings window built for spells
+
+- Opens with **Shift+F3** (or the button on the mod's page in Kiln's menu), centered on screen.
+- Spells are laid out as **icon rows by element**: Fire, Ice, Lightning, Shroud, Summons, Others, and Items. Click a spell's icon to open its card.
+- Each setting is a simple **− value +** control. The mouse wheel works over any value; hold **Shift** for 10 steps, **Ctrl** for 100.
+- A **dot** marks every spell you have changed, so you can see your edits at a glance.
+- Every setting has its explanation on hover.
+
+### Settings for every spell
+
+- **Mana Cost** (x0.1 to x10), on every spell.
+- **Cast Time** (x0.1 to x10): how soon the spell is ready again.
+- **Damage** (x0.1 to x50): multiplies the spell's own share of the damage.
+- **Duration** (x0.1 to x10), for every spell that lasts: Fire Pillar, Blizzard, Ball Lightning, Acid Cone, Root, Magic Shield, Totems, Skeletons and Lightning Wisps. The tooltip follows.
+- **Radius** (x0.1 to x5) for Fireball, Fire Pillar, Light Burst, Ice Bolt, Blizzard, Ball Lightning, Shroud Meteor and Root. Areas, visuals and tooltips follow.
+- **Health** (x0.1 to x10) for Totems, Skeletons, Magic Shield and summoning items.
+
+### A General card for everything at once
+
+- Mana Cost, Cast Time, Damage, Duration, Radius and Health for **every spell together**.
+- Two modes: **Multiply** (General x2 and Fireball x3 give x6) or **At Least** (General x2 lifts every spell below x2 and leaves Fireball at x3; for Mana Cost and Cast Time, lower wins).
+
+### Summons
+
+- **Per Cast** (1 to 5): Totems, Skeletons and Lightning Wisps place several at once for one cast's mana.
+- **Max Totems / Max Skeletons** (1 to 10): how many can be out at once, before skills add to it.
+- **Totem Spread**: how far apart the totems of one cast land.
+- **Invulnerable Totems**: totems take no damage, like Lightning Wisps.
+- **Enemies Ignore Totems** (experimental): enemies stop targeting totems, so they no longer act as decoys.
+- **Keep Older Wisps** (experimental): a new Lightning Wisp cast no longer removes your earlier wisps, so they add up while they last.
+
+### Lightning
+
+- **Chain Lightning**: Radius (how far the chain jumps, up to x10) and Lock-On Range (up to x2, the most the game allows).
+- **Ball Lightning**: Speed and Hit Rate, besides Duration, Damage and Radius.
+
+### Items that act like spells
+
+- **Skull Vessel**: Mana Cost, Cast Time, Duration, Damage, Health, and **Per Use** (throw up to 5 vessels for one).
+- **Fire Wisp Scroll**: Mana Cost, Duration, Damage, Health, and Per Use (up to 5 wisps).
+- **Meteor Shower Scroll**: Mana Cost and Damage.
+- **Crawler Bomb**: Mana Cost, Cast Time, Duration, Damage and Health.
+- The General card covers these too.
+
+### Live, safe and reversible
+
+- Every change applies **while you play**, to what you cast afterwards. No restart, no world reload (except Max Totems and Max Skeletons, which apply when you next load a world).
+- Set a value back to x1 and that spell is vanilla again.
+- Spells are found by name, not by a fixed list, so all tiers of a spell follow the same setting.
+
+---
+
+## How to Use
+
+1. Load a world and press **Shift+F3**.
+2. Click a spell's icon in its element row (or the **General** row to change all spells at once).
+3. Use **−** and **+**, or scroll the mouse wheel over a value. Hold **Shift** for 10 steps or **Ctrl** for 100.
+4. Cast the spell. The new values apply from that cast on. A totem or skeleton already out keeps its old values until you cast again.
+5. Press **Shift+F3** again to close the window. Your settings are saved automatically.
+
+**Tips**
+
+- Raising Per Cast? Raise that spell's Mana Cost too if you want to keep it fair (5 wisps for x5 cost).
+- On the General card, **At Least** is the easy way to set a floor ("every spell at least x2 damage") without stacking on top of your per-spell values.
+- Values below x1 make a spell weaker: handy for a challenge run.
+
+**Changing the key**: it is **Open Settings Window** in the Keys tab of Kiln's menu. The settings themselves are in Kiln's profile (`%LOCALAPPDATA%\Kiln\profiles\<your profile>\config\better-spells.json`), so updating the mod never resets them.
+
+---
+
+## Requirements
+
+- [Kiln](https://github.com/frostdev-ops/kiln) mod loader, **0.2.0-dev.31 or newer**.
+
+## Installation
+
+1. Close the game.
+2. Extract the archive so you end up with `<Enshrouded>\kiln\mods\better-spells\` containing **BetterSpells.dll** and **kiln.mod.json**.
+3. Start the game and load a world. Press Shift+F3.
+
+**Coming from the older Shroudforge versions (Better Spells 2.x and Better Spells Live 1.x)?** Remove both. This version replaces them, has every setting they had, and applies all of them while playing. Settings from the Shroudforge versions are not carried over.
+
+## Compatibility
+
+- Made and tested in single player and worlds you host. Not tested on dedicated servers.
+- Other mods that change the same spell values will stack with or overwrite these.
+
+## Known limitations
+
+- Shroud Meteor's ground cursor keeps its size when you raise its Radius (the impact area does grow).
+- Damage multiplies the spell's share only, not your staff's.
+- Chain Lightning's Lock-On Range is capped by the game at about x1.75, so the setting stops at x2.
+- Skeleton Health scales the skeletons' level-based health, which may not be exactly proportional.
+- Ice Totem's chill on enemies keeps its normal length when you raise Totem Duration.
+- Kiln is still a development build that changes often. If a Kiln update breaks something, check for a mod update.
+
+---
+
+## Credits
+
+- The Kiln team, for the loader and its documentation of the game's spell data.
