@@ -10,7 +10,7 @@ Everything is read from the game's data, not from item names where the data can 
   for throwables, Spell, Arrow, FishingBait, TerrainMaterial, BlueprintMaterial_*);
 - for a consumable, the sequence its use plays (UseItem_Food... is food or drink, the rest are potions, bandages, scrolls);
 - for a placeable, the components of the object it places (`equipment.placedEntity`): a crafting station or machine, something
-  that works without crafting (a well or water barrel, a grappling anchor, a ladder, a water barrier), storage, a seat or a bed,
+  that works without crafting (a well or water barrel, a water dispenser or drain, a water barrier, a grappling anchor, a ladder), storage, a seat or a bed,
   a door, a showcase, an animal.
 Keys carry the same item tag as lockpicks; some keys are filed by the game as materials.
 
@@ -121,20 +121,25 @@ def placeable(components, name):
     """The placeables' sub-category and kind, from what the placed object is made of."""
     if "Animal" in components:
         return "Placeables/Animals & Pets", "Animal"
-    if components & {"CraftingInteraction", "FactoryStation", "CraftingStation", "RotationalEnergySource", "WaterDispenser", "WaterDrain"}:
+    if components & {"CraftingInteraction", "FactoryStation", "CraftingStation", "RotationalEnergySource"}:
         if "NPC_" in name and "Prop_NPC" not in name:
             return "Other/Miscellaneous", "NPC"
         return "Placeables/Stations", "Factory" if "FactoryStation" in components else "Workbench"
-    # What works without crafting (asked by the user on 24 Nov 2026): wells and water barrels (water as crafting stock), grappling
-    # hook anchors, ladders and scaffolds, water barriers (they hold water back but don't open, unlike doors and water gates).
+    # What works without crafting (asked by the user on 24 Nov 2026): wells and water barrels (water as crafting stock), water
+    # dispensers and drains, water barriers (they hold water back but don't open, unlike doors and water gates), grappling hook
+    # anchors, ladders and scaffolds.
     if "FuelCraftingStock" in components:
-        return "Placeables/Functional", "1 Water"
-    if "HookShotAnchor" in components:
-        return "Placeables/Functional", "2 Grappling Anchor"
-    if "Ladder" in components:
-        return "Placeables/Functional", "3 Ladder"
+        return "Placeables/Functional", "1 Water Source"
+    if "WaterDispenser" in components:
+        return "Placeables/Functional", "2 Water Dispenser"
+    if "WaterDrain" in components:
+        return "Placeables/Functional", "3 Water Drain"
     if "BlockWater" in components and "InteractionToggle" not in components:
         return "Placeables/Functional", "4 Water Barrier"
+    if "HookShotAnchor" in components:
+        return "Placeables/Functional", "5 Grappling Anchor"
+    if "Ladder" in components:
+        return "Placeables/Functional", "6 Ladder"
     # Pets use many decorations (a bucket, a fireplace, a garden gnome, a pumpkin carry the game's AnimalTarget too): only the
     # game's Animal_ items are animal furniture, the feeders and the pet and farm animal beds. 0.9.0 to 0.10.35 filed every
     # AnimalTarget object there.

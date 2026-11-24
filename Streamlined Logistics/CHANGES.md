@@ -7,6 +7,13 @@ How it works: the screen is a Kiln screen (`Ui.Screen`) drawn in the player's ga
 `Scripts\Build.ps1` runs the tests (`tests\ChestRulesTests`), builds against Kiln's assemblies in `<game>\kiln\host` and puts the mod in `dist\streamlined-logistics`; `-Install` copies it to `<game>\kiln\mods\streamlined-logistics`, where Kiln loads it as a drop-in (game closed).
 
 
+## 0.10.37
+
+- **Water dispensers and drains move to Functional** (the user: "Water Dispensers and Drains should move there too."), from Stations: the metal, ancient and stone dispensers, and the metal, ancient and stone drains, floor and wall (9 items). Functional now lists the wells and water barrel, the dispensers, the drains, the water barriers, the grappling anchors, then the ladders. The water wheels and the windmill stay in Stations.
+
+> [!warning]
+> Not yet seen in game.
+
 ## 0.10.36
 
 Sorting, from the user: "Fireplace, Shovel Garden Gnome, Small Hollow's Eve Pumpkin, Wooden Bucket, Improved Water Well is in Animals & Pets. Likely that their variants are there too. Improved Water Well should be in a new Functional category, just after Stations. The rest, decor. Grappling Hook Pull Anchor and its variant should move to Functional. Ladders and Water Barrier Wall/Floor too."
