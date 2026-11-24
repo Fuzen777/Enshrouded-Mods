@@ -28,4 +28,14 @@ The 64 planted growth roots of game build 26430625: 5 perennials, 40 one-shot cr
 - `tests\CropPlannerTests` runs the planner on Kiln's offline snapshot of the game's data (`snapshot_reader.py` answers the same queries `OnBoot` makes) and checks the counts against Eternal Harvest's report on the same build (64 roots, 44 refilling, 20 growth only), the tomato, wheat, cabbage, red mushroom and coffee changes, growth per stage, Kiln's limits (staged names, one patch per template, 4,096 changes) and both settings of Hide While Regrowing.
 
 > [!note]
-> Not yet checked in game.
+> First start in game on 24 Nov 2026: the boot generation committed the mod (108 templates patched, 0 issues) and the running mod set the produce on 42 slots of 39 crops at each world load. Ripe Eternal Harvest crops in the save came back as the game's own crops.
+
+---
+
+## 1.0.1
+
+- Sync Growth Time (new, off by default): off, every plant keeps the game's own growth time; on, all 64 growth roots take Growth Time, as 1.0.0 always did.
+- Area harvest, merged from Area Harvest for Eternal Harvest (retired; its crop rule only knew Eternal Harvest's copies, which no longer exist): while a world is hosted, harvesting a perennial crop by hand also harvests the ripe ones of the same kind (the same ripe stage template) in a square around it, through the game's own loot request for that player (`Gameplay.Inject.Loot`). Harvest Any Crop takes every ripe perennial crop in the square instead. Regrowing crops (empty inventory) and crops with no harvest offered are skipped. The perennial ripe stages come from the plan OnBoot writes (44 of them; artichoke stays out). Its settings are in `perennial-crops-server.json`: Area Harvest (on), Harvest Any Crop (off), Harvest Area Size (30 m, 1 to 100).
+- A settings window, Shift+F6 (a Kiln key binding, so it can be changed on Kiln's Keys page): the crop settings (marked Restart The Game To Apply when they differ from the ones this start was made with) and the area harvest settings, which apply at once.
+- The plan in the mod's data folder is now `plan.json`: the settings OnBoot used, the refill produce and the perennial ripe stages.
+- Tests: Sync Growth Time off (no growth root patched, the same 39 + 5 crops), the 44 area harvest stages, same kind against Harvest Any Crop, growing stages never taken, the area limits and the square's edges.

@@ -49,6 +49,9 @@ public sealed class CropPlan
 
     public List<string> Report { get; } = new List<string>();
 
+    /// <summary>The ripe stages that refill (made perennial or already perennial), by template name: what area harvest takes.</summary>
+    public List<string> PerennialStages { get; } = new List<string>();
+
     public int GrowthRoots { get; set; }
 
     public int MadePerennial { get; set; }
@@ -101,9 +104,10 @@ public static class CropPlanner
     private static readonly Regex GrowthRootName = new Regex(@"^T\d+_Plant_", RegexOptions.CultureInvariant);
     private static readonly Regex KeyUnsafe = new Regex("[^a-z0-9_.-]+", RegexOptions.CultureInvariant);
 
-    public static CropPlan Plan(Func<string, GameRecord?> read, double growthSeconds, double regrowthSeconds, bool hideWhileRegrowing)
+    /// <param name="growthSeconds">The growth time of every planted growth root; null keeps the game's own growth times.</param>
+    public static CropPlan Plan(Func<string, GameRecord?> read, double? growthSeconds, double regrowthSeconds, bool hideWhileRegrowing)
     {
-        if (!(growthSeconds >= 1) || !(regrowthSeconds >= 1))
+        if (growthSeconds is double wanted && !(wanted >= 1) || !(regrowthSeconds >= 1))
         {
             throw new ArgumentOutOfRangeException(nameof(growthSeconds), "growth and regrowth times are at least 1 second");
         }
@@ -182,12 +186,17 @@ public static class CropPlanner
                 plan.Report.Add($"SKIPPED {rootName}: its growth stages have no growth factor");
                 continue;
             }
-            var rootPatch = new TemplatePatch(KeyFor("growth", rootName), root.ResourceId, rootName);
-            rootPatch.Set["Growth.minDuration.value"] = (long)Math.Round(growthSeconds * NanosecondsPerSecond / factorSum);
-            rootPatch.Set["Growth.randomDurationScale.min"] = 1.0;
-            rootPatch.Set["Growth.randomDurationScale.max"] = 1.0;
-            plan.Patches.Add(rootPatch);
-            string timing = $"growth {Seconds(growthSeconds)} (game: {Seconds(NativeSeconds(growth.Value, "minDuration") * factorSum)})";
+            string nativeGrowth = Seconds(NativeSeconds(growth.Value, "minDuration") * factorSum);
+            string timing = "growth " + nativeGrowth + " (the game's)";
+            if (growthSeconds is double synced)
+            {
+                var rootPatch = new TemplatePatch(KeyFor("growth", rootName), root.ResourceId, rootName);
+                rootPatch.Set["Growth.minDuration.value"] = (long)Math.Round(synced * NanosecondsPerSecond / factorSum);
+                rootPatch.Set["Growth.randomDurationScale.min"] = 1.0;
+                rootPatch.Set["Growth.randomDurationScale.max"] = 1.0;
+                plan.Patches.Add(rootPatch);
+                timing = $"growth {Seconds(synced)} (game: {nativeGrowth})";
+            }
 
             Guid? stageGuid = Reference(finalLevel, "upgradeEntity");
             GameRecord? stage = stageGuid == null ? null : read($"resource:{stageGuid.Value:D}/{TemplateType}/0");
@@ -212,6 +221,7 @@ public static class CropPlanner
                 AddEmptyToggle(stagePatch, chest, invertToggle);
                 plan.Patches.Add(stagePatch);
                 plan.AlreadyPerennial++;
+                plan.PerennialStages.Add(stageName);
                 plan.Report.Add($"PLANT {rootName}: {timing}; already perennial ({stageName}), regrowth {Seconds(regrowthSeconds)} (game: {Seconds(NativeSeconds(nativeRefill.Value, "waitTime"))})");
                 continue;
             }
@@ -260,6 +270,7 @@ public static class CropPlanner
             AddEmptyToggle(patch, chest, invertToggle);
             plan.Patches.Add(patch);
             plan.MadePerennial++;
+            plan.PerennialStages.Add(stageName);
             string produce = string.Join(", ", yield.Select(y => $"{y.Count} x {ItemName(read, y.Item)}"));
             plan.Report.Add($"PLANT {rootName}: {timing}; made perennial ({stageName}): {produce} every {Seconds(regrowthSeconds)}");
         }

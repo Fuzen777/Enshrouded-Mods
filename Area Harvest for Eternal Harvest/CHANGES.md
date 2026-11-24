@@ -1,5 +1,8 @@
 # Area Harvest for Eternal Harvest
 
+> [!warning]
+> Retired on 24 Nov 2026: Eternal Harvest was replaced by Perennial Crops, whose 1.0.1 has this area harvest built in (same kind by default, Harvest Any Crop for every kind). This mod only knew Eternal Harvest's crop copies, so it no longer finds any crop.
+
 A Kiln mod (id `eh-area-harvest`, C#, `src\`) that brings XHL Planting Assistant's range harvest to the crops it leaves out. Planting Assistant (Kiln edition 0.1.0, Nexus 128) harvests the crops around one you harvest by hand, but only crops whose game template is on its fixed list of 72. Eternal Harvest 0.3.0 makes each planted crop ripen into a copy with a template of its own (`EternalHarvest_Planted_<growth root>`, a new GUID), and the game's planted fruit trees (`..._PlayerPlanted_Refill`: banana, coconut, coffee, hazelnut, date palm) were never on the list, so Planting Assistant chain-harvests none of them.
 
 `Scripts\Build.ps1` runs the tests, builds against Kiln's assemblies in `<game>\kiln\host` and puts the mod in `dist\eh-area-harvest`; `-Install` copies it to `<game>\kiln\mods\eh-area-harvest`, where Kiln loads it as a drop-in (game closed).

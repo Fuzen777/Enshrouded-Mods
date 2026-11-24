@@ -9,8 +9,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- The mod's planner, without Kiln: it runs on Kiln's offline snapshot of the game's data. -->
+    <!-- The mod's planner and area harvest rules, without Kiln: the planner runs on Kiln's offline snapshot of the game's data. -->
     <Compile Include="..\..\src\CropPlanner.cs" Link="CropPlanner.cs" />
+    <Compile Include="..\..\src\HarvestRules.cs" Link="HarvestRules.cs" />
     <None Include="snapshot_reader.py" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

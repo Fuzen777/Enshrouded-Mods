@@ -158,6 +158,29 @@ catch (ArgumentOutOfRangeException)
 }
 Check(refused, "a growth time under 1 s is refused");
 
+// Sync Growth Time off: no growth root is touched, the crops change as before.
+CropPlan native = CropPlanner.Plan(Read, null, 600, true);
+Check(native.Patches.All(p => !p.Key.StartsWith("growth-", StringComparison.Ordinal)), "Sync Growth Time off: every plant keeps the game's growth time");
+Check(native.MadePerennial == 39 && native.AlreadyPerennial == 5, "Sync Growth Time off: the same crops made perennial");
+Check(native.Report.Any(l => l.Contains("T2_Plant_Growth_Strawberry:", StringComparison.Ordinal) && l.Contains("growth 2700 s (the game's)", StringComparison.Ordinal)),
+    "Sync Growth Time off: the report gives the game's growth time");
+
+// Area harvest: the 44 refilling ripe stages, the same kind unless Harvest Any Crop is on.
+var stages = new HashSet<string>(plan.PerennialStages, StringComparer.Ordinal);
+Check(stages.Count == 44, $"44 perennial ripe stages for area harvest (got {stages.Count})");
+Check(stages.Contains("T1_Plant_Growth_Tomato_Seedling_2_harvest") && stages.Contains("Scatter_Loot_Wetland_Above_Bananaplant_01_e_fruits_harvest_PlayerPlanted_Refill"),
+    "area harvest takes made and native perennials");
+Check(!stages.Contains("Scatter_Loot_AncientLand_Artichoke_01_d"), "area harvest leaves artichoke (one-shot)");
+const string Tomato = "T1_Plant_Growth_Tomato_Seedling_2_harvest";
+const string Flax = "T3_Plant_Growth_Flax_Seedling_2_harvest";
+Check(HarvestRules.Takes(Tomato, Tomato, stages, false), "a tomato takes the tomatoes around it");
+Check(!HarvestRules.Takes(Tomato, Flax, stages, false), "a tomato leaves the flax around it");
+Check(HarvestRules.Takes(Tomato, Flax, stages, true), "Harvest Any Crop: a tomato takes the flax too");
+Check(!HarvestRules.Takes(Tomato, "T1_Plant_Growth_Tomato_Seedling_1", stages, true), "a growing tomato is never taken");
+Check(!HarvestRules.Takes(Tomato, null, stages, true) && !HarvestRules.Takes(null, Tomato, stages, true), "no name: nothing taken");
+Check(HarvestRules.AreaMeters(0) == 1 && HarvestRules.AreaMeters(500) == 100 && HarvestRules.AreaMeters(double.NaN) == 30, "area size held to 1 to 100 m, 30 m by default");
+Check(HarvestRules.InSquare(0, 0, 15, -15, 30) && !HarvestRules.InSquare(0, 0, 15.01, 0, 30), "the square's edges count, outside doesn't");
+
 reader.StandardInput.Close();
 reader.WaitForExit(10_000);
 if (args.Contains("--report"))
