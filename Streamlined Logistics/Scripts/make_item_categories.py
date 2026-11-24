@@ -34,7 +34,7 @@ SECTIONS = [
     "Gear/Weapons", "Gear/Shields", "Gear/Armor", "Gear/Cosmetics", "Gear/Rings", "Gear/Tools",
     "Consumables/Meals", "Consumables/Raw Food", "Consumables/Potions & General Consumables", "Consumables/Ammo", "Consumables/Spells",
     "Placeables/Stations", "Placeables/Functional", "Placeables/Storage", "Placeables/Furniture", "Placeables/Doors", "Placeables/Showcases",
-    "Placeables/Animals & Pets", "Placeables/Decor",
+    "Placeables/Animals & Pets", "Placeables/Seedlings", "Placeables/Decor",
     "Building/Blocks", "Building/Terrain",
     "Other/Weapon Gems", "Other/Lore", "Other/Dyes", "Other/Miscellaneous",
     "Materials",
@@ -65,6 +65,7 @@ DECOR_KINDS = ["Bed", "Chair", "Stool", "Bench", "Throne", "Sofa", "Couch", "Tab
                "Chandelier", "Lamp", "Lantern", "Candle", "Torch", "Brazier", "Banner", "Flag", "Rug", "Carpet", "Curtain", "Pillow",
                "Plant", "Flower", "Pot", "Vase", "Basket", "Barrel", "Crate", "Box", "Statue", "Bust", "Trophy", "Painting", "Picture",
                "Mirror", "Clock", "Book", "Fence", "Window", "Pillar", "Column", "Shrine", "Sign"]
+SEEDLING_KINDS = ["Vegetable", "Grain", "Fruit", "Herb", "Tea", "Mushroom", "Material", "Tree"]
 
 
 def newest_build(dump_root):
@@ -228,6 +229,10 @@ def classify(item, index, dump, template_cache):
         return "Consumables/Raw Food", "Raw"
     if category == "AnimalFood":
         return "Placeables/Animals & Pets", "Bait"
+    if category == "BuildTools" and (item.get("growthInfo") or {}).get("hasGrowthInfo"):
+        # Seedlings, the only items with growth info: their own category (asked by the user on 24 Nov 2026); they were in no
+        # section, so the mod filed them in Decor.
+        return "Placeables/Seedlings", kind_in(name, SEEDLING_KINDS)
     if category == "BuildTools":
         # Pickaxes, sieves, rakes, the Construction Hammer and the building tools are the game's BuildTools too: tools, not
         # placeables (0.9.0 to 0.10.19 filed them in Placeables > Decor).

@@ -7,6 +7,13 @@ How it works: the screen is a Kiln screen (`Ui.Screen`) drawn in the player's ga
 `Scripts\Build.ps1` runs the tests (`tests\ChestRulesTests`), builds against Kiln's assemblies in `<game>\kiln\host` and puts the mod in `dist\streamlined-logistics`; `-Install` copies it to `<game>\kiln\mods\streamlined-logistics`, where Kiln loads it as a drop-in (game closed).
 
 
+## 0.10.38
+
+- **New Seedlings category** in Placeables, after Animals & Pets (the user: "Seedlings too should have their own category."): the 63 seedlings, the only items with the game's growth info, grouped by kind (vegetables, grains, fruit, herbs, teas, mushrooms, materials, trees, then the rest), then tier. They were in no section of the generated list, so the mod filed them in Decor.
+
+> [!warning]
+> Not yet seen in game.
+
 ## 0.10.37
 
 - **Water dispensers and drains move to Functional** (the user: "Water Dispensers and Drains should move there too."), from Stations: the metal, ancient and stone dispensers, and the metal, ancient and stone drains, floor and wall (9 items). Functional now lists the wells and water barrel, the dispensers, the drains, the water barriers, the grappling anchors, then the ladders. The water wheels and the windmill stay in Stations.
