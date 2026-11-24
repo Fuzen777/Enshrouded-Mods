@@ -2,6 +2,10 @@
 
 A rebuild of Auto Doors (SellTheWorldGames, closed source) as a Kiln mod, from its described behaviour, not its code. Doors are toggled by sending the game's own `ToggleInteractionEvent {guest, host, offer}` from the mod's ECS program `door_toggle` (`src\kiln.programs.json`); `interaction_toggle_new` flips `ServerToggleState` and `interaction_directional` swings the door away from the guest.
 
+## 1.1.0
+
+- Nexus release of 1.0.1 and 1.0.2, no code change (the DLL is 1.0.2's; only the version in `kiln.mod.json` moved). From now on a Nexus upload of a published mod takes the next minor version and a build that is not uploaded takes a patch; `Changelog.mdbbcode` holds the player-facing notes of each upload.
+
 ## 1.0.2
 
 - Lighter on the world's thread (Fuzen's FPS check: the hosted world ran at 49-57 steps/s and ~17% of its thread was Kiln's whole-world entity pass, much of it from this mod). Every search the mod makes (`Creatures.Near`, the door query, `Spawn.FindByName`) walks the world's whole entity table: Kiln has no spatial index, so a centre and radius do not make one cheaper, and one search per base would cost more than one for the world.
