@@ -7,6 +7,16 @@ How it works: the screen is a Kiln screen (`Ui.Screen`) drawn in the player's ga
 `Scripts\Build.ps1` runs the tests (`tests\ChestRulesTests`), builds against Kiln's assemblies in `<game>\kiln\host` and puts the mod in `dist\streamlined-logistics`; `-Install` copies it to `<game>\kiln\mods\streamlined-logistics`, where Kiln loads it as a drop-in (game closed).
 
 
+## 0.10.36
+
+Sorting, from the user: "Fireplace, Shovel Garden Gnome, Small Hollow's Eve Pumpkin, Wooden Bucket, Improved Water Well is in Animals & Pets. Likely that their variants are there too. Improved Water Well should be in a new Functional category, just after Stations. The rest, decor. Grappling Hook Pull Anchor and its variant should move to Functional. Ladders and Water Barrier Wall/Floor too."
+
+- **Animals & Pets** keeps the animals, their baits and the game's own animal furniture (feeders, pet and farm animal beds). Pets also use many decorations, which carry the same game marker: the fireplace, garden gnomes, Hollow's Eve pumpkins, buckets, barrels, pottery, Christmas trees, bells, snowmen, the scarecrow and the anniversary presents (35 items) go back to Decor.
+- **New Functional category**, right after Stations, for what works without crafting: the Water Well and Improved Water Well, the water barrel, the grappling hook anchors (Pull and Swing), the ladders and scaffold, and the water barrier wall and floor (12 items, from the placed object's components: water stock, grappling anchor, ladder, water blocking without opening). The water barrel came from Stations.
+
+> [!warning]
+> Not yet seen in game.
+
 ## 0.10.35
 
 Kiln 0.2.0-dev.31 (mod API 0.2.17). The mod asks for API 0.2.17.
