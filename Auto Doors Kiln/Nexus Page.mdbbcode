@@ -1,0 +1,77 @@
+<div style="text-align: center">
+
+# <span style="color: #e6a050">Auto Doors</span>
+
+</div>
+
+<div style="text-align: center">
+
+*<span style="color: #e6a050">Doors in your base open as you walk up to them and close behind you.</span>*
+
+</div>
+
+Auto Doors is a **Kiln** mod. Inside a Flame Altar's area, doors opens when you, a survivor or your build camera comes near, and close once everyone has left. 
+
+It is a rebuild of the idea behind SellTheWorldGames' AutoDoors, with configurable distances and a mode for each door. It also doesn’t close your inventory/craft menu if a door opens at the same time.
+
+There is no on-screen prompt for any of this, so here is everything you can do.
+
+---
+
+## Controls
+
+- **Shift + MMB** (controller: **LB + Y**) while looking at a door : look at a door and press it to change that door's mode. Each press moves to the next mode and a message tells you which one it is now.
+- **Shift + F7**: switch the whole mod on or off.
+
+Both keys can be changed in the **Keys** tab of Kiln's menu. Normally, it should only take away MMB while looking at a door, leaving it usable for normal operations otherwise. Tell me if it misbehaves. 
+
+### Door modes
+
+
+| Mode                        | Who opens the door                                                      |
+| --------------------------- | ----------------------------------------------------------------------- |
+| **Everyone** (default)      | Players, the build camera, survivors (and animals, if you turn them on) |
+| **Players**                 | Players and the build camera                                            |
+| **Players &amp; Survivors** | Players, the build camera and survivors, never animals                  |
+| **Manual**                  | Nobody: the mod leaves this door alone                                  |
+
+
+Modes are saved per world. When you look at a door inside your base whose mode is not Everyone, its mode shows under the crosshair.
+
+### Opening and closing by hand
+
+You can still use any door as usual. A door you open or close by hand **stays that way while you are near it**, then goes back to working on its own once everyone has left. Picking a door up works as usual too.
+
+---
+
+## Settings
+
+In Kiln's menu: **Mods → Auto Doors**. Every change applies at once.
+
+- **Open Distance** and **Close Distance**: how close someone has to be for a door to open, and how far everyone has to be for it to close. In decimetres: 40 = 4 m.
+- **Height Reach**: someone on another floor (above or below this distance) neither opens a door nor keeps it open.
+- **Close Delay**: seconds a door stays open after everyone has left.
+- **Only Inside Bases**: on by default. Turn it off and every door in the world works.
+- **Open For Players / Survivors / Build Camera / Animals**: who opens doors. Animals are off by default, so your farm stays in.
+- **Close Doors Opened By Hand**: off, and only doors the mod opened close by themselves.
+- **Respect Hand Toggles**: the "stays that way while you are near it" rule above.
+- **Door Label**: the mode under the crosshair.
+- **Messages**: the on-screen message when you change a mode or switch the mod.
+
+---
+
+## Requirements
+
+- [Kiln](https://github.com/frostdev-ops/kiln) mod loader, **0.2.0-dev.30.6 or newer**.
+
+## Installation
+
+1. Close the game.
+2. Add the archive through Kiln.
+3. Start the game and walk up to a door in your base.
+
+If you use the original AutoDoors, turn it off: both would try to move the same doors.
+
+## Compatibility
+
+- **Works in a world you host** (single player or as the host). The mode keys only work for the host. Multiplayer with friends joining and dedicated servers are not tested yet.

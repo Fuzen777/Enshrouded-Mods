@@ -91,10 +91,15 @@ public sealed class AutoDoorsMod : Mod
         Context.Tick.Post += OnTick;
         if (Ui.Available)
         {
-            _bindings.Add(KeyBindings.Register("auto-doors-kiln.mode", "F7", () => OnTickThread("door mode", CycleDoorMode),
-                "Auto Doors: Door Mode (look at a door)", Context.Info.Name));
-            _bindings.Add(KeyBindings.Register("auto-doors-kiln.mode.pad", "Pad:LB+Y", () => OnTickThread("door mode", CycleDoorMode),
-                "Auto Doors: Door Mode, Controller (look at a door)", Context.Info.Name));
+            // The Door Mode keys only fire, and only keep the press from the game, while you look at a door the mod works on
+            // (UpdateLabel turns them on and off): Shift + middle mouse stays the game's everywhere else.
+            _modeKey = KeyBindings.Register("auto-doors-kiln.mode", "Shift+MouseMiddle", () => OnTickThread("door mode", CycleDoorMode),
+                "Auto Doors: Door Mode (look at a door)", Context.Info.Name);
+            _modePad = KeyBindings.Register("auto-doors-kiln.mode.pad", "Pad:LB+Y", () => OnTickThread("door mode", CycleDoorMode),
+                "Auto Doors: Door Mode, Controller (look at a door)", Context.Info.Name);
+            SetModeKeys(false);
+            _bindings.Add(_modeKey);
+            _bindings.Add(_modePad);
             _bindings.Add(KeyBindings.Register("auto-doors-kiln.toggle", "Shift+F7", () => OnTickThread("switch", ToggleEnabled),
                 "Auto Doors: Switch On or Off", Context.Info.Name));
             Events.On<RenderFrameEvent>(OnFrame);
@@ -609,11 +614,7 @@ public sealed class AutoDoorsMod : Mod
     {
         EnsureWorldRules();
         if (_doors.Count == 0 || _step - _lastScan >= RescanEverySteps) Rescan();
-        if (Aimed(player) is not { } d)
-        {
-            Say("Auto Doors: look at a door (within 8 m of the camera)", ToastKind.Warning);
-            return;
-        }
+        if (Aimed(player) is not { } d || (!d.InBase && S.OnlyInsideBases)) return;   // the key was let through to the game
         var next = (DoorMode)(((int)ModeOf(d) + 1) % 4);
         if (next == DoorMode.Everyone) _modes.Remove(d.Key); else _modes[d.Key] = next;
         SaveModes();
@@ -671,14 +672,31 @@ public sealed class AutoDoorsMod : Mod
     // or closed (Fuzen, 23 Nov 2026).
     private void UpdateLabel(DoorSettings s)
     {
-        if (!Ui.Available || !s.DoorLabel || Players.All.FirstOrDefault() is not { } player || Aimed(player) is not { } d
-            || !d.InBase || ModeOf(d) is var mode && mode == DoorMode.Everyone)
+        var d = Ui.Available && Players.All.FirstOrDefault() is { } player ? Aimed(player) : null;
+        bool works = d != null && (d.InBase || !s.OnlyInsideBases);
+        SetModeKeys(works);
+        if (!works || !s.DoorLabel || !d!.InBase || ModeOf(d) is var mode && mode == DoorMode.Everyone)
         {
             _label = null;
             return;
         }
         var label = new DoorLabel(ModeText(mode), "");
         if (label != _label) _label = label;
+    }
+
+    private KeyBinding? _modeKey, _modePad;
+    private bool? _modeKeysOn;
+
+    private void SetModeKeys(bool on)
+    {
+        if (_modeKeysOn == on) return;
+        _modeKeysOn = on;
+        foreach (var b in new[] { _modeKey, _modePad })
+        {
+            if (b == null) continue;
+            b.Enabled = on;
+            b.Consume = on;
+        }
     }
 
     private static string ModeText(DoorMode mode) => mode switch

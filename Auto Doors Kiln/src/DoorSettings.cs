@@ -70,11 +70,11 @@ public sealed class DoorSettings
 }
 
 /// <summary>Per-door modes of the open world: kiln/data/worlds/&lt;world&gt;/config/auto-doors-kiln-doors-world.json. Set with the
-/// Door Mode key (F7, or LB + Y on a controller) while looking at a door. Doors are named by position because entity ids change between sessions.</summary>
+/// Door Mode key (Shift + middle mouse button, or LB + Y on a controller) while looking at a door. Doors are named by position because entity ids change between sessions.</summary>
 public sealed class DoorWorldRules
 {
     [ConfigKey("doors")]
-    [Comment("Doors with their own mode, as x,y,z=mode (mode: Players, PlayersAndSurvivors or Manual). Doors not listed open for everyone. Set with the Door Mode key (F7, or LB + Y on a controller) while looking at a door.")]
+    [Comment("Doors with their own mode, as x,y,z=mode (mode: Players, PlayersAndSurvivors or Manual). Doors not listed open for everyone. Set with the Door Mode key (Shift + middle mouse button, or LB + Y on a controller) while looking at a door.")]
     public List<string> Doors { get; set; } = new();
 }
 

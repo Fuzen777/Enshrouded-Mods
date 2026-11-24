@@ -2,6 +2,11 @@
 
 A rebuild of Auto Doors (SellTheWorldGames, closed source) as a Kiln mod, from its described behaviour, not its code. Doors are toggled by sending the game's own `ToggleInteractionEvent {guest, host, offer}` from the mod's ECS program `door_toggle` (`src\kiln.programs.json`); `interaction_toggle_new` flips `ServerToggleState` and `interaction_directional` swings the door away from the guest.
 
+## 0.2.5
+
+- Door Mode is on Shift + middle mouse button by default (Fuzen; was F7). The Door Mode keys (mouse and LB + Y) now fire, and keep the press from the game, only while you look at a door the mod works on (inside a base, or any door with Only Inside Bases off); everywhere else the press goes to the game as usual. A press with no such door says nothing (0.2.4 showed "look at a door").
+- A Door Mode key changed in Kiln's Keys page stays as chosen: only the default moved.
+
 ## 0.2.4
 
 - Build camera (Fuzen): it opens doors, but they always swung the same way. interaction_directional swings a door away from the toggle's guest, read from the guest's transform, and the guest was the player, wherever the character stood. The guest is now an entity on the camera's side of the door (the door's +Z is its front): a player, a survivor or another door, the one nearest to the door; the player if there is none. Any entity with a transform does, the toggle checks the offer and not the guest (survivors as guests worked since 0.1.0).
