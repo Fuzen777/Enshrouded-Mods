@@ -1,7 +1,20 @@
-1.1.0
+## 1.2.0
+
+```
+Menus - A survivor walking through a door no longer closes your backpack, storage or crafting menu.
+Doors now close as whoever last used them, and while one of your menus is open the mod waits instead of acting as you.
+```
+
+## 1.1.0
+
+```
 Performance: much lighter on your world. Each search for survivors and animals goes through every entity in the world, and the mod ran 30 of them a second. It now runs one every half second, and only while you are within 60 m of a door that a survivor or an animal could open. Survivors walking up to a door still open it right away.
 Doors are looked for every 5 seconds and secret pieces every 30 seconds (both were every 2.5 seconds). A secret door, shelf, floor or stair placed in your base starts working within 30 seconds.
 Tall Doors: the build camera now opens a door taller than the Height Reach anywhere up to the top of its doorway. The Round Ancient Door (6 m tall) used to open only when the camera was near its foot. Players, survivors and animals keep the plain Height Reach, so standing on a floor above a tall door does not open it.
+```
 
-1.0.0
+## 1.0.0
+
+```
 First release.
+```
