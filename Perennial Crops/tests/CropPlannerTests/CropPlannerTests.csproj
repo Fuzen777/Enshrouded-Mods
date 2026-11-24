@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The mod's planner, without Kiln: it runs on Kiln's offline snapshot of the game's data. -->
+    <Compile Include="..\..\src\CropPlanner.cs" Link="CropPlanner.cs" />
+    <None Include="snapshot_reader.py" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

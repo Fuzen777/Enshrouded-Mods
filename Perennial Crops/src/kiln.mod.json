@@ -1,0 +1,14 @@
+{
+  "id": "perennial-crops",
+  "name": "Perennial Crops",
+  "version": "1.0.0",
+  "description": "Planted crops keep producing after harvest, the way the game's own banana, coconut and coffee do, with one growth time and one regrowth time for every plant. A harvested crop can hide until it has produce again.",
+  "authors": [
+    "Fuzen777"
+  ],
+  "apiVersion": "0.2.17",
+  "side": "both",
+  "clients": "mod",
+  "boot": true,
+  "entryAssembly": "PerennialCrops.dll"
+}

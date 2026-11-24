@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>PerennialCrops</AssemblyName>
+    <RootNamespace>PerennialCrops</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Kiln's own assemblies load from kiln\host at run time: reference them, never copy them. -->
+    <KilnHost Condition="'$(KilnHost)' == ''">D:\SteamLibrary\steamapps\common\Enshrouded\kiln\host</KilnHost>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Kiln.Api" HintPath="$(KilnHost)\Kiln.Api.dll" Private="false" />
+    <Reference Include="Kiln.Blocks" HintPath="$(KilnHost)\Kiln.Blocks.dll" Private="false" />
+    <Reference Include="Kiln.Content" HintPath="$(KilnHost)\Kiln.Content.dll" Private="false" />
+  </ItemGroup>
+
+</Project>
