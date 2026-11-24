@@ -2,6 +2,13 @@
 
 A rebuild of Auto Doors (SellTheWorldGames, closed source) as a Kiln mod, from its described behaviour, not its code. Doors are toggled by sending the game's own `ToggleInteractionEvent {guest, host, offer}` from the mod's ECS program `door_toggle` (`src\kiln.programs.json`); `interaction_toggle_new` flips `ServerToggleState` and `interaction_directional` swings the door away from the guest.
 
+## 1.0.2
+
+- Lighter on the world's thread (Fuzen's FPS check: the hosted world ran at 49-57 steps/s and ~17% of its thread was Kiln's whole-world entity pass, much of it from this mod). Every search the mod makes (`Creatures.Near`, the door query, `Spawn.FindByName`) walks the world's whole entity table: Kiln has no spatial index, so a centre and radius do not make one cheaper, and one search per base would cost more than one for the world.
+- Survivors and animals: one search every 0.5 s (was two every 4 steps, 30 a second), and only for a player within 60 m of a door a survivor or an animal could open (a base door in Everyone or Players & Survivors mode, or any door with Bases Only off). Between searches the creatures found are followed by their position, so a survivor walking up to a door still opens it at once; one that arrives from beyond 60 m is seen within 0.5 s.
+- Doors: the door query runs every 5 s (was 2.5 s), every 1 s while no door is known (was every 4 steps).
+- Secret pieces: the name search runs every 30 s and only with a base (was every 2.5 s); in between the pieces found are kept while they exist. Pieces outside a base are no longer kept at all (the mod never moved them). A secret piece placed in a base works within 30 s.
+
 ## 1.0.1
 
 - Tall doors and the build camera (Fuzen: the Round Ancient Door only opened for the camera near its foot). Height Reach was measured from a door's foot only, and the Round Ancient Door is 6 m tall. The build camera now also counts anywhere up to the top of a doorway taller than the Height Reach. Door heights are the top of each door template's solid colliders, from the game data (Large doors 3.5 m, Round doors 3 m, Round Ancient 6 m, ...). Players, survivors and animals keep the plain Height Reach, so a floor above a tall door does not open it.

@@ -29,7 +29,14 @@ public sealed partial class AutoDoorsMod : Mod
     private const int AcceptedOfferOffset = 36;
     private const int OfferIdOffset = 40;
     private const int EvaluateEverySteps = 4;      // the world runs 60 steps a second
-    private const int RescanEverySteps = 150;
+    // Every door, creature and secret-piece search below is a pass over the world's whole entity table (Kiln has no
+    // spatial index), so they run rarely (1.0.2, Fuzen's FPS check: 30 creature passes a second took ~17% of the world's
+    // thread). Doors every 5 s (every 1 s while none is known), secret pieces every 30 s, creatures every 0.5 s and only
+    // while a player is near a door they could open; between creature searches the ones found are followed by position.
+    private const int RescanEverySteps = 300;
+    private const int RescanEmptyEverySteps = 60;
+    private const int SecretScanEverySteps = 1800;
+    private const int CreatureSearchEverySteps = 30;
     private const int CheckAfterSteps = 15;      // 0.25 s; a toggle moved the door within 3 steps in probe 4
     private const int AcceptWaitSteps = 10;
     private const double RetryAfterSeconds = 3.0;
@@ -48,6 +55,11 @@ public sealed partial class AutoDoorsMod : Mod
     private string _programState = "not bound";
     private ulong _step;
     private ulong _lastScan;
+    private ulong _lastSecretScan;
+    private bool _secretsScanned;
+    private ulong _lastCreatureSearch;
+    private bool _creaturesSearched;
+    private readonly List<(EntityId Id, Who Who)> _creatures = new();
     private bool _wasEnabled;
     private int _opened, _closed, _failed;
     private volatile DoorLabel? _label;       // what the render thread draws under the crosshair
@@ -255,17 +267,29 @@ public sealed partial class AutoDoorsMod : Mod
         }
         // Secret pieces (Base_Secret_Door, _Shelf, _Floor, ...): toggles without a front and a back, found by template name.
         // (A query for InteractionToggle + ServerToggleState + InteractionOfferRuntime finds none of them.)
+        // The name search lists every entity of the world, whatever its centre and radius, so it runs every 30 s (and only
+        // with a base); in between, the pieces found before are kept while they exist. Only pieces inside a base are kept:
+        // the mod never moves one outside a base.
         IEnumerable<EntityId> named;
-        try { named = Spawn.FindByName("Secret", null, 1e9, 2000).ToList(); }
-        catch (Exception ex)
+        if (bases.Count > 0 && (!_secretsScanned || _step - _lastSecretScan >= SecretScanEverySteps))
         {
-            if (!_secretFindFailed) Log.Warn($"auto doors: finding secret pieces failed: {ex.Message}");
-            _secretFindFailed = true;
-            named = Array.Empty<EntityId>();
+            _lastSecretScan = _step;
+            _secretsScanned = true;
+            try { named = Spawn.FindByName("Secret", null, 1e9, 2000).ToList(); }
+            catch (Exception ex)
+            {
+                if (!_secretFindFailed) Log.Warn($"auto doors: finding secret pieces failed: {ex.Message}");
+                _secretFindFailed = true;
+                named = Array.Empty<EntityId>();
+            }
+        }
+        else
+        {
+            named = _doors.Values.Where(d => d.Secret).Select(d => d.Id).ToList();
         }
         foreach (var id in named)
         {
-            if (seen.Contains(id.Value) || World.Position(id) is not { } at) continue;
+            if (seen.Contains(id.Value) || World.Position(id) is not { } at || !bases.Any(b => b.Contains(at))) continue;
             if (!_doors.TryGetValue(id.Value, out var d))
             {
                 if (_notSecret.Contains(id.Value)) continue;
@@ -287,6 +311,8 @@ public sealed partial class AutoDoorsMod : Mod
 
     private bool _secretFindFailed;
     private readonly HashSet<uint> _notSecret = new();
+
+    private bool RescanDue => _step - _lastScan >= (ulong)(_doors.Count == 0 ? RescanEmptyEverySteps : RescanEverySteps);
 
     // "Base_Secret_Shelf" -> "Secret Shelf".
     private static string SecretName(string template)
@@ -326,17 +352,50 @@ public sealed partial class AutoDoorsMod : Mod
             if (s.OpenForPlayers && p.Position is { } at) list.Add(new Trigger(at, p.Entity.Value, Who.Player));
             if (s.OpenForBuildCamera && BuildCamera(p, i == 0) is { } cam) list.Add(new Trigger(cam, p.Entity.Value, Who.Camera));
         }
-        if ((s.OpenForSurvivors || s.OpenForAnimals) && Creatures.Available && players.Count > 0)
+        SearchCreatures(s, players);
+        foreach (var (id, who) in _creatures)
+            if (World.Position(id) is { } cp) list.Add(new Trigger(cp, id.Value, who));
+        return list;
+    }
+
+    // Survivors and animals within SurvivorSearchRadius of a player who is near a door they could open. Creatures.Near is a
+    // pass over every entity with a Faction, so it runs every CreatureSearchEverySteps, once per such player for both kinds.
+    private void SearchCreatures(DoorSettings s, List<Player> players)
+    {
+        if (!(s.OpenForSurvivors || s.OpenForAnimals) || !Creatures.Available || players.Count == 0)
         {
-            var seen = new HashSet<uint>();
-            foreach (var p in players)
+            _creatures.Clear();
+            return;
+        }
+        if (_creaturesSearched && _step - _lastCreatureSearch < CreatureSearchEverySteps) return;
+        _lastCreatureSearch = _step;
+        _creaturesSearched = true;
+        _creatures.Clear();
+        var seen = new HashSet<uint>();
+        foreach (var p in players)
+        {
+            if (p.Position is not { } at || !CreatureDoorNear(at, s)) continue;
+            foreach (var e in Creatures.Near(at, SurvivorSearchRadius))
             {
-                if (p.Position is not { } at) continue;
-                if (s.OpenForSurvivors) AddCreatures(list, seen, at, CreatureKind.Villager, Who.Survivor);
-                if (s.OpenForAnimals) AddCreatures(list, seen, at, CreatureKind.Animal, Who.Animal);
+                if (!seen.Add(e.Value)) continue;
+                var kind = Spawn.Inspect(e)?.Template is { } g ? Creatures.Template(g)?.Kind : null;
+                if (kind == CreatureKind.Villager && s.OpenForSurvivors) _creatures.Add((e, Who.Survivor));
+                else if (kind == CreatureKind.Animal && s.OpenForAnimals) _creatures.Add((e, Who.Animal));
             }
         }
-        return list;
+    }
+
+    // A door within SurvivorSearchRadius of the player that a survivor or an animal could open or keep open.
+    private bool CreatureDoorNear(WorldPosition at, DoorSettings s)
+    {
+        foreach (var d in _doors.Values)
+        {
+            if (Distance(d.At, at) > SurvivorSearchRadius) continue;
+            if (!d.InBase && (d.Secret || s.OnlyInsideBases)) continue;
+            var mode = d.InBase ? ModeOf(d) : DoorMode.Everyone;
+            if ((s.OpenForSurvivors && Allowed(mode, Who.Survivor)) || (s.OpenForAnimals && Allowed(mode, Who.Animal))) return true;
+        }
+        return false;
     }
 
     // Where a player's build camera is, when it is away from the character. The player of this game (the host, first slot)
@@ -371,12 +430,6 @@ public sealed partial class AutoDoorsMod : Mod
             return free ? rc.Position : null;
         }
         return flag == true && p.Aim is { } aim ? aim.Origin : null;
-    }
-
-    private static void AddCreatures(List<Trigger> list, HashSet<uint> seen, WorldPosition at, CreatureKind kind, Who who)
-    {
-        foreach (var e in Creatures.Near(at, SurvivorSearchRadius, kind))
-            if (seen.Add(e.Value) && World.Position(e) is { } cp) list.Add(new Trigger(cp, e.Value, who));
     }
 
     private static bool Allowed(DoorMode mode, Who who) => mode switch
@@ -464,7 +517,7 @@ public sealed partial class AutoDoorsMod : Mod
             var s = S;
             if (s.Enabled != _wasEnabled) Switched(s.Enabled);
             if (tick.Step % EvaluateEverySteps != 0) return;
-            if (_doors.Count == 0 || _step - _lastScan >= RescanEverySteps) Rescan();
+            if (RescanDue) Rescan();
             if (s.Enabled) Evaluate(s);
             UpdateLabel(s);
         }
@@ -784,7 +837,7 @@ public sealed partial class AutoDoorsMod : Mod
     private void CycleDoorMode(Player player)
     {
         EnsureWorldRules();
-        if (_doors.Count == 0 || _step - _lastScan >= RescanEverySteps) Rescan();
+        if (RescanDue) Rescan();
         if (Aimed(player) is not { } d || !d.InBase) return;   // the key was let through to the game
         var next = d.Secret
             ? ModeOf(d) switch { DoorMode.CloseOnly => DoorMode.Players, DoorMode.Players => DoorMode.Manual, _ => DoorMode.CloseOnly }
