@@ -231,6 +231,11 @@ public sealed class StoredState
     public bool Ungrouped { get; set; }
     /// <summary>True when the Items tab's navigation sidebar is folded to a strip (since 0.10.39).</summary>
     public bool SidebarHidden { get; set; }
+    /// <summary>The F2 window's size at UI scale 1, as the player left it (since 0.10.40); 0 until it was resized once.</summary>
+    public float WindowWidth { get; set; }
+    public float WindowHeight { get; set; }
+    /// <summary>The stored items' share of the window's width beside the backpack (since 0.10.40).</summary>
+    public float StorageShare { get; set; } = ChestRules.DefaultStorageShare;
     /// <summary>The names of the categories left out of the list.</summary>
     public HashSet<string> HiddenCategories { get; } = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>The categories the category file had when the hidden ones were last settled: one that is not here yet is new.</summary>
@@ -266,6 +271,22 @@ public static class ChestRules
     public const int DefaultHighlightSeconds = 15;
     /// <summary>A chest farther away than this is not marked in the world.</summary>
     public const double MaxHighlightMeters = 200;
+    /// <summary>The stored items' share of the F2 window's width beside the backpack: its default and its bounds (since 0.10.40).</summary>
+    public const float DefaultStorageShare = 0.62f;
+    public const float MinStorageShare = 0.3f;
+    public const float MaxStorageShare = 0.85f;
+
+    public static float ClampStorageShare(float share)
+    {
+        return float.IsFinite(share) ? Math.Clamp(share, MinStorageShare, MaxStorageShare) : DefaultStorageShare;
+    }
+
+    // A positive number the state file names, else the fallback.
+    private static float PositiveFloat(JsonElement root, string name, float fallback)
+    {
+        return root.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.Number && value.TryGetSingle(out float number)
+            && number > 0 && float.IsFinite(number) ? number : fallback;
+    }
 
     public static double LinkRadius(double value)
     {
@@ -1356,6 +1377,9 @@ public static class ChestRules
             ["includeHotbar"] = state.IncludeHotbar,
             ["ungrouped"] = state.Ungrouped,
             ["sidebarHidden"] = state.SidebarHidden,
+            ["windowWidth"] = state.WindowWidth,
+            ["windowHeight"] = state.WindowHeight,
+            ["storageShare"] = state.StorageShare,
         };
         if (state.HiddenCategoriesChosen)
         {
@@ -1436,6 +1460,9 @@ public static class ChestRules
             state.IncludeHotbar = root.TryGetProperty("includeHotbar", out JsonElement includeHotbar) ? includeHotbar.ValueKind == JsonValueKind.True : state.IncludeHotbar;
             state.Ungrouped = root.TryGetProperty("ungrouped", out JsonElement ungrouped) && ungrouped.ValueKind == JsonValueKind.True;
             state.SidebarHidden = root.TryGetProperty("sidebarHidden", out JsonElement sidebarHidden) && sidebarHidden.ValueKind == JsonValueKind.True;
+            state.WindowWidth = PositiveFloat(root, "windowWidth", 0);
+            state.WindowHeight = PositiveFloat(root, "windowHeight", 0);
+            state.StorageShare = ClampStorageShare(PositiveFloat(root, "storageShare", DefaultStorageShare));
             if (root.TryGetProperty("hiddenCategories", out JsonElement hiddenCategories) && hiddenCategories.ValueKind == JsonValueKind.Array)
             {
                 state.HiddenCategoriesChosen = true;

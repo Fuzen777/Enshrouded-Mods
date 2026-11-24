@@ -173,6 +173,15 @@ public sealed class StreamlinedLogisticsMod : Mod
     private ModConfig<ChestSettings>? _settings;
     private KeyBinding? _openKey;
     private UiScreen? _screen;
+    // The F2 window's size at UI scale 1 (since 0.10.40): the last size seen while it was open (render thread), and the size kept
+    // in the state file (0: the default). Kiln centres a screen at its options' size each time it opens, so a kept size that
+    // differs makes a new screen with that size before the next opening.
+    private const float DefaultWindowWidth = 1240;
+    private const float DefaultWindowHeight = 1060;
+    private float _seenWindowWidth;
+    private float _seenWindowHeight;
+    private volatile float _keptWindowWidth;
+    private volatile float _keptWindowHeight;
     private bool _subscribed;
 
     // The world's own thread only.
@@ -202,6 +211,12 @@ public sealed class StreamlinedLogisticsMod : Mod
     // The navigation sidebar beside the stored items (since 0.10.39): hidden or shown (kept in the state file), and the header a
     // click in it asked to scroll to, for the next frame of the list (render thread only).
     private volatile bool _sidebarHiddenView;
+    // The stored items' share of the window's width, beside the backpack (since 0.10.40: dragged at the bar between them, kept in the
+    // state file), and the drag in progress (render thread).
+    private volatile float _storageShareView = ChestRules.DefaultStorageShare;
+    private bool _splitDragging;
+    private float _splitDragStartX;
+    private float _splitDragStartShare;
     private string? _jumpTo;
     private DateTime _categoriesFileTime;
     private string _categoriesNote = "";
@@ -227,7 +242,6 @@ public sealed class StreamlinedLogisticsMod : Mod
     private bool _marksInPlay;
     private IDisposable? _favoriteClicks;
     private IDisposable? _favoritePadClicks;
-    private IDisposable? _favoritePadClicksRight;
     private bool _gameScreenClicksBroken;
     private volatile bool _gameScreenFavoritesBroken;
     private EventSubscription? _renderFrames;
@@ -316,9 +330,7 @@ public sealed class StreamlinedLogisticsMod : Mod
             Log.Warn($"loaded {Context.Info.Version}, but it can't show anything here: Kiln's client and UI services are not both available");
             return;
         }
-        _screen = Ui.Screen("Streamlined Logistics", Draw, new UiScreenOptions { Width = 1240, Height = 1060, Resizable = true });
-        _screen.Opened += RequestRead;
-        _screen.Closed += OnScreenClosed;
+        _screen = MakeScreen(DefaultWindowWidth, DefaultWindowHeight);
         _openKey = KeyBindings.Register(OpenBindingId, formerKey ?? OpenDefaultKey, OnOpenKey, "Open Streamlined Logistics", Context.Info.Name);
         if (formerKey != null && KeyBindings.Rebind(OpenBindingId, formerKey))
         {
@@ -356,12 +368,30 @@ public sealed class StreamlinedLogisticsMod : Mod
         _screen = null;
     }
 
+    private UiScreen MakeScreen(float width, float height)
+    {
+        UiScreen screen = Ui.Screen("Streamlined Logistics", Draw, new UiScreenOptions { Width = width, Height = height, Resizable = true });
+        screen.Opened += RequestRead;
+        screen.Closed += OnScreenClosed;
+        return screen;
+    }
+
     private void OnOpenKey()
     {
         UiScreen? screen = _screen;
         if (screen == null)
         {
             return;
+        }
+        float keptWidth = _keptWindowWidth;
+        float keptHeight = _keptWindowHeight;
+        if (!screen.IsOpen && keptWidth > 0 && keptHeight > 0
+            && (Math.Abs(screen.Options.Width - keptWidth) > 0.5f || Math.Abs(screen.Options.Height - keptHeight) > 0.5f))
+        {
+            // The kept size: a new screen, which Kiln centres at that size.
+            screen.Dispose();
+            screen = MakeScreen(keptWidth, keptHeight);
+            _screen = screen;
         }
         if (screen.IsOpen)
         {
@@ -2392,6 +2422,44 @@ public sealed class StreamlinedLogisticsMod : Mod
         }
     }
 
+    // Kiln's render thread: the bar between the stored items and the backpack. Pressed and dragged, it moves the share of the
+    // window's width the stored items take; released, the share is kept.
+    private void DrawSplitter(UiDraw ui)
+    {
+        float height = Math.Max(ui.Cursor.AvailHeight, 40 * ui.Scale);
+        ui.Button("##storage-backpack-split", 6 * ui.Scale, height);
+        bool hovered = ui.ItemHovered;
+        Vector2? pointer = ui.Pointer;
+        if (!_splitDragging && hovered && pointer is { } start && ui.ItemClicked(UiMouseButton.Left))
+        {
+            _splitDragging = true;
+            _splitDragStartX = start.X;
+            _splitDragStartShare = _storageShareView;
+        }
+        if (_splitDragging)
+        {
+            float width = ui.WindowRect.Width;
+            if (ui.ButtonHeld(UiMouseButton.Left) && pointer is { } now && width > 0)
+            {
+                _storageShareView = ChestRules.ClampStorageShare(_splitDragStartShare + (now.X - _splitDragStartX) / width);
+            }
+            else if (!ui.ButtonHeld(UiMouseButton.Left))
+            {
+                _splitDragging = false;
+                float share = _storageShareView;
+                Context.Scheduler.Post(() =>
+                {
+                    _state.StorageShare = share;
+                    SaveState();
+                });
+            }
+        }
+        else if (hovered)
+        {
+            ui.Tooltip("Drag: Resize");
+        }
+    }
+
     // Kiln's render thread, inside the list: scrolls so the header drawn next sits at the top, when it is the one asked for.
     private void JumpIfAsked(UiDraw ui, string target)
     {
@@ -2720,7 +2788,7 @@ public sealed class StreamlinedLogisticsMod : Mod
         SettingToggle(ui, "allFavoritesInTabs", "All Favorites In Every Tab", settings.AllFavoritesInTabs,
             "Off: a category tab shows its own favorites at the top. On: it shows all of them.");
         SettingToggle(ui, "favoritesInGameScreens", "Favorites In The Game's Screens", settings.FavoritesInGameScreens,
-            "A favorite's slot is gold in the game's own inventory and chest screens. (Shift + RMB, L3 or R3 on a slot there always marks or unmarks it.)");
+            "A favorite's slot is gold in the game's own inventory and chest screens. (Shift + RMB or R3 on a slot there always marks or unmarks it.)");
         ui.Separator("Quick Deposit");
         SettingToggle(ui, "quickDeposit", "Quick Deposit", settings.QuickDeposit,
             "Inside a base, Sort Inventory pressed twice (G) or a Quick Stack Station puts your backpack's items into the base's chests.");
@@ -2894,7 +2962,7 @@ public sealed class StreamlinedLogisticsMod : Mod
     // 0.2.0-dev.30.3. 0.5.3 to 0.9.1 placed the borders and tested the pointer themselves, while Kiln put them at twice their place
     // on a 4K screen.
 
-    // The gold borders follow Favorites In The Game's Screens; marking with Shift + RMB, L3 or R3 always works (since 0.10.27, the
+    // The gold marks follow Favorites In The Game's Screens; marking with Shift + RMB or R3 always works (since 0.10.27, the
     // user: "R3 and Shift + RMB should work in inventory even if the Favorites in inventory settings is turned off").
     private void SyncGameScreenFavorites()
     {
@@ -2907,10 +2975,10 @@ public sealed class StreamlinedLogisticsMod : Mod
                 Log.Info("favorites: Shift + RMB on a slot of the game's own screens marks or unmarks its item");
                 try
                 {
-                    // A controller: L3 or R3 on the selected slot (Kiln 0.2.0-dev.30.5).
-                    _favoritePadClicks = Ui.Inventory.OnClick(new SlotClickOptions { Pad = KeyChord.Parse("Pad:LS") }, OnFavoriteSlotClicked);
-                    _favoritePadClicksRight = Ui.Inventory.OnClick(new SlotClickOptions { Pad = KeyChord.Parse("Pad:RS") }, OnFavoriteSlotClicked);
-                    Log.Info("favorites: L3 or R3 on a controller marks or unmarks the selected slot's item");
+                    // A controller: R3 on the selected slot (Kiln 0.2.0-dev.30.5). L3 did it too from 0.10.25 to 0.10.39; since 0.10.40
+                    // only R3 (the user: "both L3 and R3 trigger the favorite behavior").
+                    _favoritePadClicks = Ui.Inventory.OnClick(new SlotClickOptions { Pad = KeyChord.Parse("Pad:RS") }, OnFavoriteSlotClicked);
+                    Log.Info("favorites: R3 on a controller marks or unmarks the selected slot's item");
                 }
                 catch (Exception problem)
                 {
@@ -2971,8 +3039,6 @@ public sealed class StreamlinedLogisticsMod : Mod
         _favoriteClicks = null;
         _favoritePadClicks?.Dispose();
         _favoritePadClicks = null;
-        _favoritePadClicksRight?.Dispose();
-        _favoritePadClicksRight = null;
     }
 
     // ---- Link Chest / Unlink Chest in a chest's own screen (since 0.10.35, Kiln 0.2.0-dev.31's Ui.Inventory.AddChestButton). ----
@@ -3263,6 +3329,19 @@ public sealed class StreamlinedLogisticsMod : Mod
 
     private void OnScreenClosed()
     {
+        float width = _seenWindowWidth;
+        float height = _seenWindowHeight;
+        if (width > 0 && height > 0 && (Math.Abs(width - _keptWindowWidth) > 0.5f || Math.Abs(height - _keptWindowHeight) > 0.5f))
+        {
+            _keptWindowWidth = width;
+            _keptWindowHeight = height;
+            Context.Scheduler.Post(() =>
+            {
+                _state.WindowWidth = width;
+                _state.WindowHeight = height;
+                SaveState();
+            });
+        }
         Highlight? pending = _highlight;
         if (pending != null && pending.UntilTick == 0)
         {
@@ -4694,6 +4773,9 @@ public sealed class StreamlinedLogisticsMod : Mod
                 _markedFavorites = new HashSet<uint>(state.Favorites);
                 _collapsedView = new HashSet<string>(state.Collapsed, StringComparer.OrdinalIgnoreCase);
                 _sidebarHiddenView = state.SidebarHidden;
+                _keptWindowWidth = state.WindowWidth;
+                _keptWindowHeight = state.WindowHeight;
+                _storageShareView = state.StorageShare;
                 _rulesView = new RulesView(new List<GearRule>(state.DepositRules), new List<GearRule>(state.SalvageRules));
                 Log.Info($"{state.Links.Count} linked chest(s) and {state.Favorites.Count} favorite(s) read from {path}");
                 return;
@@ -4740,6 +4822,12 @@ public sealed class StreamlinedLogisticsMod : Mod
 
     private void Draw(UiDraw ui)
     {
+        if (ui.Scale > 0)
+        {
+            var window = ui.WindowRect;
+            _seenWindowWidth = MathF.Round(window.Width / ui.Scale);
+            _seenWindowHeight = MathF.Round(window.Height / ui.Scale);
+        }
         Snapshot? snapshot = _snapshot;
         if (snapshot == null)
         {
@@ -4911,7 +4999,7 @@ public sealed class StreamlinedLogisticsMod : Mod
                 inGroup ? 1 : 0, inGroup ? section.Group : null, inTree ? section.Key : null));
         }
 
-        float storageWidth = ui.WindowRect.Width * 0.62f;
+        float storageWidth = ui.WindowRect.Width * ChestRules.ClampStorageShare(_storageShareView);
         float sidebarWidth = (_sidebarHiddenView ? SidebarStripWidth : SidebarWidth) * ui.Scale;
         if (ui.BeginChild("sidebar", sidebarWidth, 0))
         {
@@ -4976,6 +5064,8 @@ public sealed class StreamlinedLogisticsMod : Mod
         bool storageRightClicked = ui.ItemClicked(UiMouseButton.Right);
         DropOn(ui, Side.Storage);
 
+        ui.SameLine();
+        DrawSplitter(ui);
         ui.SameLine();
         if (ui.BeginChild("backpack", 0, 0))
         {
