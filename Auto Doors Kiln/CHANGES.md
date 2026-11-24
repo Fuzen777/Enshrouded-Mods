@@ -2,6 +2,10 @@
 
 A rebuild of Auto Doors (SellTheWorldGames, closed source) as a Kiln mod, from its described behaviour, not its code. Doors are toggled by sending the game's own `ToggleInteractionEvent {guest, host, offer}` from the mod's ECS program `door_toggle` (`src\kiln.programs.json`); `interaction_toggle_new` flips `ServerToggleState` and `interaction_directional` swings the door away from the guest.
 
+## 1.0.0
+
+- First Nexus release: 0.3.0 with its version set to 1.0.0, no code change. Fuzen tested secret doors (0.2.11) and the settings window (0.3.0).
+
 ## 0.3.0
 
 - Release build. Needs Kiln 0.2.0-dev.31 or newer (mod API 0.2.17).
