@@ -1,2 +1,12 @@
-1.0.0
+## 1.1.0
+
+```
+Cast Time - lowering it no longer makes spells fail to cast (Chain Lightning below x0.55, Lightning Wisp below x0.3, and other spells at lower values). Cast Time now only shortens how long you hold your staff before the spell goes off, down to x0.1 for every spell. The cast itself keeps its full length, so the spell always goes out.
+Performance - changing a setting no longer freezes the game for a second or more. Only the values that actually change are rewritten, and quick changes in a row, like clicking a value several times, are applied together. Changing General Cast Time can still pause the game briefly.
+```
+
+## 1.0.0
+
+```
 First release.
+```
