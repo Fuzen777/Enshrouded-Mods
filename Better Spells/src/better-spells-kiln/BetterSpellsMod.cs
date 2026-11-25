@@ -96,6 +96,8 @@ public sealed class BetterSpellsMod : Mod
     // (Interactive), Escape closes it (claimed in DrawWindow), and its place and size come from WindowPlacement.
     private UiWindow? _window;
     private WindowPlacement? _placement;
+    // Where the window is, for Grimoire to open beside it (1.1.1).
+    private readonly WindowToGrimoire _toGrimoire = new();
     // The size the screen's contents took, as last logged, to tune ScreenWidth and ScreenHeight.
     private string _loggedContentSize = "";
     // The left edge of the first line and the right edge of the widest item, in screen pixels, measured while drawing.
@@ -190,7 +192,7 @@ public sealed class BetterSpellsMod : Mod
             ReadDescriptions();
             _placement = new WindowPlacement(Context.DataDirectory, Log, ScreenWidth, ScreenHeight);
             _window = Ui.Window(WindowTitle, DrawWindow, _placement.Options(new UiWindowOptions { Interactive = true, StartOpen = false }));
-            _windowKey = KeyBindings.Register(WindowBindingId, WindowDefaultKey, () => _window?.Toggle(), "Open Settings Window", Context.Info.Name);
+            _windowKey = KeyBindings.Register(WindowBindingId, WindowDefaultKey, ToggleWindow, "Open Settings Window", Context.Info.Name);
             _wheelListener = KeyInput.Listen(OnKeyOrWheel);
             if (!_wheelListener.Ok || !_wheelListener.Mouse)
             {
@@ -365,6 +367,24 @@ public sealed class BetterSpellsMod : Mod
         }
     }
 
+    private void ToggleWindow()
+    {
+        if (_window?.Open == true)
+        {
+            HideWindow();
+        }
+        else
+        {
+            _window?.Show();
+        }
+    }
+
+    private void HideWindow()
+    {
+        _window?.Hide();
+        _toGrimoire.Closed();
+    }
+
     // The mod's own part of its page in the Kiln menu, under Kiln's generated sliders: the way to the settings window.
     private void DrawSettingsPage(UiDraw ui)
     {
@@ -385,7 +405,11 @@ public sealed class BetterSpellsMod : Mod
         // Escape closes it, as it closed the Kiln screen it was before 1.1.0.
         if (ui.KeyPressed(UiKey.Escape, claim: true))
         {
-            _window?.Hide();
+            HideWindow();
+        }
+        else
+        {
+            _toGrimoire.Track(ui);
         }
         _rowHeight = RowHeight * ui.Scale;
         _textHeight = ui.MeasureText("X").Height;

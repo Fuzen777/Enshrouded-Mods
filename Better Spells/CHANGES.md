@@ -6,6 +6,10 @@ Its companion **Better Spells Live** (`src\better-spells-live`, id `better-spell
 
 Since 3.0.0 Better Spells is one **Kiln mod** (`src\better-spells-kiln`, id `better-spells`, C#) with every setting of the two Shroudforge mods above, all applied while playing. The Shroudforge mods (2.0.9 and Live 1.0.5) are retired. Their entries stay here as the record; their sources, tests, probes and build script were removed from the folder on 21 Nov 2026 on the user's request and are in the repository's history under the tags `better-spells/v2.0.9` and `better-spells-live/v1.0.5`, so paths below such as `src\better-spells`, `tests\test_live.py` or `Scripts\Build.ps1` name files of that history. `Scripts\Build-Kiln.ps1` runs the tests (`tests\SpellRulesTests`) and builds the mod into `dist\kiln\better-spells`; with `-Install` it copies it to `<game>\kiln\mods\better-spells` (game closed). The settings are in Kiln's profile (`%LOCALAPPDATA%\Kiln\profiles\my-mods\config\better-spells.json`), so an install never touches them. Tags are `better-spells/vX.Y.Z` as before. The Kiln Proof entry below is the small mod that tested the move.
 
+## 1.1.1 (not uploaded)
+
+- **Grimoire opens beside the settings window** (asked 25 Nov 2026): while the window is drawn, `WindowToGrimoire` sends its edges to Grimoire (`Mods.Send("grimoire", "better-spells.window", [left, top, right, bottom])`, fractions of the viewport) when they change and every half second, and null when it closes (Escape or the key). Nothing is sent when Grimoire is not loaded. Grimoire 1.0.1+ moves its own window there with Kiln 0.2.0-dev.31.11 (#146); Better Spells' window still opens where the player left it.
+
 ## 1.1.0
 
 - **Nexus release of 1.0.1 to 1.0.5** (the user's ask, 25 Nov 2026, after checking 1.0.5 in game). Same spell code as 1.0.5. `Changelog.mdbbcode` gets the 1.1.0 entry (Cast Time no longer breaks casts, settings changes no longer freeze the game) and takes the `## X.Y.0` heading and code block layout Auto Doors uses.
