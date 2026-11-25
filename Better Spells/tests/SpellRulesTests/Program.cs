@@ -122,6 +122,14 @@ Check(string.Join(", ", SpellCatalog.WindowSections.Select(section => section.Na
 Check(SpellCatalog.WindowSpells.Where(spell => spell.IconItem != null).All(spell => spell.Lines[0].Key == SpellCatalog.CostKey(spell.Spell)), "every spell's card starts with its Mana Cost");
 Check(SpellCatalog.CastTimeKey("Fire Bolt") == "fireBoltCastTimeMultiplier" && SpellCatalog.LowerIsBetter(SpellCatalog.GroupCastTime), "cast time keys, and a shorter cast time is the better one");
 Check(SpellCatalog.CastTimeSpellNames.All(name => SpellCatalog.WindowSpells.Any(spell => spell.Spell == name && spell.Lines.Any(line => line.Key == SpellCatalog.CastTimeKey(name)))), "every Cast Time setting is on its card");
+// Cast Time's floor: the cast lock must last from the cast's shooting part to its release (the game's float32 times and locks).
+Check(SpellRules.MinCastTimeMultiplier(0.400000008, 0.866666684, 0.8500000238418579) == 0.55, "Chain Lightning casts down to x0.55, the limit players found");
+Check(SpellRules.MinCastTimeMultiplier(0.866666684, 1.133333356, 1.0) == 0.3, "Lightning Wisp casts down to x0.3, the limit players found");
+Check(SpellRules.MinCastTimeMultiplier(0.400000008, 0.650000013, 1.0) == 0.25, "a release exactly on a step stays on it (Fireball x0.25)");
+Check(SpellRules.MinCastTimeMultiplier(0.400000008, 1.00000002, 1.0) == 0.6, "Skeleton, totems and Blizzard cast down to x0.6");
+Check(SpellRules.MinCastTimeMultiplier(0.4, 0.35, 1.0) == SpellRules.MinCastTime && SpellRules.MinCastTimeMultiplier(0.4, 0.9, 0) == SpellRules.MinCastTime,
+    "no limit for a cast that releases before its shooting part, or without a cast lock");
+Check(SpellRules.MinCastTimeMultiplier(0, 50, 1) == SpellRules.MaxCastTime, "the floor never passes the setting's maximum");
 Check(SpellCatalog.CostKey("Fire Bolt") == "fireBoltCostMultiplier" && SpellCatalog.CostKey("Fireball") == "fireballCostMultiplier", "cost keys are the name in camel case");
 Check(SpellCatalog.CostSpellNames.OrderBy(name => name).SequenceEqual(SpellCatalog.WindowSpells.Where(spell => spell.IconItem != null).Select(spell => spell.Spell).OrderBy(name => name)), "every spell card has a cost setting, and no other");
 

@@ -149,6 +149,25 @@ public static class SpellRules
         return gameValue <= 0 ? gameValue : gameValue * multiplier;
     }
 
+    /// <summary>
+    /// The lowest Cast Time multiplier at which a spell still goes out, on the setting's steps. Its cast holds the caster in the cast's
+    /// shooting part (from the cast's InRangeCombatShooting keep-alive) only for the cast lock (config 0x41a7d373); the cast must still
+    /// be in it when it releases the spell (its spawn and its cost), or the cast ends with no spell. Chain Lightning: 0.467 s from
+    /// shooting to release over a 0.85 s lock is x0.55; Lightning Wisp: 0.267 s over 1 s is x0.3, the two limits players found. A cast
+    /// with no shooting part, or that releases before it, has no limit: the setting's own minimum.
+    /// </summary>
+    public static double MinCastTimeMultiplier(double shootingFrom, double releaseAt, double castLock)
+    {
+        if (castLock <= 0 || releaseAt <= shootingFrom)
+        {
+            return MinCastTime;
+        }
+        double needed = (releaseAt - shootingFrom) / castLock;
+        // Up to the next step; a share already on a step (within float noise) stays on it.
+        double steps = Math.Ceiling((needed - MinCastTime) / CastTimeStep - 0.0001);
+        return Math.Clamp(Math.Round(MinCastTime + Math.Max(0, steps) * CastTimeStep, 6), MinCastTime, MaxCastTime);
+    }
+
     /// <summary>The game's value divided by the setting: a wait between two hits at a hit rate of x2 is half as long.</summary>
     public static double Divided(double gameValue, double divisor)
     {

@@ -87,6 +87,10 @@ public sealed class BetterSpellsMod : Mod
     // The tables' ids. The overlay keeps a table's column widths by id, so a changed layout gets new ids and starts from fitted widths.
     // A row's height, before the overlay's scale: the spell's icon is a square of it, and so are the - and + buttons.
     private const float RowHeight = 26f;
+    // The most entries read from a game data list (a cast's events of one type, an item's casts) before giving up.
+    private const int MaxListScan = 64;
+    // keen::actor::StateFlag InRangeCombatShooting: the bit a cast's shooting part needs held.
+    private const int InRangeCombatShootingBit = 27;
     // A spell's icon button in its section's row, before the overlay's scale.
     private const float IconButtonSize = 36f;
 
@@ -132,6 +136,9 @@ public sealed class BetterSpellsMod : Mod
 
     // What one run of Apply found and did, for the log.
     private List<GameDataEntry> _spellItems = new List<GameDataEntry>();
+    // Each Cast Time setting's lowest multiplier that still casts, by key, found at each apply and shown in the setting's tooltip;
+    // replaced as a whole, since the window reads it on the game's render side.
+    private volatile Dictionary<string, double> _castTimeFloors = new Dictionary<string, double>();
     private List<GameDataEntry> _areaTemplates = new List<GameDataEntry>();
     // The item whose icon each row of the settings window shows, by row; 0 until a world has loaded. Found on the world's thread, drawn
     // on the game's render side, so a new array replaces the old one as a whole.
@@ -663,7 +670,10 @@ public sealed class BetterSpellsMod : Mod
     private void Describe(UiDraw ui, SettingInfo setting)
     {
         string description = _descriptions.TryGetValue(setting.Key, out string? text) ? text : setting.Label;
-        ui.Tooltip($"{description} Default: {setting.Format(setting.Default)}.");
+        string floor = _castTimeFloors.TryGetValue(setting.Key, out double lowest) && lowest > SpellRules.MinCastTime
+            ? $" Lowest that still casts: {setting.Format(lowest)}; a lower value applies as that."
+            : "";
+        ui.Tooltip($"{description} Default: {setting.Format(setting.Default)}.{floor}");
     }
 
     // What a row shows: the value a click asked for until the settings file holds it, then the file's.
@@ -1228,9 +1238,12 @@ public sealed class BetterSpellsMod : Mod
 
     // Cast Time: each card's items' Charge Time (config 0x579b2657, what the tooltip calls it) with its tooltip line, and the cast
     // lock (0x41a7d373). The old Summon Recast Time changed the same values: the spell is ready again sooner; the cast's animation
-    // keeps its length (the user chose this over moving the cast's events).
+    // keeps its length (the user chose this over moving the cast's events). A spell's multiplier stops at the lowest one its cast
+    // still goes out at (CastTimeFloor): below it the cast ended before the spell was released (Chain Lightning under x0.55,
+    // Lightning Wisp under x0.3, reported by players).
     private void ApplyCastTime()
     {
+        var floors = new Dictionary<string, double>();
         foreach (string name in SpellCatalog.CastTimeSpellNames)
         {
             WindowSpell? spell = null;
@@ -1247,9 +1260,17 @@ public sealed class BetterSpellsMod : Mod
             }
             string key = SpellCatalog.CastTimeKey(name);
             SettingInfo setting = SpellCatalog.Setting(key);
-            double multiplier = Value(key);
             List<GameDataEntry> items = Items(spell.IconItem);
-            Begin($"{setting.Label} {setting.Format(multiplier)}: {items.Count} items");
+            double floor = SpellRules.MinCastTime;
+            foreach (GameDataEntry item in items)
+            {
+                floor = Math.Max(floor, CastTimeFloor(item));
+            }
+            floors[key] = floor;
+            double asked = Value(key);
+            double multiplier = Math.Max(asked, floor);
+            string limit = floor > SpellRules.MinCastTime ? $" (lowest that casts {setting.Format(floor)})" : "";
+            Begin($"{setting.Label} {setting.Format(multiplier)}{(multiplier > asked ? $", raised from {setting.Format(asked)}" : "")}{limit}: {items.Count} items");
             foreach (GameDataEntry item in items)
             {
                 if (Has(item, SpellCatalog.ChargeTimePath))
@@ -1264,6 +1285,118 @@ public sealed class BetterSpellsMod : Mod
             }
             End();
         }
+        _castTimeFloors = floors;
+    }
+
+    // The lowest Cast Time multiplier an item's cast still goes out at (SpellRules.MinCastTimeMultiplier), from the game's own cast
+    // lock and the events of each cast the item triggers; the setting's own minimum when nothing limits it or the data can't be read.
+    private double CastTimeFloor(GameDataEntry item)
+    {
+        double floor = SpellRules.MinCastTime;
+        if (!Has(item, SpellCatalog.CastLockPath))
+        {
+            return floor;
+        }
+        double castLock = Original(item, SpellCatalog.CastLockPath);
+        for (int index = 0; index < MaxListScan; index++)
+        {
+            string path = string.Create(CultureInfo.InvariantCulture, $"sequences[{index}].sequence");
+            if (!Has(item, path))
+            {
+                break;
+            }
+            GameDataEntry? cast = null;
+            try
+            {
+                ContentValue reference = item.Get(path);
+                cast = reference.Guid != Guid.Empty ? Content.Sequences.Get(reference.Guid) : null;
+                if (cast == null && !string.IsNullOrEmpty(reference.Name))
+                {
+                    cast = Content.Sequences.Get(reference.Name);
+                }
+            }
+            catch (Exception error) when (IsRefusal(error))
+            {
+                Refuse(item, path, error.Message);
+            }
+            (double ShootingFrom, double ReleaseAt)? window = cast == null ? null : ShootingWindow(cast);
+            if (window.HasValue)
+            {
+                floor = Math.Max(floor, SpellRules.MinCastTimeMultiplier(window.Value.ShootingFrom, window.Value.ReleaseAt, castLock));
+            }
+        }
+        return floor;
+    }
+
+    // When a cast's shooting part starts (its first KeepAliveEvent that needs InRangeCombatShooting) and when it releases the spell
+    // after that: the later of its first spawn (SpawnImpact or SpawnEntityEvent) and its first cost, so the spell goes out and is paid
+    // for. Null for a cast without a shooting part, or that releases nothing in it (thrown items, channels).
+    private static (double ShootingFrom, double ReleaseAt)? ShootingWindow(GameDataEntry cast)
+    {
+        double? shootingFrom = null;
+        for (int index = 0; index < MaxListScan && shootingFrom == null; index++)
+        {
+            string keepAlive = string.Create(CultureInfo.InvariantCulture, $"events[KeepAliveEvent#{index}]");
+            if (!Has(cast, keepAlive + ".time"))
+            {
+                break;
+            }
+            if (NeedsShooting(cast.GetJson(keepAlive + ".keepAliveMask")))
+            {
+                shootingFrom = Original(cast, keepAlive + ".time");
+            }
+        }
+        if (shootingFrom == null)
+        {
+            return null;
+        }
+        double? spawn = FirstEventAfter(cast, "SpawnImpact", shootingFrom.Value);
+        double? spawnEntity = FirstEventAfter(cast, "SpawnEntityEvent", shootingFrom.Value);
+        if (spawnEntity != null && (spawn == null || spawnEntity < spawn))
+        {
+            spawn = spawnEntity;
+        }
+        double? cost = FirstEventAfter(cast, "PayUsageCost", shootingFrom.Value);
+        if (spawn == null && cost == null)
+        {
+            return null;
+        }
+        return (shootingFrom.Value, Math.Max(spawn ?? 0, cost ?? 0));
+    }
+
+    // The time of a cast's first event of a type at or after a time.
+    private static double? FirstEventAfter(GameDataEntry cast, string eventType, double from)
+    {
+        double? first = null;
+        for (int index = 0; index < MaxListScan; index++)
+        {
+            string time = string.Create(CultureInfo.InvariantCulture, $"events[{eventType}#{index}].time");
+            if (!Has(cast, time))
+            {
+                break;
+            }
+            double at = Original(cast, time);
+            if (at >= from && (first == null || at < first))
+            {
+                first = at;
+            }
+        }
+        return first;
+    }
+
+    // Whether a keep-alive mask holds InRangeCombatShooting, given as flag names or as the StateFlag bits (27).
+    private static bool NeedsShooting(System.Text.Json.Nodes.JsonNode? mask)
+    {
+        if (mask == null)
+        {
+            return false;
+        }
+        string text = mask.ToJsonString();
+        if (text.Contains("InRangeCombatShooting", StringComparison.Ordinal))
+        {
+            return true;
+        }
+        return ulong.TryParse(text.Trim('"'), NumberStyles.Integer, CultureInfo.InvariantCulture, out ulong bits) && (bits & (1UL << InRangeCombatShootingBit)) != 0;
     }
 
     // Max Totems and Max Skeletons: how many can be out at once before skills add to it. The player's templates carry the game's 1
