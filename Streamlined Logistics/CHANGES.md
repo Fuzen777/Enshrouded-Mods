@@ -7,6 +7,10 @@ How it works: the screen is a Kiln screen (`Ui.Screen`) drawn in the player's ga
 `Scripts\Build.ps1` runs the tests (`tests\ChestRulesTests`), builds against Kiln's assemblies in `<game>\kiln\host` and puts the mod in `dist\streamlined-logistics`; `-Install` copies it to `<game>\kiln\mods\streamlined-logistics`, where Kiln loads it as a drop-in (game closed).
 
 
+## 1.0.0
+
+First Nexus release (the user: "Can you package SL for upload ? That'll be 1.0.0."): 0.10.41 renumbered, same code. The Nexus page (`Streamlined Logistics - Nexus Description.mdbbcode`) now covers Auto-Stations, the navigation sidebar, the kept window size and draggable split, the Functional and Seedlings categories, the game-drawn favorite background, Link Chest in a chest's screen and dyes from linked chests, asks for Kiln 0.2.0-dev.31, and plans lockpicks from linked chests (Kiln report 31). `Changelog.mdbbcode` holds the player-facing changelog.
+
 ## 0.10.41
 
 - **Fix, the controller's favorite button is L3** (the user: "L3 ; the game already uses R3 to open a tutorial overlay in the inventory."): L3 marks or unmarks the selected slot's item; R3 is the game's own again. 0.10.40 had kept R3.
