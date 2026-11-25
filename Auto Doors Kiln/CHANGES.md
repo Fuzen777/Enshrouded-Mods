@@ -2,6 +2,10 @@
 
 A rebuild of Auto Doors (SellTheWorldGames, closed source) as a Kiln mod, from its described behaviour, not its code. Doors are toggled by sending the game's own `ToggleInteractionEvent {guest, host, offer}` from the mod's ECS program `door_toggle` (`src\kiln.programs.json`); `interaction_toggle_new` flips `ServerToggleState` and `interaction_directional` swings the door away from the guest.
 
+## 1.3.0
+
+- Nexus release of 1.2.1 to 1.2.3, no code change (the DLL is 1.2.3's; only the version in `kiln.mod.json` moved). Player notes in `Changelog.mdbbcode`.
+
 ## 1.2.3
 
 - Picking a locked door opened it without the lockpick (Fuzen, 1.2.2 test). That door had already lost its lock: before 1.2.2 the mod accepted the door's offer as the player, and the game's accept goes through the lock and removes `InteractionLock` (lockMask `DestroyLock`) without a lockpick. 1.2.2's log shows it: the door (`Prop_Door_Small_Quarters_Locked_Pickable_T5_T6`) had `ClientInteractionLock` (1 B) but no `InteractionLock`. So 1.2.1's per-entity check was probably right and simply met only doors already unlocked this way; 1.2.2's "template data" reading is likely wrong. A door of a locked template is now locked while it carries `InteractionLock`, and also until it is seen open (in case the lock is template-only after all). Doors unlocked by earlier versions stay unlocked: the game no longer has their lock.
