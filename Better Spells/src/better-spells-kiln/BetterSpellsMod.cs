@@ -699,7 +699,7 @@ public sealed class BetterSpellsMod : Mod
     {
         string description = _descriptions.TryGetValue(setting.Key, out string? text) ? text : setting.Label;
         string floor = _castTimeFloors.TryGetValue(setting.Key, out double lowest) && lowest > SpellRules.MinCastTime
-            ? $" Lowest that still casts: {setting.Format(lowest)}; a lower value applies as that."
+            ? $" Below {setting.Format(lowest)}, the cast lock stays at {setting.Format(lowest)} so the spell still goes out; Charge Time follows the setting."
             : "";
         ui.Tooltip($"{description} Default: {setting.Format(setting.Default)}.{floor}");
     }
@@ -1268,9 +1268,10 @@ public sealed class BetterSpellsMod : Mod
 
     // Cast Time: each card's items' Charge Time (config 0x579b2657, what the tooltip calls it) with its tooltip line, and the cast
     // lock (0x41a7d373). The old Summon Recast Time changed the same values: the spell is ready again sooner; the cast's animation
-    // keeps its length (the user chose this over moving the cast's events). A spell's multiplier stops at the lowest one its cast
-    // still goes out at (CastTimeFloor): below it the cast ended before the spell was released (Chain Lightning under x0.55,
-    // Lightning Wisp under x0.3, reported by players).
+    // keeps its length (the user chose this over moving the cast's events). Charge Time takes the setting all the way down; only the
+    // cast lock stops at the lowest multiplier its cast still goes out at (CastTimeFloor): below it the cast ended before the spell
+    // was released (Chain Lightning under x0.55, Lightning Wisp under x0.3, reported by players). The user chose this over holding
+    // the whole setting at the floor (1.0.1 to 1.0.3).
     private void ApplyCastTime()
     {
         var floors = new Dictionary<string, double>();
@@ -1297,10 +1298,10 @@ public sealed class BetterSpellsMod : Mod
                 floor = Math.Max(floor, CastTimeFloor(item));
             }
             floors[key] = floor;
-            double asked = Value(key);
-            double multiplier = Math.Max(asked, floor);
-            string limit = floor > SpellRules.MinCastTime ? $" (lowest that casts {setting.Format(floor)})" : "";
-            Begin($"{setting.Label} {setting.Format(multiplier)}{(multiplier > asked ? $", raised from {setting.Format(asked)}" : "")}{limit}: {items.Count} items");
+            double multiplier = Value(key);
+            double lockMultiplier = Math.Max(multiplier, floor);
+            string limit = lockMultiplier > multiplier ? $", cast lock held at {setting.Format(lockMultiplier)}" : floor > SpellRules.MinCastTime ? $" (cast lock floor {setting.Format(floor)})" : "";
+            Begin($"{setting.Label} {setting.Format(multiplier)}{limit}: {items.Count} items");
             foreach (GameDataEntry item in items)
             {
                 if (Has(item, SpellCatalog.ChargeTimePath))
@@ -1310,7 +1311,7 @@ public sealed class BetterSpellsMod : Mod
                 }
                 if (Has(item, SpellCatalog.CastLockPath))
                 {
-                    PutNumber(item, SpellCatalog.CastLockPath, game => SpellRules.Multiplied(game, multiplier));
+                    PutNumber(item, SpellCatalog.CastLockPath, game => SpellRules.Multiplied(game, lockMultiplier));
                 }
             }
             End();

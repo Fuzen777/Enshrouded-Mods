@@ -439,107 +439,107 @@ public sealed class SpellSettings
     // Cast Time: the spells' Charge Time, its tooltip line and the cast lock.
 
     [ConfigKey("fireBoltCastTimeMultiplier")]
-    [Comment("Fire Bolt Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half), down to the lowest share the spell still casts at. Step 0.05.")]
+    [Comment("Fire Bolt Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half); the cast lock stops at the lowest share the spell still casts at. Step 0.05.")]
     [Range(SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep)]
     public double FireBoltCastTimeMultiplier { get; set; } = 1;
 
     [ConfigKey("fireballCastTimeMultiplier")]
-    [Comment("Fireball Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half), down to the lowest share the spell still casts at. Step 0.05.")]
+    [Comment("Fireball Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half); the cast lock stops at the lowest share the spell still casts at. Step 0.05.")]
     [Range(SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep)]
     public double FireballCastTimeMultiplier { get; set; } = 1;
 
     [ConfigKey("firePillarCastTimeMultiplier")]
-    [Comment("Fire Pillar Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half), down to the lowest share the spell still casts at. Step 0.05.")]
+    [Comment("Fire Pillar Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half); the cast lock stops at the lowest share the spell still casts at. Step 0.05.")]
     [Range(SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep)]
     public double FirePillarCastTimeMultiplier { get; set; } = 1;
 
     [ConfigKey("lightBurstCastTimeMultiplier")]
-    [Comment("Light Burst Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half), down to the lowest share the spell still casts at. Step 0.05.")]
+    [Comment("Light Burst Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half); the cast lock stops at the lowest share the spell still casts at. Step 0.05.")]
     [Range(SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep)]
     public double LightBurstCastTimeMultiplier { get; set; } = 1;
 
     [ConfigKey("iceBoltCastTimeMultiplier")]
-    [Comment("Ice Bolt Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half), down to the lowest share the spell still casts at. Step 0.05.")]
+    [Comment("Ice Bolt Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half); the cast lock stops at the lowest share the spell still casts at. Step 0.05.")]
     [Range(SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep)]
     public double IceBoltCastTimeMultiplier { get; set; } = 1;
 
     [ConfigKey("blizzardCastTimeMultiplier")]
-    [Comment("Blizzard Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half), down to the lowest share the spell still casts at. Step 0.05.")]
+    [Comment("Blizzard Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half); the cast lock stops at the lowest share the spell still casts at. Step 0.05.")]
     [Range(SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep)]
     public double BlizzardCastTimeMultiplier { get; set; } = 1;
 
     [ConfigKey("chainLightningCastTimeMultiplier")]
-    [Comment("Chain Lightning Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half), down to the lowest share the spell still casts at. Step 0.05.")]
+    [Comment("Chain Lightning Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half); the cast lock stops at the lowest share the spell still casts at. Step 0.05.")]
     [Range(SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep)]
     public double ChainLightningCastTimeMultiplier { get; set; } = 1;
 
     [ConfigKey("ballLightningCastTimeMultiplier")]
-    [Comment("Ball Lightning Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half), down to the lowest share the spell still casts at. Step 0.05.")]
+    [Comment("Ball Lightning Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half); the cast lock stops at the lowest share the spell still casts at. Step 0.05.")]
     [Range(SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep)]
     public double BallLightningCastTimeMultiplier { get; set; } = 1;
 
     [ConfigKey("lightningChannelCastTimeMultiplier")]
-    [Comment("Lightning Channel Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half), down to the lowest share the spell still casts at. Step 0.05.")]
+    [Comment("Lightning Channel Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half); the cast lock stops at the lowest share the spell still casts at. Step 0.05.")]
     [Range(SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep)]
     public double LightningChannelCastTimeMultiplier { get; set; } = 1;
 
     [ConfigKey("shroudMeteorCastTimeMultiplier")]
-    [Comment("Shroud Meteor Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half), down to the lowest share the spell still casts at. Step 0.05.")]
+    [Comment("Shroud Meteor Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half); the cast lock stops at the lowest share the spell still casts at. Step 0.05.")]
     [Range(SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep)]
     public double ShroudMeteorCastTimeMultiplier { get; set; } = 1;
 
     [ConfigKey("shroudBeamCastTimeMultiplier")]
-    [Comment("Shroud Beam Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half), down to the lowest share the spell still casts at. Step 0.05.")]
+    [Comment("Shroud Beam Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half); the cast lock stops at the lowest share the spell still casts at. Step 0.05.")]
     [Range(SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep)]
     public double ShroudBeamCastTimeMultiplier { get; set; } = 1;
 
     [ConfigKey("totemsCastTimeMultiplier")]
-    [Comment("Totems Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half), down to the lowest share the spell still casts at. Step 0.05.")]
+    [Comment("Totems Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half); the cast lock stops at the lowest share the spell still casts at. Step 0.05.")]
     [Range(SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep)]
     public double TotemsCastTimeMultiplier { get; set; } = 1;
 
     [ConfigKey("skeletonCastTimeMultiplier")]
-    [Comment("Skeleton Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half), down to the lowest share the spell still casts at. Step 0.05.")]
+    [Comment("Skeleton Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half); the cast lock stops at the lowest share the spell still casts at. Step 0.05.")]
     [Range(SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep)]
     public double SkeletonCastTimeMultiplier { get; set; } = 1;
 
     [ConfigKey("lightningWispCastTimeMultiplier")]
-    [Comment("Lightning Wisp Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half), down to the lowest share the spell still casts at. Step 0.05.")]
+    [Comment("Lightning Wisp Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half); the cast lock stops at the lowest share the spell still casts at. Step 0.05.")]
     [Range(SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep)]
     public double LightningWispCastTimeMultiplier { get; set; } = 1;
 
     [ConfigKey("acidConeCastTimeMultiplier")]
-    [Comment("Acid Cone Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half), down to the lowest share the spell still casts at. Step 0.05.")]
+    [Comment("Acid Cone Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half); the cast lock stops at the lowest share the spell still casts at. Step 0.05.")]
     [Range(SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep)]
     public double AcidConeCastTimeMultiplier { get; set; } = 1;
 
     [ConfigKey("rootCastTimeMultiplier")]
-    [Comment("Root Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half), down to the lowest share the spell still casts at. Step 0.05.")]
+    [Comment("Root Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half); the cast lock stops at the lowest share the spell still casts at. Step 0.05.")]
     [Range(SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep)]
     public double RootCastTimeMultiplier { get; set; } = 1;
 
     [ConfigKey("boneChannelCastTimeMultiplier")]
-    [Comment("Bone Channel Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half), down to the lowest share the spell still casts at. Step 0.05.")]
+    [Comment("Bone Channel Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half); the cast lock stops at the lowest share the spell still casts at. Step 0.05.")]
     [Range(SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep)]
     public double BoneChannelCastTimeMultiplier { get; set; } = 1;
 
     [ConfigKey("magicShieldCastTimeMultiplier")]
-    [Comment("Magic Shield Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half), down to the lowest share the spell still casts at. Step 0.05.")]
+    [Comment("Magic Shield Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half); the cast lock stops at the lowest share the spell still casts at. Step 0.05.")]
     [Range(SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep)]
     public double MagicShieldCastTimeMultiplier { get; set; } = 1;
 
     [ConfigKey("skullVesselCastTimeMultiplier")]
-    [Comment("Skull Vessel Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half), down to the lowest share the spell still casts at. Step 0.05.")]
+    [Comment("Skull Vessel Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half); the cast lock stops at the lowest share the spell still casts at. Step 0.05.")]
     [Range(SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep)]
     public double SkullVesselCastTimeMultiplier { get; set; } = 1;
 
     [ConfigKey("crawlerBombCastTimeMultiplier")]
-    [Comment("Crawler Bomb Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half), down to the lowest share the spell still casts at. Step 0.05.")]
+    [Comment("Crawler Bomb Cast Time. The spell's Charge Time and cast lock take this share of their time (x0.5 is half); the cast lock stops at the lowest share the spell still casts at. Step 0.05.")]
     [Range(SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep)]
     public double CrawlerBombCastTimeMultiplier { get; set; } = 1;
 
     [ConfigKey("generalCastTimeMultiplier")]
-    [Comment("General Cast Time. Every spell's Cast Time, with its own. Under At Least, the shorter of the two. Each spell stops at the lowest share it still casts at. Step 0.05.")]
+    [Comment("General Cast Time. Every spell's Cast Time, with its own. Under At Least, the shorter of the two. Each spell's cast lock stops at the lowest share it still casts at. Step 0.05.")]
     [Range(SpellRules.MinCastTime, SpellRules.MaxCastTime, SpellRules.CastTimeStep)]
     public double GeneralCastTimeMultiplier { get; set; } = 1;
 
