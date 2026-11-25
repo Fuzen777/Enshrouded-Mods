@@ -10,6 +10,7 @@ Since 3.0.0 Better Spells is one **Kiln mod** (`src\better-spells-kiln`, id `bet
 
 - **Nexus release of 1.0.1 to 1.0.5** (the user's ask, 25 Nov 2026, after checking 1.0.5 in game). Same spell code as 1.0.5. `Changelog.mdbbcode` gets the 1.1.0 entry (Cast Time no longer breaks casts, settings changes no longer freeze the game) and takes the `## X.Y.0` heading and code block layout Auto Doors uses.
 - **Settings window: resizable, and it opens where the player left it** (the user's ask, 25 Nov 2026, in 1.1.0 without a version bump). It is a Kiln window (`Ui.Window`, Interactive) instead of a Kiln screen, which always opens centred with a fixed size. `WindowPlacement` (the same class as Grimoire's) follows the window's place and size while drawing and writes them to `kiln\data\better-spells\window.json` once they stay put for half a second; the next game start creates the window there. Escape still closes it (claimed in the window's draw).
+- **Lightning Wisp's bolts live 4 s instead of 2 s** (the user's report and choice, 25 Nov 2026, in 1.1.0, always on). A wisp picks targets up to 20 units away, but its bolts (`Projectile_Companion_ShockWisp`) lived 2 s at a random 5 to 10 units/s and fly out sideways or up before curving to the target, so they vanished before reaching targets past about 10 units unless those came closer. The game's own value is kept if it is ever 4 s or more.
 
 ## 1.0.5 (not uploaded)
 

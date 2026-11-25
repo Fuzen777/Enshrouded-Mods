@@ -786,6 +786,7 @@ public sealed class BetterSpellsMod : Mod
         ApplyCastTime();
         ApplyItemSpells();
         ApplyKeepOlderWisps();
+        ApplyWispBolts();
         ApplyHealth();
         Log.Info($"{_valuesInPlace} values in place ({_valuesWritten} written), {_valuesRefused} refused, in {watch.ElapsedMilliseconds} ms");
     }
@@ -1255,6 +1256,26 @@ public sealed class BetterSpellsMod : Mod
                 PutNumber(cast, keyPath, game => keep ? SpellRules.ShapeKey((uint)game, SpellRules.KeptWispSphereRadius / gameRadius) : game, whole: true);
             }
         }
+        End();
+    }
+
+    // Lightning Wisp's bolts (always on, 1.1.0, the user's choice): a wisp picks targets up to 20 units away (its shoot attachment's
+    // sphere), but a bolt lives 2 s at a random 5 to 10 units/s (the attachment's speed_remap) and flies out sideways or up before it
+    // curves to its target, so bolts vanished before reaching targets past about 10 units. At 4 s even the slowest bolt reaches 20.
+    private const string WispBoltTemplate = "Projectile_Companion_ShockWisp";
+    private const double WispBoltLifetimeSeconds = 4.0;
+
+    private void ApplyWispBolts()
+    {
+        Begin($"Lightning Wisp bolt lifetime {WispBoltLifetimeSeconds:0.#} s");
+        GameDataEntry? bolt = Content.Templates.Get(WispBoltTemplate);
+        if (bolt == null || !Has(bolt, LifetimePath))
+        {
+            Note($"{WispBoltTemplate} or its LifeTime is not in this world's data");
+            End();
+            return;
+        }
+        PutTime(bolt, LifetimePath, game => Math.Max(game, WispBoltLifetimeSeconds));
         End();
     }
 
