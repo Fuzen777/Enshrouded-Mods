@@ -71,6 +71,7 @@ It works with the game's own equipment, not around it, so it doesn't always beha
 ### Grimoire Window
 
 - Opens with **F3** (or the **Open Grimoire** button on the mod's page in Kiln's menu), with a **Spells** tab and an **Arrows** tab. It opens on Spells, unless you only have arrows to sort.
+- Move it and resize it as you like: it opens where you left it, at the same size, even after a restart. **Esc** or **F3** closes it.
 - Click an entry to equip it, drag to reorder, right-click (or drag it onto the backpack list) to take it out.
 - The spells or arrows in your backpack are listed below: click one or drag it in to add it. **Ctrl+Click** a spell or arrow in the game's inventory adds it too. **Add All** and **Take All Out** move everything at once.
 

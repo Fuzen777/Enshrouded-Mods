@@ -15,7 +15,8 @@ public sealed class GrimoireMod : Mod
     private const string WindowBindingId = "grimoire.window";
     private const string WindowDefaultKey = "F3";
     private const string WindowTitle = "Grimoire";
-    // A Kiln screen has a fixed size: this fits the default 12 slots and a short backpack list; the rest scrolls.
+    // The window's first size: it fits the default 12 slots and a short backpack list; the rest scrolls. The player can resize and move
+    // it, and WindowPlacement keeps both for the next game start.
     private const float ScreenWidth = 360f;
     private const float ScreenHeight = 780f;
     private const int SpellsTab = 0;
@@ -23,7 +24,8 @@ public sealed class GrimoireMod : Mod
 
     private ModConfig<GrimoireSettings>? _settings;
     private Book[] _books = Array.Empty<Book>();
-    private UiScreen? _window;
+    private UiWindow? _window;
+    private WindowPlacement? _placement;
     private KeyBinding? _windowKey;
     private IDisposable? _settingsPage;
     // The tab to select at the next frame (-1: none), set when the screen opens; the tab drawn last, for the settings below it.
@@ -45,9 +47,11 @@ public sealed class GrimoireMod : Mod
         _settings.Changed += OnSettingsChanged;
         if (Ui.Available)
         {
-            _window = Ui.Screen(WindowTitle, DrawWindow, new UiScreenOptions { Width = ScreenWidth, Height = ScreenHeight, DimBackground = false });
-            _window.Opened += OnWindowOpened;
-            _windowKey = KeyBindings.Register(WindowBindingId, WindowDefaultKey, () => _window?.Toggle(), "Open Grimoire", Context.Info.Name);
+            // A Kiln window, not a screen: a screen always opens centred with a fixed size (1.0.0, asked 25 Nov 2026: resizable, and it
+            // opens where the player left it).
+            _placement = new WindowPlacement(Context.DataDirectory, Log, ScreenWidth, ScreenHeight);
+            _window = Ui.Window(WindowTitle, DrawWindow, _placement.Options(new UiWindowOptions { Interactive = true, StartOpen = false }));
+            _windowKey = KeyBindings.Register(WindowBindingId, WindowDefaultKey, ToggleWindow, "Open Grimoire", Context.Info.Name);
             _settingsPage = Ui.AddConfigPage(Context.Info.Id, DrawSettingsPage);
         }
         Log.Info($"loaded {Context.Info.Version}: {string.Join(", ", _books.Select(b => b.Name))}{(_window == null ? ", without its screen (Kiln's menu is not available)" : $", {_windowKey?.Key} opens the grimoire")}");
@@ -106,7 +110,29 @@ public sealed class GrimoireMod : Mod
         }
     }
 
-    // The screen opened: both books read the game again, then the default tab is chosen on what they hold.
+    private void ToggleWindow()
+    {
+        if (_window?.Open == true)
+        {
+            _window.Hide();
+        }
+        else
+        {
+            OpenWindow();
+        }
+    }
+
+    private void OpenWindow()
+    {
+        if (_window == null || _window.Open)
+        {
+            return;
+        }
+        _window.Show();
+        OnWindowOpened();
+    }
+
+    // The window opened: both books read the game again, then the default tab is chosen on what they hold.
     private void OnWindowOpened()
     {
         Context.Scheduler.Post(() =>
@@ -159,7 +185,7 @@ public sealed class GrimoireMod : Mod
     {
         if (ui.Button("Open Grimoire"))
         {
-            _window?.Open();
+            OpenWindow();
         }
         ui.SameLine();
         ui.TextDisabled($"Or Press {_windowKey?.Key}");
@@ -168,6 +194,12 @@ public sealed class GrimoireMod : Mod
     // The screen: a tab per book, then the settings (Mod Enabled and the shown book's slots).
     private void DrawWindow(UiDraw ui)
     {
+        _placement?.Track(ui);
+        // Escape closes it, as it closed the Kiln screen it was before 1.0.0.
+        if (ui.KeyPressed(UiKey.Escape, claim: true))
+        {
+            _window?.Hide();
+        }
         Book[] books = _books;
         if (books.Length == 0)
         {
