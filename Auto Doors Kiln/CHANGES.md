@@ -2,6 +2,10 @@
 
 A rebuild of Auto Doors (SellTheWorldGames, closed source) as a Kiln mod, from its described behaviour, not its code. Doors are toggled by sending the game's own `ToggleInteractionEvent {guest, host, offer}` from the mod's ECS program `door_toggle` (`src\kiln.programs.json`); `interaction_toggle_new` flips `ServerToggleState` and `interaction_directional` swings the door away from the guest.
 
+## 1.2.2
+
+- Locked doors, second try (Fuzen: 1.2.1 still opened them). 1.2.1's `World.Has(door, "InteractionLock")` was false for every door: the lock is template data, not a component the door entity carries, so nothing was ever seen as locked. A door is now locked by its template (`*_Locked_*`, `*_Key`, which are exactly the door templates whose `InteractionLock` has `DestroyLock` in the dump) until it is seen open, which it can only be once picked or opened with its key. Unlocked doors are kept by position in the world's door file (`unlocked`), so a door picked once stays unlocked after a restart. A locked-kind door unlocked before 1.2.2 is left alone until it is opened by hand once. The log names the first 20 locked-kind doors with their template and the sizes of `InteractionLock` and `ClientInteractionLock` on the door, and each unlock.
+
 ## 1.2.1
 
 - Locked doors (Fuzen: outside bases the mod opened doors that need a lockpick). The game's locked doors (`*_Locked_Pickable_*`, `*_Locked_Key`, from the template dump) carry `InteractionLock`, and its lockMask `DestroyLock` removes it once the lock is picked or opened with the key. The mod's toggle went around the lock. Doors with `InteractionLock` are now left alone; the door scan (every 5 s) notices the lock is gone and the door works again. The log names the first 20 doors found locked or unlocked.

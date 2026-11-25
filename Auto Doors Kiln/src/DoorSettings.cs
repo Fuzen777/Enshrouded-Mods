@@ -79,6 +79,10 @@ public sealed class DoorWorldRules
     [ConfigKey("doors")]
     [Comment("Doors with their own mode, as x,y,z=mode (mode: Players, PlayersAndSurvivors or Manual). Doors not listed open for everyone; secret doors not listed are Close Only (listed: Players or Manual). Set with the Door Mode key (Shift + middle mouse button, or LB + Y on a controller) while looking at a door.")]
     public List<string> Doors { get; set; } = new();
+
+    [ConfigKey("unlocked")]
+    [Comment("Locked doors (lockpick or key) seen open, as x,y,z: they open and close by themselves like other doors. Locked doors not listed are left alone until they are seen open.")]
+    public List<string> Unlocked { get; set; } = new();
 }
 
 /// <summary>Who opens a door.</summary>

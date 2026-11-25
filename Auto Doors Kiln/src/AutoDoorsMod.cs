@@ -52,6 +52,7 @@ public sealed partial class AutoDoorsMod : Mod
     private ModConfig<DoorSettings>? _settings;
     private WorldConfig<DoorWorldRules>? _worldRules;
     private Dictionary<string, DoorMode> _modes = new();
+    private HashSet<string> _unlocked = new();
     private IDisposable? _program;
     private EntitySet? _doorSet;
     private string _programState = "not bound";
@@ -84,7 +85,8 @@ public sealed partial class AutoDoorsMod : Mod
         public double GuestSide;     // which side of the door the guest of the last open stood on (for the log)
         public bool InBase;
         public bool Secret;          // a secret door, shelf, floor, stair or mechanism: Manual or Close Only, no label
-        public bool Locked;          // has InteractionLock (needs a lockpick or a key): left alone until unlocked (1.2.1)
+        public bool Locked;          // a locked door (lockpick or key) not yet seen open: left alone (1.2.1, 1.2.2)
+        public bool LockTemplate;    // spawned from a locked template (*_Locked_*, *_Key)
         public string Key = "";
         public string Name = "";
         public double Height;        // how tall the doorway is (DoorHeights), 0 when it is not taller than the Height Reach
@@ -205,6 +207,10 @@ public sealed partial class AutoDoorsMod : Mod
             modes[key] = mode;
         }
         _modes = modes;
+        var unlocked = new HashSet<string>();
+        foreach (var line in _worldRules?.Value.Unlocked ?? new List<string>())
+            if (ParseKey(line.Trim()) is { } key) unlocked.Add(key);
+        _unlocked = unlocked;
     }
 
     // 0.1.0 and 0.2.0 wrote PlayersOnly, SurvivorsOnly and Off.
@@ -245,6 +251,26 @@ public sealed partial class AutoDoorsMod : Mod
 
     private static DoorMode DefaultMode(DoorState d) => d.Secret ? DoorMode.CloseOnly : DoorMode.Everyone;
 
+    // Locked kinds: *_Locked_Pickable_*, *_Locked_Key, *_Locked_bronze/silver, Prop_Door_Ancient_night_locked and the
+    // dungeons' Prop_Door_Cairn_Huge_DungeonNN_Key (all carry an InteractionLock with DestroyLock in the game's data).
+    private static bool IsLockTemplate(string? template) => template != null &&
+        (template.Contains("locked", StringComparison.OrdinalIgnoreCase) && !template.Contains("unlocked", StringComparison.OrdinalIgnoreCase)
+         || template.EndsWith("_Key", StringComparison.OrdinalIgnoreCase));
+
+    private static string LockParts(EntityId id) =>
+        $"InteractionLock {World.ComponentSize(id, "InteractionLock")} B, ClientInteractionLock {World.ComponentSize(id, "ClientInteractionLock")} B";
+
+    // A locked door seen open has been picked or opened with its key: from now on it works like any other door.
+    private void Unlocked(DoorState d)
+    {
+        d.Locked = false;
+        if (!_unlocked.Add(d.Key)) return;
+        if (_lockLogs++ < 40) Log.Info($"auto doors: door {d.Id.Value} ({d.Name}) at {d.Key} is open, so unlocked: works again; {LockParts(d.Id)}");
+        if (_worldRules == null) return;
+        _worldRules.Value.Unlocked = _unlocked.OrderBy(k => k, StringComparer.Ordinal).ToList();
+        _worldRules.Save();
+    }
+
     // -------------------------------------------------------------------------------------------------- doors ----
 
     private void Rescan()
@@ -261,17 +287,18 @@ public sealed partial class AutoDoorsMod : Mod
             if (!_doors.TryGetValue(id.Value, out var d))
             {
                 string? template = Spawn.Inspect(id)?.TemplateName;
-                _doors[id.Value] = d = new DoorState { Id = id, Name = DisplayName(template), Height = DoorHeight(template) };
+                _doors[id.Value] = d = new DoorState { Id = id, Name = DisplayName(template), Height = DoorHeight(template),
+                    LockTemplate = IsLockTemplate(template) };
+                if (d.LockTemplate && _lockLogs++ < 20)
+                    Log.Info($"auto doors: door {id.Value} ({template}) at {KeyOf(at)} is a locked kind{(_unlocked.Contains(KeyOf(at)) ? ", unlocked before" : "")}; {LockParts(id)}");
             }
-            // Locked doors (1.2.1, Fuzen: outside bases the mod opened doors that need a lockpick). The game's locked doors
-            // (*_Locked_Pickable_*, *_Locked_Key) carry InteractionLock, whose lockMask DestroyLock removes it once the lock
-            // is picked or opened with the key; the mod's own toggle skips the lock, so it leaves them alone until then.
-            bool locked = World.Has(id, "InteractionLock");
-            if (locked != d.Locked && _lockLogs++ < 20)
-                Log.Info($"auto doors: door {id.Value} ({d.Name}) at {KeyOf(at)} is {(locked ? "locked: left alone until it is unlocked" : "unlocked: works again")}");
-            d.Locked = locked;
+            // Locked doors (1.2.1, 1.2.2; Fuzen: outside bases the mod opened doors that need a lockpick). The mod's own
+            // toggle skips the lock. The lock's InteractionLock is template data, not a component of the door itself (1.2.1's
+            // World.Has never saw it), so a door is locked by its template (*_Locked_*, *_Key) until it is seen open: it can
+            // only open once picked or opened with its key. Unlocked doors are kept by position in the world's door file.
             d.At = at;
             d.Key = KeyOf(at);
+            d.Locked = d.LockTemplate && !_unlocked.Contains(d.Key);
             d.Forward = World.Transform(id) is { } tf ? Vector3.Transform(Vector3.UnitZ, tf.Rotation) : Vector3.Zero;
             d.InBase = bases.Any(b => b.Contains(at));
         }
@@ -565,7 +592,11 @@ public sealed partial class AutoDoorsMod : Mod
                 Follow(d, isOpen, players);
                 continue;
             }
-            if (d.Locked) { d.LastSeen = isOpen; continue; }
+            if (d.Locked)
+            {
+                if (!isOpen) { d.LastSeen = isOpen; continue; }
+                Unlocked(d);
+            }
 
             if (d.LastSeen is { } last && last != isOpen)
             {
