@@ -148,6 +148,11 @@ public sealed class BetterSpellsMod : Mod
     private volatile uint[] _rowIconItems = new uint[SpellCatalog.WindowSpells.Count];
     // The spell whose card the settings window shows, by its place in SpellCatalog.WindowSpells; kept while the game runs.
     private volatile int _selectedSpell;
+    // The Gems tab: its gem items (found with the spell items), each gem card's icon, the chosen gem, and whether the tab is shown.
+    private List<GameDataEntry> _gemItems = new List<GameDataEntry>();
+    private volatile uint[] _gemIconItems = new uint[SpellCatalog.GemWindowSpells.Count];
+    private volatile int _selectedGem;
+    private volatile bool _gemsTab;
     // Measured once per frame: a row's height on screen, a line of text's height, the room a control's value gets between its - and +
     // buttons, and the gap beside each button.
     private float _rowHeight;
@@ -317,7 +322,7 @@ public sealed class BetterSpellsMod : Mod
         }
         // A per-spell multiplier, with the General card's of its kind.
         SettingInfo general = SpellCatalog.Setting(generalKey);
-        return SpellRules.Combine(own, SpellRules.Snap(general, StoredValue(general)), Toggle(SpellCatalog.GeneralAtLeastKey), SpellCatalog.LowerIsBetter(setting.Group));
+        return SpellRules.Combine(own, SpellRules.Snap(general, StoredValue(general)), Toggle(SpellCatalog.AtLeastKeyFor(setting)), SpellCatalog.LowerIsBetter(setting.Group));
     }
 
     private bool Toggle(string key)
@@ -420,7 +425,8 @@ public sealed class BetterSpellsMod : Mod
         float sectionWidth = 0f;
         float labelWidth = 0f;
         int longestCard = 0;
-        foreach (WindowSection section in SpellCatalog.WindowSections)
+        // Both tabs are measured, so the window keeps its size from one tab to the other.
+        foreach (WindowSection section in SpellCatalog.WindowSections.Concat(SpellCatalog.GemSections))
         {
             sectionWidth = Math.Max(sectionWidth, ui.MeasureText(section.Name).Width);
             foreach (WindowSpell spell in section.Spells)
@@ -434,16 +440,34 @@ public sealed class BetterSpellsMod : Mod
         }
         sectionWidth += _textHeight;
         labelWidth += _textHeight;
-        uint[] rowIconItems = _rowIconItems;
-        int selected = Math.Clamp(_selectedSpell, 0, SpellCatalog.WindowSpells.Count - 1);
+        bool gemsTab = _gemsTab;
+        IReadOnlyList<WindowSection> sections = gemsTab ? SpellCatalog.GemSections : SpellCatalog.WindowSections;
+        IReadOnlyList<WindowSpell> spells = gemsTab ? SpellCatalog.GemWindowSpells : SpellCatalog.WindowSpells;
+        uint[] rowIconItems = gemsTab ? _gemIconItems : _rowIconItems;
+        int selected = Math.Clamp(gemsTab ? _selectedGem : _selectedSpell, 0, spells.Count - 1);
         ApplyWheelNotches();
         _hoveredThisFrame = null;
 
-        ui.TextWrapped("Click a spell to see its settings, scroll over a value to change it; hold Shift for 10 steps, Ctrl for 100. A dot marks a spell with a changed value.");
+        // The tabs: spells, and weapon gems with their own General card.
+        float tabWidth = (float)Math.Ceiling(Math.Max(ui.MeasureText("Spells").Width, ui.MeasureText("Gems").Width) + 1.2f * _textHeight);
+        if (ModeButton(ui, "Spells##tab", !gemsTab, tabWidth))
+        {
+            _gemsTab = false;
+        }
         _contentLeft = ui.LastItem.MinX;
-        _contentRight = _contentLeft;
+        _contentRight = ui.LastItem.MaxX;
+        ui.SameLine(0f, _controlGap);
+        if (ModeButton(ui, "Gems##tab", gemsTab, tabWidth))
+        {
+            _gemsTab = true;
+        }
+        ui.Tooltip("Weapon gems' damage. A gem takes a new value when its weapon is next equipped or switched to on the hotbar.");
+        _contentRight = Math.Max(_contentRight, ui.LastItem.MaxX);
+        ui.TextWrapped(gemsTab
+            ? "Click a gem to see its settings, scroll over a value to change it; hold Shift for 10 steps, Ctrl for 100. Switch away from the weapon and back to apply a change."
+            : "Click a spell to see its settings, scroll over a value to change it; hold Shift for 10 steps, Ctrl for 100. A dot marks a spell with a changed value.");
         int spellIndex = 0;
-        foreach (WindowSection section in SpellCatalog.WindowSections)
+        foreach (WindowSection section in sections)
         {
             DrawRowText(ui, section.Name, sectionWidth, iconSize, false, ui.Palette.TextMuted);
             foreach (WindowSpell spell in section.Spells)
@@ -455,7 +479,7 @@ public sealed class BetterSpellsMod : Mod
         }
 
         ui.Separator();
-        WindowSpell shown = SpellCatalog.WindowSpells[selected];
+        WindowSpell shown = spells[selected];
         uint shownIcon = selected < rowIconItems.Length ? rowIconItems[selected] : 0;
         if (shownIcon != 0)
         {
@@ -568,7 +592,14 @@ public sealed class BetterSpellsMod : Mod
         bool clicked = icon != null ? ui.ImageButtonTrimmed(id, icon, size, size) : ui.Button(text + id, size, size);
         if (clicked)
         {
-            _selectedSpell = spellIndex;
+            if (_gemsTab)
+            {
+                _selectedGem = spellIndex;
+            }
+            else
+            {
+                _selectedSpell = spellIndex;
+            }
         }
         ui.Tooltip(spell.Spell);
         UiItem button = ui.LastItem;
@@ -626,7 +657,7 @@ public sealed class BetterSpellsMod : Mod
     {
         SettingInfo setting = SpellCatalog.Setting(key);
         double shown = ShownValue(setting);
-        if (key == SpellCatalog.GeneralAtLeastKey)
+        if (key == SpellCatalog.GeneralAtLeastKey || key == SpellCatalog.GemGeneralAtLeastKey)
         {
             DrawModeSwitch(ui, setting, shown != 0);
             return;
@@ -812,6 +843,7 @@ public sealed class BetterSpellsMod : Mod
         ApplyKeepOlderWisps();
         ApplyPerception();
         ApplyHealth();
+        ApplyGems();
         Log.Info($"{_valuesInPlace} values in place ({_valuesWritten} written), {_valuesRefused} refused, in {watch.ElapsedMilliseconds} ms");
     }
 
@@ -819,11 +851,16 @@ public sealed class BetterSpellsMod : Mod
     private void FindSpellData()
     {
         _spellItems = new List<GameDataEntry>();
+        _gemItems = new List<GameDataEntry>();
         foreach (GameDataEntry item in Content.ItemData)
         {
             if (SpellCatalog.AnySpellItem.IsMatch(item.Name) || SpellCatalog.ItemSpells.Any(spell => spell.Items.IsMatch(item.Name)))
             {
                 _spellItems.Add(item);
+            }
+            else if (SpellCatalog.GemSpells.Any(gem => gem.ItemName == item.Name))
+            {
+                _gemItems.Add(item);
             }
         }
         var templatePatterns = new List<Regex> { SpellCatalog.BallTemplate };
@@ -857,25 +894,31 @@ public sealed class BetterSpellsMod : Mod
     // The icon of each spell of the settings window: the first of the spell's items by name, so the lowest tier.
     private void FindRowIcons()
     {
-        var rowIconItems = new uint[SpellCatalog.WindowSpells.Count];
+        _rowIconItems = IconItems(SpellCatalog.WindowSpells, _spellItems);
+        _gemIconItems = IconItems(SpellCatalog.GemWindowSpells, _gemItems);
+    }
+
+    private static uint[] IconItems(IReadOnlyList<WindowSpell> spells, List<GameDataEntry> items)
+    {
+        var rowIconItems = new uint[spells.Count];
         for (int rowIndex = 0; rowIndex < rowIconItems.Length; rowIndex++)
         {
             GameDataEntry? first = null;
-            Regex? iconItem = SpellCatalog.WindowSpells[rowIndex].IconItem;
+            Regex? iconItem = spells[rowIndex].IconItem;
             if (iconItem == null)
             {
                 continue;
             }
-            foreach (GameDataEntry item in Items(iconItem))
+            foreach (GameDataEntry item in items)
             {
-                if (first == null || string.CompareOrdinal(item.Name, first.Name) < 0)
+                if (iconItem.IsMatch(item.Name) && (first == null || string.CompareOrdinal(item.Name, first.Name) < 0))
                 {
                     first = item;
                 }
             }
             rowIconItems[rowIndex] = first?.Id ?? 0;
         }
-        _rowIconItems = rowIconItems;
+        return rowIconItems;
     }
 
     private List<GameDataEntry> Items(Regex? itemName)
@@ -1131,6 +1174,80 @@ public sealed class BetterSpellsMod : Mod
             }
         }
         End();
+    }
+
+    // Gem Damage: each damage config of the gem item (the gem's program and what it spawns read them from there), base value and
+    // scaleFactor both, so the damage is multiplied at every gem level (the game adds the scaleFactor times a curve of the level to the
+    // base), and the tooltip rows that show them. A gem impact copies its configs when it starts: a running gem takes new values when
+    // its weapon is next equipped or switched to.
+    private void ApplyGems()
+    {
+        foreach (GemSpell gem in SpellCatalog.GemSpells)
+        {
+            SettingInfo setting = SpellCatalog.Setting(gem.DamageKey);
+            double multiplier = Value(gem.DamageKey);
+            Begin($"{setting.Label} {setting.Format(multiplier)}");
+            GameDataEntry? item = _gemItems.Find(entry => entry.Name == gem.ItemName);
+            if (item == null)
+            {
+                Note($"{gem.ItemName} is not in this world's data");
+                End();
+                continue;
+            }
+            var shown = new List<(double Value, double Scale)>();
+            foreach (uint config in gem.DamageConfigs)
+            {
+                string path = "impactValues.0x" + config.ToString("x8", CultureInfo.InvariantCulture);
+                if (!Has(item, path))
+                {
+                    Note($"{gem.ItemName} has no config {path}");
+                    continue;
+                }
+                string scalePath = path + ".scaleFactor";
+                shown.Add((Original(item, path), Has(item, scalePath) ? Original(item, scalePath) : double.NaN));
+                PutNumber(item, path, game => SpellRules.GemDamage(game, multiplier), whole: true);
+                if (Has(item, scalePath))
+                {
+                    PutNumber(item, scalePath, game => SpellRules.Multiplied(game, multiplier));
+                }
+            }
+            PutGemTooltips(item, shown, multiplier);
+            End();
+        }
+    }
+
+    // A gem's tooltip rows that show its damage: the scaled rows with a damage config's base value and scaleFactor (Kiln lists no
+    // loca tag for them). Each gets the same multiplier, so two configs with the same numbers (Meteoric Impact's) can't be mixed up.
+    private void PutGemTooltips(GameDataEntry item, List<(double Value, double Scale)> damage, double multiplier)
+    {
+        try
+        {
+            IReadOnlyList<TooltipValue> rows = item.TooltipValues(TooltipList);
+            for (int rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+            {
+                if (!rows[rowIndex].IsScaled)
+                {
+                    continue;
+                }
+                string rowPath = string.Create(CultureInfo.InvariantCulture, $"{TooltipList}[{rowIndex}]");
+                string scalePath = rowPath + ".scaleData.scaleFactor";
+                double gameValue = Original(item, rowPath + ".value");
+                double gameScale = Has(item, scalePath) ? Original(item, scalePath) : double.NaN;
+                if (!damage.Any(config => SpellRules.Same(config.Value, gameValue) && (double.IsNaN(config.Scale) || SpellRules.Same(config.Scale, gameScale))))
+                {
+                    continue;
+                }
+                PutNumber(item, rowPath + ".value", game => SpellRules.GemDamage(game, multiplier), whole: true);
+                if (!double.IsNaN(gameScale))
+                {
+                    PutNumber(item, scalePath, game => SpellRules.Multiplied(game, multiplier));
+                }
+            }
+        }
+        catch (Exception error) when (IsRefusal(error))
+        {
+            Refuse(item, TooltipList, error.Message);
+        }
     }
 
     // Mana Cost: the ManaCost config of each card's items (whole, never below 1) and its tooltip line.

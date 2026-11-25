@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace BetterSpells;
@@ -37,6 +38,20 @@ public sealed record ItemSpell(string Name, Regex Items, string DamageKey, strin
 /// </summary>
 public sealed record PerceptionSpell(string SettingKey, Regex ItemName, ItemSpell? ItemSpell, string[] ExtraTemplates, string[] Shots, string? ShotLifetimeKey = null);
 
+/// <summary>
+/// A weapon gem with a Damage setting: its name in the game without "Gem of", its item, the damage configs of its item's
+/// `impactValues` (scaled by the gem's level: a base value and a scaleFactor), and the tier its row is under in the Gems tab.
+/// Configs its own program or what it spawns pass to createDamageSetup as damage (not healing); the spawned explosions and zones
+/// read them from the gem, so the gem item holds every one.
+/// </summary>
+public sealed record GemSpell(string Name, string ItemName, uint[] DamageConfigs, int Tier)
+{
+    /// <summary>"Meteoric Impact" is meteoricImpactGemDamageMultiplier.</summary>
+    public string DamageKey => SpellCatalog.CamelCase(Name) + "GemDamageMultiplier";
+    public string DisplayName => "Gem of " + Name;
+    public Regex Item => new Regex("^" + Regex.Escape(ItemName) + "$", RegexOptions.CultureInvariant);
+}
+
 /// <summary>A line of a spell's card in the settings window: the name it has there and the setting's key.</summary>
 public sealed record CardLine(string Label, string Key);
 
@@ -59,6 +74,8 @@ public static class SpellCatalog
     public const string GroupCost = "Cost";
     public const string GroupCastTime = "Cast Time";
     public const string GroupGeneral = "General";
+    public const string GroupGemDamage = "Gem Damage";
+    public const string GroupGemGeneral = "Gem General";
 
     // The General card: one multiplier per kind of setting for every spell, and whether it multiplies with the spells' own or is a
     // floor under them.
@@ -69,6 +86,11 @@ public static class SpellCatalog
     public const string GeneralRadiusKey = "generalRadiusMultiplier";
     public const string GeneralHealthKey = "generalHealthMultiplier";
     public const string GeneralAtLeastKey = "generalAtLeast";
+
+    // The Gems tab's General card: one Damage multiplier for every gem and its own mode.
+    public const string GemGeneralDamageKey = "gemGeneralDamageMultiplier";
+    public const string GemGeneralAtLeastKey = "gemGeneralAtLeast";
+    public const string GemGeneralSpell = "All Gems";
 
     /// <summary>The General card's spell: no item stands for it, so its button shows a word.</summary>
     public const string GeneralSpell = "All Spells";
@@ -145,6 +167,33 @@ public static class SpellCatalog
             null, null, null),
         new ItemSpell("Crawler Bomb", new Regex(@"^Consumable_CritterCrawler_Bomb_Grenade_", RegexOptions.CultureInvariant), "crawlerBombDamageMultiplier",
             "crawlerBombDurationMultiplier", "crawlerBombHealthMultiplier", null),
+    };
+
+    /// <summary>
+    /// The gems that deal damage, from their Impact programs (dump 26430625). 0x5e34f09b is the damage of most gems' own program; the
+    /// Gem of Fracturing's and the Gem of Aerobatics' go to the homing projectiles they spawn, the Gem of Cold Composure's to its ice
+    /// explosion. The Gem of Meteoric Impact has three: on hits while primed (0x5e34f09b), the meteor's explosion (0xa8338df8) and its
+    /// fire trail (0xfaf3b41b). Left out: gems whose numbers are healing (Soul Reaping), stamina, armour, resistance, chances or
+    /// summon levels.
+    /// </summary>
+    public static readonly IReadOnlyList<GemSpell> GemSpells = new[]
+    {
+        new GemSpell("Bleeding", "T1_Gem_GemOfBleeding", new[] { 0x5e34f09bu }, 1),
+        new GemSpell("Burning", "T1_Gem_GemOfIgnition", new[] { 0x5e34f09bu }, 1),
+        new GemSpell("Puncturing", "T1_Gem_GemOfRepetition", new[] { 0x5e34f09bu }, 1),
+        new GemSpell("Fracturing", "T2_Gem_GemOfFracturing", new[] { 0x5e34f09bu }, 2),
+        new GemSpell("Retaliation", "T2_Gem_GemOfRetaliation", new[] { 0x5e34f09bu }, 2),
+        new GemSpell("Swiftness", "T2_Gem_GemOfSwiftness", new[] { 0x5e34f09bu }, 2),
+        new GemSpell("Toxic Betrayal", "T2_Gem_GemOfToxicReaction", new[] { 0x5e34f09bu }, 2),
+        new GemSpell("Agility", "T3_Gem_GemOfAgility", new[] { 0x5e34f09bu }, 3),
+        new GemSpell("Storm's Eye", "T3_Gem_GemOfConduction", new[] { 0x5e34f09bu }, 3),
+        new GemSpell("Corruption", "T4_Gem_GemOfCorruption", new[] { 0x5e34f09bu }, 4),
+        new GemSpell("Focused Light", "T4_Gem_GemOfFocusedLight", new[] { 0x5e34f09bu }, 4),
+        new GemSpell("Bloodlust", "T5_Gem_GemOfBloodlust", new[] { 0x5e34f09bu }, 5),
+        new GemSpell("Cold Composure", "T5_Gem_GemOfColdComposure", new[] { 0x5e34f09bu }, 5),
+        new GemSpell("Meteoric Impact", "T5_Gem_GemOfMeteoricDescent", new[] { 0x5e34f09bu, 0xa8338df8u, 0xfaf3b41bu }, 5),
+        new GemSpell("Aerobatics", "T6_Gem_GemOfAerobatics_UnderFog", new[] { 0x5e34f09bu }, 6),
+        new GemSpell("Currents", "T6_Gem_GemOfCurrents_OverFog", new[] { 0x5e34f09bu }, 6),
     };
 
     public const string SkeletonsPerCastKey = "skeletonsPerCast";
@@ -256,7 +305,7 @@ public static class SpellCatalog
     });
 
     /// <summary>The groups of the settings page, in its order.</summary>
-    public static readonly IReadOnlyList<string> Groups = new[] { GroupSummons, GroupDuration, GroupDamage, GroupRadius, GroupCasting, GroupHealth, GroupPerception, GroupCost, GroupCastTime, GroupGeneral };
+    public static readonly IReadOnlyList<string> Groups = new[] { GroupSummons, GroupDuration, GroupDamage, GroupRadius, GroupCasting, GroupHealth, GroupPerception, GroupCost, GroupCastTime, GroupGeneral, GroupGemDamage, GroupGemGeneral };
 
     // Root's and Blizzard's zones hold enemies and slow them for the spell's main duration (their DebuffDuration config), so it follows the setting.
     public static readonly IReadOnlyList<DurationSpell> DurationSpells = new[]
@@ -430,7 +479,27 @@ public static class SpellCatalog
     };
 
     /// <summary>Every spell of the settings window, section after section: the index the window keeps for the chosen spell.</summary>
-    public static readonly IReadOnlyList<WindowSpell> WindowSpells = FlattenSections();
+    public static readonly IReadOnlyList<WindowSpell> WindowSpells = Flatten(WindowSections);
+
+    /// <summary>The Gems tab: General, then a row per tier, each gem's card a Damage line.</summary>
+    public static readonly IReadOnlyList<WindowSection> GemSections = MakeGemSections();
+
+    /// <summary>Every gem card of the Gems tab, section after section.</summary>
+    public static readonly IReadOnlyList<WindowSpell> GemWindowSpells = Flatten(GemSections);
+
+    private static WindowSection[] MakeGemSections()
+    {
+        var sections = new List<WindowSection>
+        {
+            new WindowSection("General", new[] { new WindowSpell(GemGeneralSpell, null, new[] { Line("Damage", GemGeneralDamageKey), Line("Mode", GemGeneralAtLeastKey) }) }),
+        };
+        foreach (int tier in GemSpells.Select(gem => gem.Tier).Distinct().OrderBy(tier => tier))
+        {
+            WindowSpell[] gems = GemSpells.Where(gem => gem.Tier == tier).Select(gem => new WindowSpell(gem.DisplayName, gem.Item, new[] { Line("Damage", gem.DamageKey) })).ToArray();
+            sections.Add(new WindowSection("Tier " + tier.ToString(System.Globalization.CultureInfo.InvariantCulture), gems));
+        }
+        return sections.ToArray();
+    }
 
     // A spell's card: its Mana Cost first, then its own lines.
     private static WindowSpell Spell(string name, Regex iconItem, params CardLine[] lines)
@@ -450,13 +519,19 @@ public static class SpellCatalog
     /// <summary>The key of a spell's Mana Cost setting: "Fire Bolt" is fireBoltCostMultiplier.</summary>
     public static string CostKey(string spellName)
     {
-        string[] words = spellName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return CamelCase(spellName) + "CostMultiplier";
+    }
+
+    /// <summary>A name in camel case without its apostrophes: "Storm's Eye" is stormsEye.</summary>
+    public static string CamelCase(string name)
+    {
+        string[] words = name.Replace("'", "", StringComparison.Ordinal).Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var key = new System.Text.StringBuilder(words[0].ToLowerInvariant());
         for (int index = 1; index < words.Length; index++)
         {
             key.Append(char.ToUpperInvariant(words[index][0])).Append(words[index], 1, words[index].Length - 1);
         }
-        return key.Append("CostMultiplier").ToString();
+        return key.ToString();
     }
 
     /// <summary>The key of a card's Cast Time setting: "Fire Bolt" is fireBoltCastTimeMultiplier.</summary>
@@ -487,8 +562,15 @@ public static class SpellCatalog
             GroupDuration => GeneralDurationKey,
             GroupRadius => GeneralRadiusKey,
             GroupHealth => GeneralHealthKey,
+            GroupGemDamage => GemGeneralDamageKey,
             _ => null,
         };
+    }
+
+    /// <summary>The mode (Multiply or At Least) that goes with a General multiplier: the Gems tab has its own.</summary>
+    public static string AtLeastKeyFor(SettingInfo setting)
+    {
+        return setting.Group == GroupGemDamage ? GemGeneralAtLeastKey : GeneralAtLeastKey;
     }
 
     private static IReadOnlyList<SettingInfo> WithCostAndGeneral(SettingInfo[] spellSettings)
@@ -519,6 +601,12 @@ public static class SpellCatalog
         settings.Add(new SettingInfo(GeneralRadiusKey, "General Radius", GroupGeneral, SettingKind.Multiplier, SpellRules.MinRadius, SpellRules.MaxRadius, SpellRules.RadiusStep, 1));
         settings.Add(new SettingInfo(GeneralHealthKey, "General Health", GroupGeneral, SettingKind.Multiplier, SpellRules.MinHealth, SpellRules.MaxHealth, SpellRules.HealthStep, 1));
         settings.Add(new SettingInfo(GeneralAtLeastKey, "General Mode", GroupGeneral, SettingKind.Toggle, 0, 1, 1, 0));
+        foreach (GemSpell gem in GemSpells)
+        {
+            settings.Add(new SettingInfo(gem.DamageKey, gem.DisplayName + " Damage", GroupGemDamage, SettingKind.Multiplier, SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep, 1));
+        }
+        settings.Add(new SettingInfo(GemGeneralDamageKey, "Gem General Damage", GroupGemGeneral, SettingKind.Multiplier, SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep, 1));
+        settings.Add(new SettingInfo(GemGeneralAtLeastKey, "Gem General Mode", GroupGemGeneral, SettingKind.Toggle, 0, 1, 1, 0));
         return settings;
     }
 
@@ -527,10 +615,10 @@ public static class SpellCatalog
         return new CardLine(label, key);
     }
 
-    private static WindowSpell[] FlattenSections()
+    private static WindowSpell[] Flatten(IReadOnlyList<WindowSection> sections)
     {
         var spells = new List<WindowSpell>();
-        foreach (WindowSection section in WindowSections)
+        foreach (WindowSection section in sections)
         {
             spells.AddRange(section.Spells);
         }

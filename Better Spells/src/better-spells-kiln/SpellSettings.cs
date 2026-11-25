@@ -608,4 +608,94 @@ public sealed class SpellSettings
     [ConfigKey("generalAtLeast")]
     [Comment("General Mode. Off (Multiply): the General multipliers multiply each spell's own. On (At Least): each is a floor, so a spell keeps its own value only where it is better.")]
     public bool GeneralAtLeast { get; set; } = false;
+
+    // Gems: each damage gem's damage, with the Gems tab's General Damage (Multiply or At Least).
+    [ConfigKey("bleedingGemDamageMultiplier")]
+    [Comment("Gem of Bleeding Damage. Multiplies the gem's damage at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep)]
+    public double BleedingGemDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("burningGemDamageMultiplier")]
+    [Comment("Gem of Burning Damage. Multiplies the gem's damage at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep)]
+    public double BurningGemDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("puncturingGemDamageMultiplier")]
+    [Comment("Gem of Puncturing Damage. Multiplies the gem's damage at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep)]
+    public double PuncturingGemDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("fracturingGemDamageMultiplier")]
+    [Comment("Gem of Fracturing Damage. Multiplies the gem's damage at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep)]
+    public double FracturingGemDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("retaliationGemDamageMultiplier")]
+    [Comment("Gem of Retaliation Damage. Multiplies the gem's damage at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep)]
+    public double RetaliationGemDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("swiftnessGemDamageMultiplier")]
+    [Comment("Gem of Swiftness Damage. Multiplies the gem's damage at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep)]
+    public double SwiftnessGemDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("toxicBetrayalGemDamageMultiplier")]
+    [Comment("Gem of Toxic Betrayal Damage. Multiplies the gem's damage at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep)]
+    public double ToxicBetrayalGemDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("agilityGemDamageMultiplier")]
+    [Comment("Gem of Agility Damage. Multiplies the gem's damage at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep)]
+    public double AgilityGemDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("stormsEyeGemDamageMultiplier")]
+    [Comment("Gem of Storm's Eye Damage. Multiplies the gem's damage at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep)]
+    public double StormsEyeGemDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("corruptionGemDamageMultiplier")]
+    [Comment("Gem of Corruption Damage. Multiplies the gem's damage at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep)]
+    public double CorruptionGemDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("focusedLightGemDamageMultiplier")]
+    [Comment("Gem of Focused Light Damage. Multiplies the gem's damage at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep)]
+    public double FocusedLightGemDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("bloodlustGemDamageMultiplier")]
+    [Comment("Gem of Bloodlust Damage. Multiplies the gem's damage at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep)]
+    public double BloodlustGemDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("coldComposureGemDamageMultiplier")]
+    [Comment("Gem of Cold Composure Damage. Multiplies the gem's damage at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep)]
+    public double ColdComposureGemDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("meteoricImpactGemDamageMultiplier")]
+    [Comment("Gem of Meteoric Impact Damage. Multiplies the gem's damage at every gem level. Covers its meteor's explosion and fire trail too. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep)]
+    public double MeteoricImpactGemDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("aerobaticsGemDamageMultiplier")]
+    [Comment("Gem of Aerobatics Damage. Multiplies the gem's damage at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep)]
+    public double AerobaticsGemDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("currentsGemDamageMultiplier")]
+    [Comment("Gem of Currents Damage. Multiplies the gem's damage at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep)]
+    public double CurrentsGemDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("gemGeneralDamageMultiplier")]
+    [Comment("Gem General Damage. Every gem's damage, with its own. Under At Least, the higher of the two. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep)]
+    public double GemGeneralDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("gemGeneralAtLeast")]
+    [Comment("Gem General Mode. Off (Multiply): Gem General Damage multiplies each gem's own. On (At Least): it is a floor, so a gem keeps its own value only where it is higher.")]
+    public bool GemGeneralAtLeast { get; set; } = false;
 }

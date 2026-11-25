@@ -157,6 +157,12 @@ public static class SpellRules
         return gameCost <= 0 ? gameCost : Math.Max(1L, (long)Math.Round(gameCost * multiplier, MidpointRounding.AwayFromZero));
     }
 
+    /// <summary>A gem's damage (a whole number) times the setting, never below 1. A value of 0 or less stays.</summary>
+    public static long GemDamage(double gameValue, double multiplier)
+    {
+        return gameValue <= 0 ? (long)gameValue : Math.Max(1L, (long)Math.Round(gameValue * multiplier, MidpointRounding.AwayFromZero));
+    }
+
     /// <summary>The game's value times the setting. A value of 0 or less is the game's "none" and stays.</summary>
     public static double Multiplied(double gameValue, double multiplier)
     {

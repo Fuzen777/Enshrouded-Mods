@@ -77,8 +77,8 @@ Check(SpellRules.ShapeKey(1744623269, 2) != 1744623269 && SpellRules.ShapeKey(17
 Check(SpellRules.ShapeKey(1744623269, 2) != SpellRules.ShapeKey(1744623269, 2.25), "two sizes get two keys");
 Check(SpellRules.Same(2.6, 2.5999999046325684) && !SpellRules.Same(2.6, 2.61), "a float32 and its double are the same value, 2.6 and 2.61 are not");
 
-// The settings: 120, each once, in a known group, and the settings file's entries agree with the list.
-Check(SpellCatalog.Settings.Count == 120, $"there are 120 settings (found {SpellCatalog.Settings.Count})");
+// The settings: 138, each once, in a known group, and the settings file's entries agree with the list.
+Check(SpellCatalog.Settings.Count == 138, $"there are 138 settings (found {SpellCatalog.Settings.Count})");
 Check(SpellCatalog.Settings.Select(setting => setting.Key).Distinct().Count() == SpellCatalog.Settings.Count, "no setting key is listed twice");
 Check(SpellCatalog.Settings.All(setting => SpellCatalog.Groups.Contains(setting.Group)), "every setting is in a group of the settings page");
 var fileDefaults = new SpellSettings();
@@ -116,8 +116,8 @@ foreach (string key in SpellCatalog.DurationSpells.Select(spell => spell.Setting
 }
 
 // The settings window shows every setting on exactly one card, in the sections the user chose, and each card's labels are its own.
-List<string> windowKeys = SpellCatalog.WindowSpells.SelectMany(spell => spell.Lines.Select(line => line.Key)).ToList();
-Check(windowKeys.Count == SpellCatalog.Settings.Count && windowKeys.Distinct().Count() == windowKeys.Count, $"the window has each of the 120 settings once ({windowKeys.Count} lines, {windowKeys.Distinct().Count()} different)");
+List<string> windowKeys = SpellCatalog.WindowSpells.Concat(SpellCatalog.GemWindowSpells).SelectMany(spell => spell.Lines.Select(line => line.Key)).ToList();
+Check(windowKeys.Count == SpellCatalog.Settings.Count && windowKeys.Distinct().Count() == windowKeys.Count, $"the window's two tabs have each of the 138 settings once ({windowKeys.Count} lines, {windowKeys.Distinct().Count()} different)");
 Check(SpellCatalog.Settings.All(setting => windowKeys.Contains(setting.Key)), "no setting is missing from the window");
 Check(string.Join(", ", SpellCatalog.WindowSections.Select(section => section.Name)) == "General, Fire, Ice, Lightning, Shroud, Summons, Others, Items", "the sections are General, Fire, Ice, Lightning, Shroud, Summons, Others, Items");
 Check(SpellCatalog.WindowSpells.Where(spell => spell.IconItem != null).All(spell => spell.Lines[0].Key == SpellCatalog.CostKey(spell.Spell)), "every spell's card starts with its Mana Cost");
@@ -134,10 +134,24 @@ Check(SpellRules.ManaCost(26, 0.5) == 13 && SpellRules.ManaCost(26, 0.01) == 1 &
 foreach (SettingInfo setting in SpellCatalog.Settings)
 {
     string? general = SpellCatalog.GeneralKeyFor(setting);
-    bool expected = setting.Kind == SettingKind.Multiplier && (setting.Group is SpellCatalog.GroupCost or SpellCatalog.GroupCastTime or SpellCatalog.GroupDamage or SpellCatalog.GroupDuration or SpellCatalog.GroupRadius or SpellCatalog.GroupHealth);
+    bool expected = setting.Kind == SettingKind.Multiplier && (setting.Group is SpellCatalog.GroupCost or SpellCatalog.GroupCastTime or SpellCatalog.GroupDamage or SpellCatalog.GroupDuration or SpellCatalog.GroupRadius or SpellCatalog.GroupHealth or SpellCatalog.GroupGemDamage);
     Check((general != null) == expected, $"{setting.Key} {(expected ? "has" : "has no")} General multiplier");
 }
 Check(SpellCatalog.WindowSpells.Count == SpellCatalog.WindowSections.Sum(section => section.Spells.Length), "the flat list of spells is the sections' spells");
+
+// Gems: a tab of their own, General first, a Damage line per gem, the Gems tab's own General and mode.
+Check(SpellCatalog.GemSpells.Count == 16 && SpellCatalog.GemSpells.Select(gem => gem.ItemName).Distinct().Count() == 16, "16 damage gems, each once");
+Check(SpellCatalog.GemSpells.Single(gem => gem.Name == "Storm's Eye").DamageKey == "stormsEyeGemDamageMultiplier", "a gem's key drops its apostrophe: stormsEyeGemDamageMultiplier");
+Check(SpellCatalog.GemSpells.Single(gem => gem.Name == "Meteoric Impact").DamageConfigs.Length == 3, "Meteoric Impact scales its hits, its meteor and its trail");
+Check(string.Join(", ", SpellCatalog.GemSections.Select(section => section.Name)) == "General, Tier 1, Tier 2, Tier 3, Tier 4, Tier 5, Tier 6", "the Gems tab's rows are General and Tier 1 to 6");
+Check(SpellCatalog.GemWindowSpells[0].Spell == SpellCatalog.GemGeneralSpell && SpellCatalog.GemWindowSpells.Skip(1).All(spell => spell.IconItem != null && spell.Lines.Length == 1 && spell.Lines[0].Label == "Damage"), "the Gems tab: All Gems, then a Damage card per gem");
+foreach (GemSpell gem in SpellCatalog.GemSpells)
+{
+    SettingInfo gemSetting = SpellCatalog.Setting(gem.DamageKey);
+    Check(SpellCatalog.GeneralKeyFor(gemSetting) == SpellCatalog.GemGeneralDamageKey && SpellCatalog.AtLeastKeyFor(gemSetting) == SpellCatalog.GemGeneralAtLeastKey, $"{gem.Name} goes with the Gems tab's General Damage and mode");
+}
+Check(SpellCatalog.AtLeastKeyFor(damage) == SpellCatalog.GeneralAtLeastKey && SpellCatalog.GeneralKeyFor(damage) == SpellCatalog.GeneralDamageKey, "spells keep the spells' General and mode");
+Check(SpellRules.GemDamage(7, 10) == 70 && SpellRules.GemDamage(3, 0.1) == 1 && SpellRules.GemDamage(3, 1.25) == 4 && SpellRules.GemDamage(0, 10) == 0, "gem damage is whole, never below 1, 0 stays");
 Check(SpellCatalog.WindowSpells.Select(spell => spell.Spell).Distinct().Count() == SpellCatalog.WindowSpells.Count, "no spell has two cards");
 foreach (WindowSpell spell in SpellCatalog.WindowSpells)
 {
@@ -231,6 +245,18 @@ if (args.Length > 0)
         foreach (string name in spell.ExtraTemplates.Concat(spell.Shots))
         {
             Check(templates.Contains(name), $"{spell.SettingKey}: the template {name} is in the game's data");
+        }
+    }
+    foreach (GemSpell gem in SpellCatalog.GemSpells)
+    {
+        string? file = Directory.GetFiles(Path.Combine(args[0], "ItemInfo"), gem.ItemName + "__*.json").FirstOrDefault();
+        string text = file == null ? "" : File.ReadAllText(file);
+        Check(text.Contains("\"WeaponGem\""), $"{gem.ItemName} is a weapon gem in the game's data");
+        int scaledAt = text.IndexOf("\"scaled\"", StringComparison.Ordinal);
+        foreach (uint config in gem.DamageConfigs)
+        {
+            bool found = scaledAt >= 0 && Regex.IsMatch(text.Substring(scaledAt), "ScaledSint32ImpactConfig\"[^$]*?\"configId\":\\s*\\{\\s*\"value\":\\s*" + config + "\\s*\\}");
+            Check(found, $"{gem.ItemName} has the scaled whole-number config 0x{config:x8}");
         }
     }
     Console.WriteLine($"Checked against the game's data: {items.Length} spell items, {templates.Length} templates, {casts.Length} casts.");
