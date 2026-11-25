@@ -8,6 +8,8 @@ SUMMARY (paste into the Brief Overview field)
 Felling axes and pickaxes fill your focus three times as fast, weapons twice as fast, so special abilities are ready sooner. Both multipliers can be changed from 1 to 20 in Shroudforge's F9 menu.
 
 DESCRIPTION (BBCode, paste into the Detailed Description field)
+[center]The source code for all my Enshrouded mods is available on [url=https://github.com/Fuzen777/Enshrouded-Mods]GitHub[/url] (MIT)[/center]
+
 [size=5][b]Focus Gain[/b][/size]
 
 Felling axes, pickaxes and weapons give more focus per hit, so their special abilities are ready sooner while you chop, mine and fight.

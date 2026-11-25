@@ -1,37 +1,43 @@
-NAME
-Better Spells
+<div style="text-align: center">
 
-VERSION
-1.0.0
+The source code for all my Enshrouded mods is available on [GitHub](https://github.com/Fuzen777/Enshrouded-Mods) (MIT)
 
-SUMMARY (paste into the Brief Overview field)
-One set of settings per spell, applied while you play: mana cost, cast time, damage, duration, radius, summon health, summons per cast and more, plus a General card for all spells at once. Every setting starts at vanilla and goes both ways. Settings window on Shift+F3. Needs Kiln.
+</div>
 
-DESCRIPTION (Markdown, paste into the Detailed Description field)
+<div style="text-align: center">
 
-# Better Spells
+# <span style="color: #e6a050">Better Spells</span>
 
-*Tune every spell to your liking: longer, stronger, wider, cheaper, faster, more summons. Or nerf them. All while you play.*
+</div>
+
+<div style="text-align: center">
+
+*<span style="color: #e6a050">Tune every spell to your liking: longer, stronger, wider, cheaper, faster, more summons.</span>*   
+*<span style="color: #e6a050">Or nerf them. All while you play.</span>*
+
+</div>
 
 ---
 
-Better Spells is a **Kiln** mod that gives every spell in Enshrouded its own settings: mana cost, cast time, damage, duration, radius, summon health, summons per cast and more. Press **Shift+F3** in game, click a spell, and change it. Every change applies right away to what you cast next, with no restart.
+Better Spells is a **Kiln** mod that gives every spell in Enshrouded its own settings : mana cost, cast time, damage, duration, radius, summon health, summons per cast and more. 
 
-Every setting starts at the game's own value, so nothing changes until you decide it should. Multipliers go both ways: buff the spells you love, or make the game harder.
+Press **Shift+F3** in game, click a spell, and change it. Every change applies right away to what you cast next, with no restart.
+
+Every setting starts at the game's own value, so nothing changes until you decide it should. Multipliers go both ways : buff the spells you love, or make the game harder.
 
 ---
 
 ## Features
 
-### A settings window built for spells
+### Setting Windows
 
 - Opens with **Shift+F3** (or the button on the mod's page in Kiln's menu), centered on screen.
-- Spells are laid out as **icon rows by element**: Fire, Ice, Lightning, Shroud, Summons, Others, and Items. Click a spell's icon to open its card.
+- Spells are laid out as **icon rows by element** : Fire, Ice, Lightning, Shroud, Summons, Others, and Items. Click a spell's icon to open its card.
 - Each setting is a simple **− value +** control. The mouse wheel works over any value; hold **Shift** for 10 steps, **Ctrl** for 100.
 - A **dot** marks every spell you have changed, so you can see your edits at a glance.
 - Every setting has its explanation on hover.
 
-### Settings for every spell
+### Settings for Every Spell
 
 - **Mana Cost** (x0.1 to x10), on every spell.
 - **Cast Time** (x0.1 to x10): how soon the spell is ready again.
@@ -40,7 +46,7 @@ Every setting starts at the game's own value, so nothing changes until you decid
 - **Radius** (x0.1 to x5) for Fireball, Fire Pillar, Light Burst, Ice Bolt, Blizzard, Ball Lightning, Shroud Meteor and Root. Areas, visuals and tooltips follow.
 - **Health** (x0.1 to x10) for Totems, Skeletons, Magic Shield and summoning items.
 
-### A General card for everything at once
+### Global Settings
 
 - Mana Cost, Cast Time, Damage, Duration, Radius and Health for **every spell together**.
 - Two modes: **Multiply** (General x2 and Fireball x3 give x6) or **At Least** (General x2 lifts every spell below x2 and leaves Fireball at x3; for Mana Cost and Cast Time, lower wins).
@@ -81,7 +87,7 @@ Every setting starts at the game's own value, so nothing changes until you decid
 2. Click a spell's icon in its element row (or the **General** row to change all spells at once).
 3. Use **−** and **+**, or scroll the mouse wheel over a value. Hold **Shift** for 10 steps or **Ctrl** for 100.
 4. Cast the spell. The new values apply from that cast on. A totem or skeleton already out keeps its old values until you cast again.
-5. Press **Shift+F3** again to close the window. Your settings are saved automatically.
+5. Press **Shift+F3** again or **Esc** to close the window. Your settings are saved automatically.
 
 **Tips**
 
@@ -100,10 +106,9 @@ Every setting starts at the game's own value, so nothing changes until you decid
 ## Installation
 
 1. Close the game.
-2. Extract the archive so you end up with `<Enshrouded>\kiln\mods\better-spells\` containing **BetterSpells.dll** and **kiln.mod.json**.
-3. Start the game and load a world. Press Shift+F3.
-
-**Coming from the older Shroudforge versions (Better Spells 2.x and Better Spells Live 1.x)?** Remove both. This version replaces them, has every setting they had, and applies all of them while playing. Settings from the Shroudforge versions are not carried over.
+2. Drop the archive on Kiln.
+3. Start the game and load a world. 
+4. Press Shift+F3.
 
 ## Compatibility
 
@@ -112,12 +117,12 @@ Every setting starts at the game's own value, so nothing changes until you decid
 
 ## Known limitations
 
-- Shroud Meteor's ground cursor keeps its size when you raise its Radius (the impact area does grow).
+- Shroud Meteor's ground cursor keeps its size when you raise its Radius (the impact area does grow). Growing it increased the terrain destruction area, which led to temporary freezes. Fun, but not something you’d actually want to deal with.
 - Damage multiplies the spell's share only, not your staff's.
 - Chain Lightning's Lock-On Range is capped by the game at about x1.75, so the setting stops at x2.
 - Skeleton Health scales the skeletons' level-based health, which may not be exactly proportional.
 - Ice Totem's chill on enemies keeps its normal length when you raise Totem Duration.
-- Kiln is still a development build that changes often. If a Kiln update breaks something, check for a mod update.
+- Heal spells aren’t covered yet… Might do them later. 
 
 ---
 

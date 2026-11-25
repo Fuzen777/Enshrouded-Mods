@@ -6,9 +6,15 @@ target: nexus
 
 <div style="text-align: center">
 
+The source code for all my Enshrouded mods is available on [GitHub](https://github.com/Fuzen777/Enshrouded-Mods) (MIT)
+
+</div>
+
+<div style="text-align: center">
+
 # <span style="color: #e6a050">Streamlined Logistics</span>
 
-#### *<span style="color: #e6a050">Now, you can opt out of the Inventory Management™ minigame.</span>*
+*<span style="color: #e6a050">Now, you can opt out of the Inventory Management™ minigame.</span>*
 
 </div>
 
@@ -96,7 +102,7 @@ The F2 menu offers :
 
 ### Cross-Base Storage &amp; Craft
 
-- You can craft (at stations and NPCs) from any base, from your linked chests. At least that’s what’s supposed to happen. **<span style="color: #d9534f">Not working currently</span>** (waiting on a Kiln update) ; <span style="color: #d9534f">use Cross-Base Storage in the meantime</span>.
+- You can craft (at stations and NPCs) from any base, from your linked chests. At least that’s what’s supposed to happen. Honestly, the approach is currently <span style="color: #d9534f">very brittle</span>, because of Kiln’s limitations in that regard ; until it’s properly implemented, I really recommend using [Cross-Base Storage](https://www.nexusmods.com/enshrouded/mods/245) instead.
 
 ### Settings in the window
 
