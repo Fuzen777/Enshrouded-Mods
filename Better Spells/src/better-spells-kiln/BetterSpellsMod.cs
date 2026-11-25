@@ -91,6 +91,7 @@ public sealed class BetterSpellsMod : Mod
     private const int MaxListScan = 64;
     // keen::actor::StateFlag InRangeCombatShooting: the bit a cast's shooting part needs held.
     private const int InRangeCombatShootingBit = 27;
+    private const string ShootingFlag = "InRangeCombatShooting";
     // A spell's icon button in its section's row, before the overlay's scale.
     private const float IconButtonSize = 36f;
 
@@ -136,6 +137,16 @@ public sealed class BetterSpellsMod : Mod
 
     // What one run of Apply found and did, for the log.
     private List<GameDataEntry> _spellItems = new List<GameDataEntry>();
+    // Values written by the current run (the others were already in place), and each spell item's Cast Time floor for the loaded
+    // world, by the item's GUID: the casts' data is read once per world, not at every settings change.
+    private int _valuesWritten;
+    private bool _castMasksLogged;
+    private readonly Dictionary<Guid, double> _castTimeFloorCache = new Dictionary<Guid, double>();
+    // Set while a run for changed settings is waiting for the world's thread, with the keys that changed: changes made in a row
+    // (a value stepped several times, a slider dragged) wait for one run.
+    private readonly object _changesLock = new object();
+    private readonly SortedSet<string> _pendingChanges = new SortedSet<string>(StringComparer.Ordinal);
+    private bool _applyQueued;
     // Each Cast Time setting's lowest multiplier that still casts, by key, found at each apply and shown in the setting's tooltip;
     // replaced as a whole, since the window reads it on the game's render side.
     private volatile Dictionary<string, double> _castTimeFloors = new Dictionary<string, double>();
@@ -183,7 +194,12 @@ public sealed class BetterSpellsMod : Mod
         _settings.Changed += OnSettingsChanged;
         _subscribed = true;
         // Runs at every world load, after Kiln has put the game's data in place.
-        Content.OnReady(_ => Apply("world loaded"));
+        Content.OnReady(_ =>
+        {
+            _castTimeFloorCache.Clear();
+            _castMasksLogged = false;
+            Apply("world loaded");
+        });
         if (Ui.Available)
         {
             ReadDescriptions();
@@ -221,9 +237,24 @@ public sealed class BetterSpellsMod : Mod
     // A setting changed in the Kiln menu or in the file. Kiln's game data and settings may only be changed on the world's own thread.
     private void OnSettingsChanged(ConfigChangedEvent change)
     {
-        string reason = "settings changed (" + string.Join(", ", change.Changed) + ")";
+        lock (_changesLock)
+        {
+            _pendingChanges.UnionWith(change.Changed);
+            if (_applyQueued)
+            {
+                return;
+            }
+            _applyQueued = true;
+        }
         Context.Scheduler.Post(() =>
         {
+            string reason;
+            lock (_changesLock)
+            {
+                reason = "settings changed (" + string.Join(", ", _pendingChanges) + ")";
+                _pendingChanges.Clear();
+                _applyQueued = false;
+            }
             SnapSettingsToSteps();
             // Writing a snapped value back may raise this event again, with the values already applied.
             if (AppliedValues() != _appliedValues)
@@ -745,7 +776,9 @@ public sealed class BetterSpellsMod : Mod
 
     private void ApplyAll(string reason)
     {
+        var watch = System.Diagnostics.Stopwatch.StartNew();
         _valuesInPlace = 0;
+        _valuesWritten = 0;
         _valuesRefused = 0;
         _refusalLines = 0;
         FindSpellData();
@@ -765,7 +798,7 @@ public sealed class BetterSpellsMod : Mod
         ApplyItemSpells();
         ApplyKeepOlderWisps();
         ApplyHealth();
-        Log.Info($"{_valuesInPlace} values in place, {_valuesRefused} refused");
+        Log.Info($"{_valuesInPlace} values in place ({_valuesWritten} written), {_valuesRefused} refused, in {watch.ElapsedMilliseconds} ms");
     }
 
     // The spell items, and the templates found by name (areas and balls). Looked up at every run: a world load gives new entries.
@@ -1292,6 +1325,17 @@ public sealed class BetterSpellsMod : Mod
     // lock and the events of each cast the item triggers; the setting's own minimum when nothing limits it or the data can't be read.
     private double CastTimeFloor(GameDataEntry item)
     {
+        if (_castTimeFloorCache.TryGetValue(item.Guid, out double known))
+        {
+            return known;
+        }
+        double floor = FindCastTimeFloor(item);
+        _castTimeFloorCache[item.Guid] = floor;
+        return floor;
+    }
+
+    private double FindCastTimeFloor(GameDataEntry item)
+    {
         double floor = SpellRules.MinCastTime;
         if (!Has(item, SpellCatalog.CastLockPath))
         {
@@ -1318,6 +1362,23 @@ public sealed class BetterSpellsMod : Mod
             catch (Exception error) when (IsRefusal(error))
             {
                 Refuse(item, path, error.Message);
+            }
+            if (cast != null && !_castMasksLogged)
+            {
+                // Once per world: how this Kiln gives a cast's keep-alive masks, to check NeedsShooting against.
+                _castMasksLogged = true;
+                var masks = new List<string>();
+                for (int keepAlive = 0; keepAlive < MaxListScan; keepAlive++)
+                {
+                    string time = string.Create(CultureInfo.InvariantCulture, $"events[KeepAliveEvent#{keepAlive}].time");
+                    if (!Has(cast, time))
+                    {
+                        break;
+                    }
+                    string maskPath = string.Create(CultureInfo.InvariantCulture, $"events[KeepAliveEvent#{keepAlive}].keepAliveMask");
+                    masks.Add($"{Original(cast, time):0.###} s {cast.GetJson(maskPath)?.ToJsonString() ?? "none"} shooting {NeedsShooting(cast.GetJson(maskPath))}");
+                }
+                Log.Info($"{cast.Name} keep-alive masks: {string.Join("; ", masks)}");
             }
             (double ShootingFrom, double ReleaseAt)? window = cast == null ? null : ShootingWindow(cast);
             if (window.HasValue)
@@ -1384,19 +1445,37 @@ public sealed class BetterSpellsMod : Mod
         return first;
     }
 
-    // Whether a keep-alive mask holds InRangeCombatShooting, given as flag names or as the StateFlag bits (27).
+    // Whether a keep-alive mask holds InRangeCombatShooting: as a list of the flags it holds, as an object of every flag with whether it
+    // is set (1.0.1 took the flag's name anywhere in the text for set, so a mask of InRangeCombat alone counted and the floors came out
+    // too high), as a text of flag names, or as the StateFlag bits (27).
     private static bool NeedsShooting(System.Text.Json.Nodes.JsonNode? mask)
     {
-        if (mask == null)
+        switch (mask)
         {
-            return false;
+            case System.Text.Json.Nodes.JsonArray list:
+                return list.Any(element => element is System.Text.Json.Nodes.JsonValue name && name.TryGetValue(out string? text) && text == ShootingFlag
+                    || element is System.Text.Json.Nodes.JsonObject && NeedsShooting(element));
+            case System.Text.Json.Nodes.JsonObject flags:
+                if (flags.TryGetPropertyValue(ShootingFlag, out System.Text.Json.Nodes.JsonNode? flag))
+                {
+                    return flag is System.Text.Json.Nodes.JsonValue set
+                        && (set.TryGetValue(out bool on) && on || set.TryGetValue(out double number) && number != 0);
+                }
+                // A wrapper such as {"value": [...]}.
+                return flags.Any(field => field.Value is System.Text.Json.Nodes.JsonArray or System.Text.Json.Nodes.JsonObject && NeedsShooting(field.Value));
+            case System.Text.Json.Nodes.JsonValue value:
+                if (value.TryGetValue(out string? names))
+                {
+                    if (names.Split(new[] { ',', '|', ' ', '[', ']' }, StringSplitOptions.RemoveEmptyEntries).Contains(ShootingFlag))
+                    {
+                        return true;
+                    }
+                    return ulong.TryParse(names, NumberStyles.Integer, CultureInfo.InvariantCulture, out ulong textBits) && (textBits & (1UL << InRangeCombatShootingBit)) != 0;
+                }
+                return value.TryGetValue(out ulong bits) && (bits & (1UL << InRangeCombatShootingBit)) != 0;
+            default:
+                return false;
         }
-        string text = mask.ToJsonString();
-        if (text.Contains("InRangeCombatShooting", StringComparison.Ordinal))
-        {
-            return true;
-        }
-        return ulong.TryParse(text.Trim('"'), NumberStyles.Integer, CultureInfo.InvariantCulture, out ulong bits) && (bits & (1UL << InRangeCombatShootingBit)) != 0;
     }
 
     // Max Totems and Max Skeletons: how many can be out at once before skills add to it. The player's templates carry the game's 1
@@ -1642,8 +1721,16 @@ public sealed class BetterSpellsMod : Mod
         {
             double game = Original(entry, path);
             double value = wanted(game);
+            double current = entry.Get(path).AsDouble;
             // A whole number is compared exactly: a VFX word is a float's 32 bits, where two near numbers are different floats.
-            if (whole ? Math.Round(value) == Math.Round(game) : SpellRules.Same(game, value))
+            bool Equal(double first, double second) => whole ? Math.Round(first) == Math.Round(second) : SpellRules.Same(first, second);
+            // Only a value that changes is written: each write costs the game time, and a settings change rewrote every value.
+            if (Equal(value, current))
+            {
+                return;
+            }
+            _valuesWritten++;
+            if (Equal(value, game))
             {
                 entry.Reset(path);
             }
@@ -1665,6 +1752,11 @@ public sealed class BetterSpellsMod : Mod
         {
             double game = Original(entry, path);
             double value = wantedSeconds(game);
+            if (SpellRules.Same(value, entry.Get(path).AsDouble))
+            {
+                return;
+            }
+            _valuesWritten++;
             if (SpellRules.Same(game, value))
             {
                 entry.Reset(path);
@@ -1681,6 +1773,12 @@ public sealed class BetterSpellsMod : Mod
     {
         Put(entry, path, () =>
         {
+            bool wanted = toggleOn ? valueWhileOn : entry.Original(path).Bool;
+            if (entry.Get(path).Bool == wanted)
+            {
+                return;
+            }
+            _valuesWritten++;
             if (toggleOn && entry.Original(path).Bool != valueWhileOn)
             {
                 entry.Set(path, valueWhileOn);
