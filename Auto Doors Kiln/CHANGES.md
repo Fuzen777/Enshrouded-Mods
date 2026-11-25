@@ -2,6 +2,10 @@
 
 A rebuild of Auto Doors (SellTheWorldGames, closed source) as a Kiln mod, from its described behaviour, not its code. Doors are toggled by sending the game's own `ToggleInteractionEvent {guest, host, offer}` from the mod's ECS program `door_toggle` (`src\kiln.programs.json`); `interaction_toggle_new` flips `ServerToggleState` and `interaction_directional` swings the door away from the guest.
 
+## 1.2.1
+
+- Locked doors (Fuzen: outside bases the mod opened doors that need a lockpick). The game's locked doors (`*_Locked_Pickable_*`, `*_Locked_Key`, from the template dump) carry `InteractionLock`, and its lockMask `DestroyLock` removes it once the lock is picked or opened with the key. The mod's toggle went around the lock. Doors with `InteractionLock` are now left alone; the door scan (every 5 s) notices the lock is gone and the door works again. The log names the first 20 doors found locked or unlocked.
+
 ## 1.2.0
 
 - Nexus release of 1.1.1, no code change (same DLL; only the version in `kiln.mod.json` moved). Player notes in `Changelog.mdbbcode`.

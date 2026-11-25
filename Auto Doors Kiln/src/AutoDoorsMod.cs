@@ -84,6 +84,7 @@ public sealed partial class AutoDoorsMod : Mod
         public double GuestSide;     // which side of the door the guest of the last open stood on (for the log)
         public bool InBase;
         public bool Secret;          // a secret door, shelf, floor, stair or mechanism: Manual or Close Only, no label
+        public bool Locked;          // has InteractionLock (needs a lockpick or a key): left alone until unlocked (1.2.1)
         public string Key = "";
         public string Name = "";
         public double Height;        // how tall the doorway is (DoorHeights), 0 when it is not taller than the Height Reach
@@ -262,6 +263,13 @@ public sealed partial class AutoDoorsMod : Mod
                 string? template = Spawn.Inspect(id)?.TemplateName;
                 _doors[id.Value] = d = new DoorState { Id = id, Name = DisplayName(template), Height = DoorHeight(template) };
             }
+            // Locked doors (1.2.1, Fuzen: outside bases the mod opened doors that need a lockpick). The game's locked doors
+            // (*_Locked_Pickable_*, *_Locked_Key) carry InteractionLock, whose lockMask DestroyLock removes it once the lock
+            // is picked or opened with the key; the mod's own toggle skips the lock, so it leaves them alone until then.
+            bool locked = World.Has(id, "InteractionLock");
+            if (locked != d.Locked && _lockLogs++ < 20)
+                Log.Info($"auto doors: door {id.Value} ({d.Name}) at {KeyOf(at)} is {(locked ? "locked: left alone until it is unlocked" : "unlocked: works again")}");
+            d.Locked = locked;
             d.At = at;
             d.Key = KeyOf(at);
             d.Forward = World.Transform(id) is { } tf ? Vector3.Transform(Vector3.UnitZ, tf.Rotation) : Vector3.Zero;
@@ -557,6 +565,7 @@ public sealed partial class AutoDoorsMod : Mod
                 Follow(d, isOpen, players);
                 continue;
             }
+            if (d.Locked) { d.LastSeen = isOpen; continue; }
 
             if (d.LastSeen is { } last && last != isOpen)
             {
@@ -666,7 +675,7 @@ public sealed partial class AutoDoorsMod : Mod
     // Now no door event names a player in a full-screen menu or a looting menu as guest: the move waits until the menu
     // is closed (or uses someone else), and closes use the door's last accepted guest without a new accept.
     private readonly HashSet<uint> _busy = new();
-    private int _busyLogs;
+    private int _busyLogs, _lockLogs;
 
     private void FindBusyPlayers(List<Player> players)
     {
