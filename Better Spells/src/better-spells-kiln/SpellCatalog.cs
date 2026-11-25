@@ -30,6 +30,13 @@ public sealed record SummonCast(string CountKey, string SequenceName, string Eve
 /// </summary>
 public sealed record ItemSpell(string Name, Regex Items, string DamageKey, string? DurationKey, string? HealthKey, string? FixedTemplate);
 
+/// <summary>
+/// A summon spell's Perception setting: its items (the template each places, or for an item spell what it summons), templates that go
+/// with them by name (Lightning Wisp's shoot attachment), the shots they fire, whose lifetime Perception multiplies, and the Shot
+/// Lifetime setting that replaces the shots' own lifetime (null: the game's).
+/// </summary>
+public sealed record PerceptionSpell(string SettingKey, Regex ItemName, ItemSpell? ItemSpell, string[] ExtraTemplates, string[] Shots, string? ShotLifetimeKey = null);
+
 /// <summary>A line of a spell's card in the settings window: the name it has there and the setting's key.</summary>
 public sealed record CardLine(string Label, string Key);
 
@@ -48,6 +55,7 @@ public static class SpellCatalog
     public const string GroupRadius = "Radius";
     public const string GroupCasting = "Casting";
     public const string GroupHealth = "Health";
+    public const string GroupPerception = "Perception";
     public const string GroupCost = "Cost";
     public const string GroupCastTime = "Cast Time";
     public const string GroupGeneral = "General";
@@ -149,6 +157,13 @@ public static class SpellCatalog
     /// <summary>The Lightning Wisp's cast and its four SpawnImpact events (one per tier).</summary>
     public const string WispCastSequence = "Attack_Player_Staff_Overlay_ShockWisp";
     public const int WispCastEvents = 4;
+    public const string TotemPerceptionKey = "totemPerceptionMultiplier";
+    public const string SkeletonPerceptionKey = "skeletonPerceptionMultiplier";
+    public const string LightningWispPerceptionKey = "lightningWispPerceptionMultiplier";
+    public const string SkullVesselPerceptionKey = "skullVesselPerceptionMultiplier";
+    public const string FireWispScrollPerceptionKey = "fireWispScrollPerceptionMultiplier";
+    public const string LightningWispShotLifetimeKey = "lightningWispShotLifetime";
+    public const string FireWispScrollShotLifetimeKey = "fireWispScrollShotLifetime";
     public const string MaxTotemsKey = "maxTotems";
     public const string MaxSkeletonsKey = "maxSkeletons";
     public const string TotemHealthKey = "totemHealthMultiplier";
@@ -184,6 +199,13 @@ public static class SpellCatalog
         Health(TotemHealthKey, "Totem Health"),
         Health(SkeletonHealthKey, "Skeleton Health"),
         Health(MagicShieldHealthKey, "Magic Shield Health"),
+        Perception(TotemPerceptionKey, "Totem Perception"),
+        Perception(SkeletonPerceptionKey, "Skeleton Perception"),
+        Perception(LightningWispPerceptionKey, "Lightning Wisp Perception"),
+        Perception(SkullVesselPerceptionKey, "Skull Vessel Perception"),
+        Perception(FireWispScrollPerceptionKey, "Fire Wisp Scroll Perception"),
+        ShotLifetime(LightningWispShotLifetimeKey, "Lightning Wisp Shot Lifetime"),
+        ShotLifetime(FireWispScrollShotLifetimeKey, "Fire Wisp Scroll Shot Lifetime"),
         new SettingInfo(SummonSpreadKey, "Totem Spread", GroupSummons, SettingKind.Units, SpellRules.MinSpreadUnits, SpellRules.MaxSpreadUnits, SpellRules.SpreadStep, SpellRules.DefaultSpreadUnits),
 
         Duration("totemDurationMultiplier", "Totem Duration", 1),
@@ -234,7 +256,7 @@ public static class SpellCatalog
     });
 
     /// <summary>The groups of the settings page, in its order.</summary>
-    public static readonly IReadOnlyList<string> Groups = new[] { GroupSummons, GroupDuration, GroupDamage, GroupRadius, GroupCasting, GroupHealth, GroupCost, GroupCastTime, GroupGeneral };
+    public static readonly IReadOnlyList<string> Groups = new[] { GroupSummons, GroupDuration, GroupDamage, GroupRadius, GroupCasting, GroupHealth, GroupPerception, GroupCost, GroupCastTime, GroupGeneral };
 
     // Root's and Blizzard's zones hold enemies and slow them for the spell's main duration (their DebuffDuration config), so it follows the setting.
     public static readonly IReadOnlyList<DurationSpell> DurationSpells = new[]
@@ -305,6 +327,23 @@ public static class SpellCatalog
     };
 
 
+    /// <summary>
+    /// The summons' Perception: each summon's sight (Enemy01BehaviorState) and detection sphere (20 units for wisps and totems), and the
+    /// lifetime of their shots so they still reach that far. Lightning Wisp's and the Fire Wisp's shots live 2 s at 5 to 10 units/s in the
+    /// game's data, too short for their 20-unit sphere: their Shot Lifetime (5 s by default) replaces it. Totems' live 3 s at 8 to 12
+    /// units/s, which reaches. Skeletons and skulls have no shots.
+    /// </summary>
+    public static readonly IReadOnlyList<PerceptionSpell> PerceptionSpells = new[]
+    {
+        new PerceptionSpell(TotemPerceptionKey, TotemItem, null, Array.Empty<string>(),
+            new[] { "Projectile_Companion_Totem_Fire", "Projectile_Companion_Totem_Ice", "Projectile_Companion_Totem_Lightning" }),
+        new PerceptionSpell(SkeletonPerceptionKey, SkeletonItem, null, Array.Empty<string>(), Array.Empty<string>()),
+        new PerceptionSpell(LightningWispPerceptionKey, Item("Lightning_Wisp"), null, new[] { "Attack_Companion_ShockWisp_Shoot_Attachment" },
+            new[] { "Projectile_Companion_ShockWisp" }, LightningWispShotLifetimeKey),
+        new PerceptionSpell(SkullVesselPerceptionKey, ItemSpells[0].Items, ItemSpells[0], Array.Empty<string>(), Array.Empty<string>()),
+        new PerceptionSpell(FireWispScrollPerceptionKey, ItemSpells[1].Items, ItemSpells[1], Array.Empty<string>(), new[] { "Projectile_Companion_FireWisp" }, FireWispScrollShotLifetimeKey),
+    };
+
     /// <summary>The player's templates, whose MaxTotemCount and MaxSkeletonSpellCount every player gets when it spawns.</summary>
     public static readonly IReadOnlyList<string> PlayerTemplates = new[] { "1_Player", "1_Player_AG2" };
 
@@ -365,12 +404,12 @@ public static class SpellCatalog
         new WindowSection("Summons", new[]
         {
             Spell("Totems", TotemItem, Line("Duration", "totemDurationMultiplier"), Line("Damage", "totemDamageMultiplier"), Line("Health", TotemHealthKey),
-                Line("Max Totems", MaxTotemsKey), Line("Per Cast", TotemsPerCastKey),
+                Line("Perception", TotemPerceptionKey), Line("Max Totems", MaxTotemsKey), Line("Per Cast", TotemsPerCastKey),
                 Line("Spread", SummonSpreadKey), Line("Invulnerable", InvulnerableTotemsKey), Line("Enemies Ignore Them", EnemiesIgnoreTotemsKey)),
             Spell("Skeleton", SkeletonItem, Line("Duration", "skeletonDurationMultiplier"), Line("Damage", "skeletonDamageMultiplier"),
-                Line("Health", SkeletonHealthKey), Line("Max Skeletons", MaxSkeletonsKey), Line("Per Cast", SkeletonsPerCastKey)),
+                Line("Health", SkeletonHealthKey), Line("Perception", SkeletonPerceptionKey), Line("Max Skeletons", MaxSkeletonsKey), Line("Per Cast", SkeletonsPerCastKey)),
             Spell("Lightning Wisp", Item("Lightning_Wisp"), Line("Duration", "lightningWispDurationMultiplier"), Line("Damage", "lightningWispDamageMultiplier"),
-                Line("Per Cast", LightningWispsPerCastKey), Line("Keep Older Wisps", KeepOlderWispsKey)),
+                Line("Perception", LightningWispPerceptionKey), Line("Shot Lifetime", LightningWispShotLifetimeKey), Line("Per Cast", LightningWispsPerCastKey), Line("Keep Older Wisps", KeepOlderWispsKey)),
         }),
         new WindowSection("Others", new[]
         {
@@ -382,9 +421,9 @@ public static class SpellCatalog
         new WindowSection("Items", new[]
         {
             Spell("Skull Vessel", ItemSpells[0].Items, Line("Duration", "skullVesselDurationMultiplier"), Line("Damage", "skullVesselDamageMultiplier"), Line("Health", "skullVesselHealthMultiplier"),
-                Line("Per Use", SkullVesselsPerCastKey)),
+                Line("Perception", SkullVesselPerceptionKey), Line("Per Use", SkullVesselsPerCastKey)),
             Spell("Fire Wisp Scroll", ItemSpells[1].Items, Line("Duration", "fireWispScrollDurationMultiplier"), Line("Damage", "fireWispScrollDamageMultiplier"), Line("Health", "fireWispScrollHealthMultiplier"),
-                Line("Per Use", FireWispsPerUseKey)),
+                Line("Perception", FireWispScrollPerceptionKey), Line("Shot Lifetime", FireWispScrollShotLifetimeKey), Line("Per Use", FireWispsPerUseKey)),
             Spell("Meteor Shower Scroll", ItemSpells[2].Items, Line("Damage", "meteorShowerScrollDamageMultiplier")),
             Spell("Crawler Bomb", ItemSpells[3].Items, Line("Duration", "crawlerBombDurationMultiplier"), Line("Damage", "crawlerBombDamageMultiplier"), Line("Health", "crawlerBombHealthMultiplier")),
         }),
@@ -538,6 +577,16 @@ public static class SpellCatalog
     private static SettingInfo Health(string key, string label)
     {
         return new SettingInfo(key, label, GroupHealth, SettingKind.Multiplier, SpellRules.MinHealth, SpellRules.MaxHealth, SpellRules.HealthStep, 1);
+    }
+
+    private static SettingInfo Perception(string key, string label)
+    {
+        return new SettingInfo(key, label, GroupPerception, SettingKind.Multiplier, SpellRules.MinPerception, SpellRules.MaxPerception, SpellRules.PerceptionStep, 1);
+    }
+
+    private static SettingInfo ShotLifetime(string key, string label)
+    {
+        return new SettingInfo(key, label, GroupPerception, SettingKind.Seconds, SpellRules.MinShotLifetime, SpellRules.MaxShotLifetime, SpellRules.ShotLifetimeStep, SpellRules.DefaultShotLifetime);
     }
 
     private static SettingInfo Radius(string key, string label, double defaultMultiplier)

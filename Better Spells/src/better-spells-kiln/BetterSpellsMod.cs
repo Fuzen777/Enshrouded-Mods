@@ -786,7 +786,7 @@ public sealed class BetterSpellsMod : Mod
         ApplyCastTime();
         ApplyItemSpells();
         ApplyKeepOlderWisps();
-        ApplyWispBolts();
+        ApplyPerception();
         ApplyHealth();
         Log.Info($"{_valuesInPlace} values in place ({_valuesWritten} written), {_valuesRefused} refused, in {watch.ElapsedMilliseconds} ms");
     }
@@ -1259,24 +1259,80 @@ public sealed class BetterSpellsMod : Mod
         End();
     }
 
-    // Lightning Wisp's bolts (always on, 1.1.0, the user's choice): a wisp picks targets up to 20 units away (its shoot attachment's
-    // sphere), but a bolt lives 2 s at a random 5 to 10 units/s (the attachment's speed_remap) and flies out sideways or up before it
-    // curves to its target, so bolts vanished before reaching targets past about 10 units. At 4 s even the slowest bolt reaches 20.
-    private const string WispBoltTemplate = "Projectile_Companion_ShockWisp";
-    private const double WispBoltLifetimeSeconds = 4.0;
-
-    private void ApplyWispBolts()
+    // Perception (1.1.0, the user's ask): how far a summon notices enemies and goes for them. Its sight (Enemy01BehaviorState: view
+    // range, how far it commits to a fight, how far a target may be), the sphere wisps and totems shoot into (20 units: a sphere of 5
+    // units or more, against the summon's body colliders under 1.5), and its shots' lifetime: Shot Lifetime where the card has one (the
+    // game's 2 s at 5 to 10 units/s fell short of the wisps' 20 units), else the shot's own, times Perception so they still reach.
+    private static readonly string[] PerceptionPaths =
     {
-        Begin($"Lightning Wisp bolt lifetime {WispBoltLifetimeSeconds:0.#} s");
-        GameDataEntry? bolt = Content.Templates.Get(WispBoltTemplate);
-        if (bolt == null || !Has(bolt, LifetimePath))
+        "Enemy01BehaviorState.aggroSetup.viewRange",
+        "Enemy01BehaviorState.combatCommitmentSetup.view.range",
+        "Enemy01BehaviorState.combatSetup.maxNonPlayerTargetDistance",
+    };
+    private const double DetectionSphereMinRadius = 5.0;
+
+    private void ApplyPerception()
+    {
+        foreach (PerceptionSpell spell in SpellCatalog.PerceptionSpells)
         {
-            Note($"{WispBoltTemplate} or its LifeTime is not in this world's data");
-            End();
-            return;
+            SettingInfo setting = SpellCatalog.Setting(spell.SettingKey);
+            double multiplier = Value(spell.SettingKey);
+            List<GameDataEntry> items = Items(spell.ItemName);
+            Begin($"{setting.Label} {setting.Format(multiplier)}: {items.Count} items");
+            var templates = new List<GameDataEntry>();
+            var seen = new HashSet<Guid>();
+            foreach (GameDataEntry item in items)
+            {
+                GameDataEntry? template = spell.ItemSpell != null ? SummonedTemplate(item, spell.ItemSpell) : PlacedTemplate(item);
+                if (template != null && seen.Add(template.Guid))
+                {
+                    templates.Add(template);
+                }
+            }
+            foreach (string name in spell.ExtraTemplates)
+            {
+                GameDataEntry? extra = Content.Templates.Get(name);
+                if (extra == null)
+                {
+                    Note($"{name} is not in this world's data");
+                }
+                else if (seen.Add(extra.Guid))
+                {
+                    templates.Add(extra);
+                }
+            }
+            int spheres = 0;
+            foreach (GameDataEntry template in templates)
+            {
+                foreach (string path in PerceptionPaths)
+                {
+                    if (Has(template, path))
+                    {
+                        PutNumber(template, path, game => SpellRules.Multiplied(game, multiplier));
+                    }
+                }
+                foreach (string radiusPath in ColliderRadiusPaths(template))
+                {
+                    if (Original(template, radiusPath) >= DetectionSphereMinRadius)
+                    {
+                        spheres++;
+                        PutNumber(template, radiusPath, game => SpellRules.Multiplied(game, multiplier));
+                    }
+                }
+            }
+            double? shotSeconds = spell.ShotLifetimeKey != null ? Value(spell.ShotLifetimeKey) : null;
+            foreach (string shot in spell.Shots)
+            {
+                GameDataEntry? projectile = Content.Templates.Get(shot);
+                if (projectile == null || !Has(projectile, LifetimePath))
+                {
+                    Note($"{shot} or its LifeTime is not in this world's data");
+                    continue;
+                }
+                PutTime(projectile, LifetimePath, game => SpellRules.Multiplied(shotSeconds ?? game, multiplier));
+            }
+            End($"{templates.Count} templates, {spheres} detection spheres{(shotSeconds == null ? "" : $", shots {shotSeconds.Value.ToString("0.#", CultureInfo.InvariantCulture)} s at x1")}");
         }
-        PutTime(bolt, LifetimePath, game => Math.Max(game, WispBoltLifetimeSeconds));
-        End();
     }
 
     // Cast Time: each card's items' Charge Time (config 0x579b2657, what the tooltip calls it: how long the staff is held before the

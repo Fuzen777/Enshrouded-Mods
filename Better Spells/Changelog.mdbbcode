@@ -4,7 +4,8 @@
 Cast Time - lowering it no longer makes spells fail to cast (Chain Lightning below x0.55, Lightning Wisp below x0.3, and other spells at lower values). Cast Time now only shortens how long you hold your staff before the spell goes off, down to x0.1 for every spell. The cast itself keeps its full length, so the spell always goes out.
 Performance - changing a setting no longer freezes the game for a second or more. Only the values that actually change are rewritten, and quick changes in a row, like clicking a value several times, are applied together. Changing General Cast Time can still pause the game briefly.
 Settings window - it can now be resized and moved, and it opens again where you left it, at the same size, even after restarting the game.
-Lightning Wisp - its bolts now last twice as long, so they reach targets at the far edge of the wisp's range instead of fading out on the way.
+Perception - new setting for Totems, Skeleton, Lightning Wisp, Skull Vessel and Fire Wisp Scroll: how far the summon notices enemies and goes for them. Wisps' and totems' shots fly longer to match, so they still reach.
+Shot Lifetime - new setting for Lightning Wisp and Fire Wisp Scroll, 5 s by default (the game's is 2 s). Their shots used to fade before reaching enemies at the edge of their range.
 ```
 
 ## 1.0.0

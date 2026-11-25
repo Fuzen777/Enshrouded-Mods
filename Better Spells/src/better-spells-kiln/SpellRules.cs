@@ -3,13 +3,15 @@ using System.Globalization;
 
 namespace BetterSpells;
 
-/// <summary>What a setting's value is: a multiplier ("x3.5"), a whole count, a distance in metres, or an on/off toggle.</summary>
+/// <summary>What a setting's value is: a multiplier ("x3.5"), a whole count, a distance in the game's units, a time in seconds, or an on/off toggle.</summary>
 public enum SettingKind
 {
     Multiplier,
     Count,
     /// <summary>A distance in the game's own units, which are not quite metres.</summary>
     Units,
+    /// <summary>A time in seconds.</summary>
+    Seconds,
     Toggle,
 }
 
@@ -25,6 +27,7 @@ public sealed record SettingInfo(string Key, string Label, string Group, Setting
         {
             SettingKind.Multiplier => string.Create(CultureInfo.InvariantCulture, $"x{value:0.##}"),
             SettingKind.Units => string.Create(CultureInfo.InvariantCulture, $"{value:0.##} {(value == 1 ? "unit" : "units")}"),
+            SettingKind.Seconds => string.Create(CultureInfo.InvariantCulture, $"{value:0.#} s"),
             SettingKind.Toggle => value != 0 ? "on" : "off",
             _ => string.Create(CultureInfo.InvariantCulture, $"{value:0}"),
         };
@@ -78,6 +81,17 @@ public static class SpellRules
     public const double MinCost = 0.1;
     public const double MaxCost = 10.0;
     public const double CostStep = 0.05;
+
+    // Perception: how far a summon notices enemies and goes for them (its sight, and the sphere wisps and totems shoot into).
+    public const double MinPerception = 0.1;
+    public const double MaxPerception = 5.0;
+    public const double PerceptionStep = 0.05;
+    // Shot Lifetime (Lightning Wisp, Fire Wisp Scroll): how long their shots live at Perception x1 (2 s in the game's data, too short for
+    // their 20-unit sphere at 5 to 10 units/s). The user chose 5 s by default.
+    public const double MinShotLifetime = 1.0;
+    public const double MaxShotLifetime = 20.0;
+    public const double ShotLifetimeStep = 0.5;
+    public const double DefaultShotLifetime = 5.0;
 
     public const double MinHealth = 0.1;
     public const double MaxHealth = 10.0;

@@ -53,6 +53,7 @@ Check(SpellRules.Stepped(damage, 3.3712, 1) == 3.4, "a click from a value betwee
 
 // What the page shows.
 Check(duration.Format(3.5) == "x3.5" && damage.Format(10) == "x10" && lockOn.Format(1.25) == "x1.25", "multipliers read x3.5, x10, x1.25");
+Check(SpellCatalog.Setting(SpellCatalog.LightningWispShotLifetimeKey).Format(5) == "5 s" && SpellCatalog.Setting(SpellCatalog.LightningWispShotLifetimeKey).Format(2.5) == "2.5 s", "a shot lifetime reads 5 s or 2.5 s");
 Check(count.Format(4) == "4" && spread.Format(2) == "2 units" && spread.Format(1) == "1 unit", "a count reads 4, a spread 2 units or 1 unit");
 Check(SpellCatalog.Setting(SpellCatalog.InvulnerableTotemsKey).Format(1) == "on", "a toggle reads on or off");
 
@@ -76,8 +77,8 @@ Check(SpellRules.ShapeKey(1744623269, 2) != 1744623269 && SpellRules.ShapeKey(17
 Check(SpellRules.ShapeKey(1744623269, 2) != SpellRules.ShapeKey(1744623269, 2.25), "two sizes get two keys");
 Check(SpellRules.Same(2.6, 2.5999999046325684) && !SpellRules.Same(2.6, 2.61), "a float32 and its double are the same value, 2.6 and 2.61 are not");
 
-// The settings: 113, each once, in a known group, and the settings file's entries agree with the list.
-Check(SpellCatalog.Settings.Count == 113, $"there are 113 settings (found {SpellCatalog.Settings.Count})");
+// The settings: 120, each once, in a known group, and the settings file's entries agree with the list.
+Check(SpellCatalog.Settings.Count == 120, $"there are 120 settings (found {SpellCatalog.Settings.Count})");
 Check(SpellCatalog.Settings.Select(setting => setting.Key).Distinct().Count() == SpellCatalog.Settings.Count, "no setting key is listed twice");
 Check(SpellCatalog.Settings.All(setting => SpellCatalog.Groups.Contains(setting.Group)), "every setting is in a group of the settings page");
 var fileDefaults = new SpellSettings();
@@ -116,7 +117,7 @@ foreach (string key in SpellCatalog.DurationSpells.Select(spell => spell.Setting
 
 // The settings window shows every setting on exactly one card, in the sections the user chose, and each card's labels are its own.
 List<string> windowKeys = SpellCatalog.WindowSpells.SelectMany(spell => spell.Lines.Select(line => line.Key)).ToList();
-Check(windowKeys.Count == SpellCatalog.Settings.Count && windowKeys.Distinct().Count() == windowKeys.Count, $"the window has each of the 113 settings once ({windowKeys.Count} lines, {windowKeys.Distinct().Count()} different)");
+Check(windowKeys.Count == SpellCatalog.Settings.Count && windowKeys.Distinct().Count() == windowKeys.Count, $"the window has each of the 120 settings once ({windowKeys.Count} lines, {windowKeys.Distinct().Count()} different)");
 Check(SpellCatalog.Settings.All(setting => windowKeys.Contains(setting.Key)), "no setting is missing from the window");
 Check(string.Join(", ", SpellCatalog.WindowSections.Select(section => section.Name)) == "General, Fire, Ice, Lightning, Shroud, Summons, Others, Items", "the sections are General, Fire, Ice, Lightning, Shroud, Summons, Others, Items");
 Check(SpellCatalog.WindowSpells.Where(spell => spell.IconItem != null).All(spell => spell.Lines[0].Key == SpellCatalog.CostKey(spell.Spell)), "every spell's card starts with its Mana Cost");
@@ -223,6 +224,14 @@ if (args.Length > 0)
     foreach (WindowSpell spell in SpellCatalog.WindowSpells.Where(spell => spell.IconItem != null))
     {
         Check(Names("ItemInfo").Any(name => spell.IconItem!.IsMatch(name)), $"{spell.Spell} finds an item for its icon");
+    }
+    foreach (PerceptionSpell spell in SpellCatalog.PerceptionSpells)
+    {
+        Check(allItems.Any(name => spell.ItemName.IsMatch(name)), $"{spell.SettingKey} finds its summon's items");
+        foreach (string name in spell.ExtraTemplates.Concat(spell.Shots))
+        {
+            Check(templates.Contains(name), $"{spell.SettingKey}: the template {name} is in the game's data");
+        }
     }
     Console.WriteLine($"Checked against the game's data: {items.Length} spell items, {templates.Length} templates, {casts.Length} casts.");
 }

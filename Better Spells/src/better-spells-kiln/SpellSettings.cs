@@ -65,6 +65,42 @@ public sealed class SpellSettings
     [Range(SpellRules.MinSpreadUnits, SpellRules.MaxSpreadUnits, SpellRules.SpreadStep)]
     public double SummonSpread { get; set; } = SpellRules.DefaultSpreadUnits;
 
+    // Perception
+    [ConfigKey("totemPerceptionMultiplier")]
+    [Comment("Totem Perception. How far totems see and shoot at enemies, this many times the game's (20 units); their shots live as many times longer, so they still reach. Step 0.05.")]
+    [Range(SpellRules.MinPerception, SpellRules.MaxPerception, SpellRules.PerceptionStep)]
+    public double TotemPerceptionMultiplier { get; set; } = 1;
+
+    [ConfigKey("skeletonPerceptionMultiplier")]
+    [Comment("Skeleton Perception. How far skeletons notice enemies and go for them, this many times the game's (20 units). Step 0.05.")]
+    [Range(SpellRules.MinPerception, SpellRules.MaxPerception, SpellRules.PerceptionStep)]
+    public double SkeletonPerceptionMultiplier { get; set; } = 1;
+
+    [ConfigKey("lightningWispPerceptionMultiplier")]
+    [Comment("Lightning Wisp Perception. How far Lightning Wisps shoot at enemies, this many times the game's (20 units); their shots live as many times longer than Shot Lifetime, so they still reach. Step 0.05.")]
+    [Range(SpellRules.MinPerception, SpellRules.MaxPerception, SpellRules.PerceptionStep)]
+    public double LightningWispPerceptionMultiplier { get; set; } = 1;
+
+    [ConfigKey("skullVesselPerceptionMultiplier")]
+    [Comment("Skull Vessel Perception. How far the skulls it summons notice enemies and go for them, this many times the game's (30 units). Step 0.05.")]
+    [Range(SpellRules.MinPerception, SpellRules.MaxPerception, SpellRules.PerceptionStep)]
+    public double SkullVesselPerceptionMultiplier { get; set; } = 1;
+
+    [ConfigKey("fireWispScrollPerceptionMultiplier")]
+    [Comment("Fire Wisp Scroll Perception. How far the fire wisp notices and shoots at enemies, this many times the game's (20 to 30 units); its shots live as many times longer than Shot Lifetime, so they still reach. Step 0.05.")]
+    [Range(SpellRules.MinPerception, SpellRules.MaxPerception, SpellRules.PerceptionStep)]
+    public double FireWispScrollPerceptionMultiplier { get; set; } = 1;
+
+    [ConfigKey("lightningWispShotLifetime")]
+    [Comment("Lightning Wisp Shot Lifetime (s). How long a Lightning Wisp's shot flies before it fades, at Perception x1 (the game's is 2 s, too short to reach enemies at the edge of its range). Step 0.5.")]
+    [Range(SpellRules.MinShotLifetime, SpellRules.MaxShotLifetime, SpellRules.ShotLifetimeStep)]
+    public double LightningWispShotLifetime { get; set; } = SpellRules.DefaultShotLifetime;
+
+    [ConfigKey("fireWispScrollShotLifetime")]
+    [Comment("Fire Wisp Scroll Shot Lifetime (s). How long the fire wisp's shot flies before it fades, at Perception x1 (the game's is 2 s). Step 0.5.")]
+    [Range(SpellRules.MinShotLifetime, SpellRules.MaxShotLifetime, SpellRules.ShotLifetimeStep)]
+    public double FireWispScrollShotLifetime { get; set; } = SpellRules.DefaultShotLifetime;
+
     // Duration
     [ConfigKey("totemDurationMultiplier")]
     [Comment("Totem Duration. Fire, Ice and Lightning Totems last this many times longer (normally 8 to 11 s). Ice Totem's chill on enemies keeps its length. Step 0.05.")]
