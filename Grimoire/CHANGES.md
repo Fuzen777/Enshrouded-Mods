@@ -4,6 +4,15 @@ Kiln mod (C#, id `grimoire`) that keeps spells and arrows out of the backpack in
 
 It was the spellbook of Better Spells (3.3.0-dev.1 to dev.11, 23 and 24 Nov 2026); that history, with what was found in game, is in `..\Better Spells\CHANGES.md`.
 
+## 0.2.1 (not released)
+
+- **Fix: switching as fast as the game allows no longer leaves spells behind** (seen by the user in 0.2.0, 25 Nov 2026: copies left on the action bar that were never taken back, several spells in the backpack, a spell gone from the grimoire's list until added again). kiln.log showed three causes:
+  - **Steps ran late and out of order.** A pick that came while a swap was running was retried every 250 ms, so a burst of picks ran in no set order, some of them seconds late. Steps now run one at a time in the order they came, and a pick replaces a pick still waiting: only the latest choice is equipped (the game can also raise the same pick several times within a few milliseconds).
+  - **The game sometimes empties the Spell slot right after a swap** (11:33:05: Shock Wisp equipped at `11417:5`, the slot empty 80 ms later, with no pick of the mod's in between), with that spell still in the backpack. The next pick then took the picked spell out of the storage into a second backpack cell, and every such switch added one more. Now a grimoire spell still loose in the backpack takes the slot back first, where it lies, and the switch is a swap in that cell; one second after the last change of the slot, an empty slot gets its last spell back.
+  - **Spells on the action bar could not be filed back**: Kiln refuses a plain move from the action bar ("the slot is on player 1's action bar"), and the equipped cell was an action bar cell (`11417:5`). Filing back now moves from the action bar too, and happens at the end of every switch and one second after the last change of the slot (was five seconds), so the backpack keeps one grimoire spell, the equipped one.
+- A grimoire spell loose in the backpack keeps its entry and its place in the grimoire's list and the HUD list until it is filed back (it used to drop to the end of the HUD list, or off the grimoire's list).
+- Ctrl+click and Add also take a spell from the action bar.
+
 ## 0.2.0 (not released)
 
 - **Arrows** (asked 24 Nov 2026, after the user found spells working in 0.1.3): a second book on the same code, storage `grimoire:arrows` (32 slots, arrows only, kept on death), order key `order-arrows`, the bow's HUD arrow list in the player's order, and **Arrow Slots** (1 to 32, default 12). Same plain-moves-only rules as spells: the equipped arrows sit in one backpack cell, a pick swaps them with the stored ones, arrows that aren't the grimoire's stay in the backpack, and running out equips more of the same kind first, else the next in the order.
