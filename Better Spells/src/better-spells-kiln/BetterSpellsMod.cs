@@ -89,9 +89,6 @@ public sealed class BetterSpellsMod : Mod
     private const float RowHeight = 26f;
     // The most entries read from a game data list (a cast's events of one type, an item's casts) before giving up.
     private const int MaxListScan = 64;
-    // keen::actor::StateFlag InRangeCombatShooting: the bit a cast's shooting part needs held.
-    private const int InRangeCombatShootingBit = 27;
-    private const string ShootingFlag = "InRangeCombatShooting";
     // A spell's icon button in its section's row, before the overlay's scale.
     private const float IconButtonSize = 36f;
 
@@ -1376,7 +1373,10 @@ public sealed class BetterSpellsMod : Mod
                         break;
                     }
                     string maskPath = string.Create(CultureInfo.InvariantCulture, $"events[KeepAliveEvent#{keepAlive}].keepAliveMask");
-                    masks.Add($"{Original(cast, time):0.###} s {cast.GetJson(maskPath)?.ToJsonString() ?? "none"} shooting {NeedsShooting(cast.GetJson(maskPath))}");
+                    System.Text.Json.Nodes.JsonNode? mask = cast.GetJson(maskPath);
+                    // The set flags only: Kiln's description also lists every flag the type has.
+                    System.Text.Json.Nodes.JsonNode? set = (mask as System.Text.Json.Nodes.JsonObject)?["value"] ?? mask;
+                    masks.Add($"{Original(cast, time):0.###} s {set?.ToJsonString() ?? "none"} shooting {SpellRules.NeedsShooting(mask)}");
                 }
                 Log.Info($"{cast.Name} keep-alive masks: {string.Join("; ", masks)}");
             }
@@ -1402,7 +1402,7 @@ public sealed class BetterSpellsMod : Mod
             {
                 break;
             }
-            if (NeedsShooting(cast.GetJson(keepAlive + ".keepAliveMask")))
+            if (SpellRules.NeedsShooting(cast.GetJson(keepAlive + ".keepAliveMask")))
             {
                 shootingFrom = Original(cast, keepAlive + ".time");
             }
@@ -1443,39 +1443,6 @@ public sealed class BetterSpellsMod : Mod
             }
         }
         return first;
-    }
-
-    // Whether a keep-alive mask holds InRangeCombatShooting: as a list of the flags it holds, as an object of every flag with whether it
-    // is set (1.0.1 took the flag's name anywhere in the text for set, so a mask of InRangeCombat alone counted and the floors came out
-    // too high), as a text of flag names, or as the StateFlag bits (27).
-    private static bool NeedsShooting(System.Text.Json.Nodes.JsonNode? mask)
-    {
-        switch (mask)
-        {
-            case System.Text.Json.Nodes.JsonArray list:
-                return list.Any(element => element is System.Text.Json.Nodes.JsonValue name && name.TryGetValue(out string? text) && text == ShootingFlag
-                    || element is System.Text.Json.Nodes.JsonObject && NeedsShooting(element));
-            case System.Text.Json.Nodes.JsonObject flags:
-                if (flags.TryGetPropertyValue(ShootingFlag, out System.Text.Json.Nodes.JsonNode? flag))
-                {
-                    return flag is System.Text.Json.Nodes.JsonValue set
-                        && (set.TryGetValue(out bool on) && on || set.TryGetValue(out double number) && number != 0);
-                }
-                // A wrapper such as {"value": [...]}.
-                return flags.Any(field => field.Value is System.Text.Json.Nodes.JsonArray or System.Text.Json.Nodes.JsonObject && NeedsShooting(field.Value));
-            case System.Text.Json.Nodes.JsonValue value:
-                if (value.TryGetValue(out string? names))
-                {
-                    if (names.Split(new[] { ',', '|', ' ', '[', ']' }, StringSplitOptions.RemoveEmptyEntries).Contains(ShootingFlag))
-                    {
-                        return true;
-                    }
-                    return ulong.TryParse(names, NumberStyles.Integer, CultureInfo.InvariantCulture, out ulong textBits) && (textBits & (1UL << InRangeCombatShootingBit)) != 0;
-                }
-                return value.TryGetValue(out ulong bits) && (bits & (1UL << InRangeCombatShootingBit)) != 0;
-            default:
-                return false;
-        }
     }
 
     // Max Totems and Max Skeletons: how many can be out at once before skills add to it. The player's templates carry the game's 1

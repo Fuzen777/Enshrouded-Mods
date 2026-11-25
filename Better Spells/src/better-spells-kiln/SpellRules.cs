@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Linq;
 
 namespace BetterSpells;
 
@@ -166,6 +167,48 @@ public static class SpellRules
         // Up to the next step; a share already on a step (within float noise) stays on it.
         double steps = Math.Ceiling((needed - MinCastTime) / CastTimeStep - 0.0001);
         return Math.Clamp(Math.Round(MinCastTime + Math.Max(0, steps) * CastTimeStep, 6), MinCastTime, MaxCastTime);
+    }
+
+    // keen::actor::StateFlag InRangeCombatShooting: the flag a cast's shooting part needs held, and its bit.
+    private const int InRangeCombatShootingBit = 27;
+    private const string ShootingFlag = "InRangeCombatShooting";
+
+    // Whether a keep-alive mask holds InRangeCombatShooting: as a list of the flags it holds, as an object of every flag with whether it
+    // is set (1.0.1 took the flag's name anywhere in the text for set, so a mask of InRangeCombat alone counted and the floors came out
+    // too high), as a text of flag names, or as the StateFlag bits (27).
+    public static bool NeedsShooting(System.Text.Json.Nodes.JsonNode? mask)
+    {
+        switch (mask)
+        {
+            case System.Text.Json.Nodes.JsonArray list:
+                return list.Any(element => element is System.Text.Json.Nodes.JsonValue name && name.TryGetValue(out string? text) && text == ShootingFlag
+                    || element is System.Text.Json.Nodes.JsonObject && NeedsShooting(element));
+            case System.Text.Json.Nodes.JsonObject flags:
+                // Kiln's description of the field (0.2.0-dev.31.4): {"path", "type", "value": [set flags], "original", "writable",
+                // "flags": [every flag the type has]}. Only "value" says what is set; 1.0.2 also looked in "flags", which names them all.
+                if (flags.TryGetPropertyValue("value", out System.Text.Json.Nodes.JsonNode? inPlace))
+                {
+                    return NeedsShooting(inPlace);
+                }
+                if (flags.TryGetPropertyValue(ShootingFlag, out System.Text.Json.Nodes.JsonNode? flag))
+                {
+                    return flag is System.Text.Json.Nodes.JsonValue set
+                        && (set.TryGetValue(out bool on) && on || set.TryGetValue(out double number) && number != 0);
+                }
+                return false;
+            case System.Text.Json.Nodes.JsonValue value:
+                if (value.TryGetValue(out string? names))
+                {
+                    if (names.Split(new[] { ',', '|', ' ', '[', ']' }, StringSplitOptions.RemoveEmptyEntries).Contains(ShootingFlag))
+                    {
+                        return true;
+                    }
+                    return ulong.TryParse(names, NumberStyles.Integer, CultureInfo.InvariantCulture, out ulong textBits) && (textBits & (1UL << InRangeCombatShootingBit)) != 0;
+                }
+                return value.TryGetValue(out ulong bits) && (bits & (1UL << InRangeCombatShootingBit)) != 0;
+            default:
+                return false;
+        }
     }
 
     /// <summary>The game's value divided by the setting: a wait between two hits at a hit rate of x2 is half as long.</summary>

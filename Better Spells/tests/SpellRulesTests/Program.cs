@@ -130,6 +130,13 @@ Check(SpellRules.MinCastTimeMultiplier(0.400000008, 1.00000002, 1.0) == 0.6, "Sk
 Check(SpellRules.MinCastTimeMultiplier(0.4, 0.35, 1.0) == SpellRules.MinCastTime && SpellRules.MinCastTimeMultiplier(0.4, 0.9, 0) == SpellRules.MinCastTime,
     "no limit for a cast that releases before its shooting part, or without a cast lock");
 Check(SpellRules.MinCastTimeMultiplier(0, 50, 1) == SpellRules.MaxCastTime, "the floor never passes the setting's maximum");
+// Keep-alive masks as Kiln 0.2.0-dev.31.4 describes them: only "value" holds the set flags, "flags" lists every flag of the type.
+string MaskJson(string set) => "{\"path\":\"events[KeepAliveEvent#0].keepAliveMask\",\"type\":\"keen::Bitmask64<keen::actor::StateFlag>\",\"value\":" + set
+    + ",\"original\":" + set + ",\"writable\":true,\"flags\":[\"InCombat\",\"InRangeCombat\",\"InRangeCombatPreparing\",\"InRangeCombatShooting\"]}";
+Check(!SpellRules.NeedsShooting(System.Text.Json.Nodes.JsonNode.Parse(MaskJson("[\"InRangeCombat\"]"))), "a mask of InRangeCombat is not the shooting part, though the type's flags name InRangeCombatShooting");
+Check(SpellRules.NeedsShooting(System.Text.Json.Nodes.JsonNode.Parse(MaskJson("[\"InRangeCombatShooting\"]"))), "a mask of InRangeCombatShooting is the shooting part");
+Check(!SpellRules.NeedsShooting(System.Text.Json.Nodes.JsonNode.Parse(MaskJson("[]"))) && !SpellRules.NeedsShooting(null), "an empty or missing mask is not");
+Check(SpellRules.NeedsShooting(System.Text.Json.Nodes.JsonNode.Parse("[\"InRangeCombatShooting\",\"CanPayUsageCosts\"]")), "a bare list of set flags");
 Check(SpellCatalog.CostKey("Fire Bolt") == "fireBoltCostMultiplier" && SpellCatalog.CostKey("Fireball") == "fireballCostMultiplier", "cost keys are the name in camel case");
 Check(SpellCatalog.CostSpellNames.OrderBy(name => name).SequenceEqual(SpellCatalog.WindowSpells.Where(spell => spell.IconItem != null).Select(spell => spell.Spell).OrderBy(name => name)), "every spell card has a cost setting, and no other");
 
