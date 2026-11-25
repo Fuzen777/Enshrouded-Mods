@@ -4,6 +4,12 @@ Kiln mod (C#, id `grimoire`) that keeps spells and arrows out of the backpack in
 
 It was the spellbook of Better Spells (3.3.0-dev.1 to dev.11, 23 and 24 Nov 2026); that history, with what was found in game, is in `..\Better Spells\CHANGES.md`.
 
+## 1.0.1 (not uploaded)
+
+- **The grimoire opens beside Better Spells' settings window while that one is open** (asked 25 Nov 2026, once Kiln 0.2.0-dev.31.11 shipped our request #146: `UiWindow.MoveTo`, mod API 0.2.20). Better Spells 1.1.1+ sends its window's edges (`better-spells.window`, fractions of the viewport) while the window is drawn, at most every half second when nothing changes, and null when it closes; a window not heard from for 1.5 s counts as closed. At F3 (or Open Grimoire on the mod's page) the grimoire's top left corner goes to Better Spells' top right corner, or its top right corner to the other's top left when it only fits on the left (`GrimoireRules.BesideOnRight`, tested). Kiln keeps the window on the screen.
+- **Its own place stays the fallback** (the user's ask): without Better Spells' window open, the grimoire opens where the player left it, from `WindowPlacement` (`kiln\data\grimoire\window.json`) as in 1.0.0, and is moved back there after an open beside Better Spells. The place beside Better Spells is not written as the player's; a move from there is, and a resize there keeps the player's place with the new size.
+- On a Kiln before mod API 0.2.20 the window cannot be moved: the grimoire opens where it was left, with one line in kiln.log. The manifest still asks for mod API 0.2.17.
+
 ## 1.0.0
 
 - **First Nexus release** (asked 25 Nov 2026): 0.2.1 renumbered, no code change. The Nexus page (`Nexus Page.mdbbcode`) leads with the caveats, at the user's request: the equipped spell and arrows keep one backpack slot, host only, what joins the grimoire by itself, taking everything out before uninstalling, the HUD list limits, Quiver & Spellbook.

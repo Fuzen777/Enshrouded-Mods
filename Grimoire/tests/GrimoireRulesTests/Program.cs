@@ -61,6 +61,12 @@ Check(rows.SequenceEqual(new (uint, int)[] { (2, 50), (1, 1), (8, 2) }), "Hide O
 Check(GrimoireRules.ClampSlots(0) == GrimoireRules.MinSlots && GrimoireRules.ClampSlots(99) == GrimoireRules.MaxSlots && GrimoireRules.ClampSlots(12) == 12,
     "Spell Slots stays within 1 to 32");
 
+// BesideOnRight: the grimoire opens on the right of Better Spells' window when it fits there, else on the side with more room.
+Check(GrimoireRules.BesideOnRight(0.2f, 0.5f, 0.2f), "room on the right: right");
+Check(!GrimoireRules.BesideOnRight(0.6f, 0.9f, 0.2f), "no room on the right, room on the left: left");
+Check(GrimoireRules.BesideOnRight(0.1f, 0.85f, 0.2f), "room on neither side, more on the right: right");
+Check(GrimoireRules.BesideOnRight(0.5f, 0.95f, 0f), "width not known yet: right");
+
 // The default tab (spellsInBackpack, spellsInGrimoire, arrowsInBackpack, arrowsInGrimoire).
 Check(GrimoireRules.OpenOnArrows(false, true, true, false), "arrows in the backpack and no spell there: Arrows, even with spells in the grimoire");
 Check(GrimoireRules.OpenOnArrows(false, false, false, true), "no spell anywhere, arrows only in the grimoire: Arrows");

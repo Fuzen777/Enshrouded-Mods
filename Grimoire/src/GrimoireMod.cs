@@ -26,6 +26,7 @@ public sealed class GrimoireMod : Mod
     private Book[] _books = Array.Empty<Book>();
     private UiWindow? _window;
     private WindowPlacement? _placement;
+    private BesideBetterSpells? _beside;
     private KeyBinding? _windowKey;
     private IDisposable? _settingsPage;
     // The tab to select at the next frame (-1: none), set when the screen opens; the tab drawn last, for the settings below it.
@@ -51,6 +52,7 @@ public sealed class GrimoireMod : Mod
             // opens where the player left it).
             _placement = new WindowPlacement(Context.DataDirectory, Log, ScreenWidth, ScreenHeight);
             _window = Ui.Window(WindowTitle, DrawWindow, _placement.Options(new UiWindowOptions { Interactive = true, StartOpen = false }));
+            _beside = new BesideBetterSpells(Context, Log);
             _windowKey = KeyBindings.Register(WindowBindingId, WindowDefaultKey, ToggleWindow, "Open Grimoire", Context.Info.Name);
             _settingsPage = Ui.AddConfigPage(Context.Info.Id, DrawSettingsPage);
         }
@@ -74,6 +76,8 @@ public sealed class GrimoireMod : Mod
         _windowKey = null;
         _window?.Dispose();
         _window = null;
+        _beside?.Dispose();
+        _beside = null;
     }
 
     [Subscribe]
@@ -128,8 +132,32 @@ public sealed class GrimoireMod : Mod
         {
             return;
         }
+        Place(_window);
         _window.Show();
         OnWindowOpened();
+    }
+
+    // Beside Better Spells' window while that is open (1.0.1); else where the player left it, which the window has to be moved back to
+    // when it last opened beside Better Spells' (ImGui keeps the last place while the game runs).
+    private void Place(UiWindow window)
+    {
+        WindowPlacement? placement = _placement;
+        BesideBetterSpells? beside = _beside;
+        if (placement == null || beside == null)
+        {
+            return;
+        }
+        if (beside.Place(window, placement.WidthFraction))
+        {
+            placement.SetBeside(true);
+            return;
+        }
+        if (placement.Beside)
+        {
+            (float x, float y) = placement.Center;
+            beside.MoveCenter(window, x, y);
+        }
+        placement.SetBeside(false);
     }
 
     // The window opened: both books read the game again, then the default tab is chosen on what they hold.
