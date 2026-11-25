@@ -80,8 +80,8 @@ public sealed class BetterSpellsMod : Mod
     private const string WindowBindingId = "better-spells.window";
     private const string WindowDefaultKey = "Shift+F3";
     private const string WindowTitle = "Better Spells";
-    // The screen's size before the overlay's scale. A Kiln screen has a fixed size (it doesn't fit its contents): this fits the
-    // longest card (Totems) under the six rows of icons, with the hint wrapped to the width.
+    // The window's first size before the overlay's scale: it fits the longest card (Totems) under the six rows of icons, with the hint
+    // wrapped to the width. The player can resize and move the window, and WindowPlacement keeps both for the next game start.
     private const float ScreenWidth = 370f;
     private const float ScreenHeight = 760f;
     // The tables' ids. The overlay keeps a table's column widths by id, so a changed layout gets new ids and starts from fitted widths.
@@ -92,9 +92,10 @@ public sealed class BetterSpellsMod : Mod
 
     private ModConfig<SpellSettings>? _settings;
     private IDisposable? _settingsPage;
-    // A Kiln screen rather than a window: screens open centered every time (a window's place is kept by a number Kiln gives windows
-    // in the order they are made, so "start centered" rarely applies), close with Escape, and have the input while open.
-    private UiScreen? _window;
+    // A Kiln window, not a screen (1.1.0): a screen always opens centred with a fixed size. The window takes the input while open
+    // (Interactive), Escape closes it (claimed in DrawWindow), and its place and size come from WindowPlacement.
+    private UiWindow? _window;
+    private WindowPlacement? _placement;
     // The size the screen's contents took, as last logged, to tune ScreenWidth and ScreenHeight.
     private string _loggedContentSize = "";
     // The left edge of the first line and the right edge of the widest item, in screen pixels, measured while drawing.
@@ -187,7 +188,8 @@ public sealed class BetterSpellsMod : Mod
         if (Ui.Available)
         {
             ReadDescriptions();
-            _window = Ui.Screen(WindowTitle, DrawWindow, new UiScreenOptions { Width = ScreenWidth, Height = ScreenHeight, DimBackground = false });
+            _placement = new WindowPlacement(Context.DataDirectory, Log, ScreenWidth, ScreenHeight);
+            _window = Ui.Window(WindowTitle, DrawWindow, _placement.Options(new UiWindowOptions { Interactive = true, StartOpen = false }));
             _windowKey = KeyBindings.Register(WindowBindingId, WindowDefaultKey, () => _window?.Toggle(), "Open Settings Window", Context.Info.Name);
             _wheelListener = KeyInput.Listen(OnKeyOrWheel);
             if (!_wheelListener.Ok || !_wheelListener.Mouse)
@@ -368,7 +370,7 @@ public sealed class BetterSpellsMod : Mod
     {
         if (ui.Button("Open Settings Window"))
         {
-            _window?.Open();
+            _window?.Show();
         }
         ui.SameLine();
         ui.TextDisabled($"or press {_windowKey?.Key}: the spells by element, click one to see its settings. The sliders above are free and land on the nearest step.");
@@ -379,6 +381,12 @@ public sealed class BetterSpellsMod : Mod
     // is as tall as the line or centered in it.
     private void DrawWindow(UiDraw ui)
     {
+        _placement?.Track(ui);
+        // Escape closes it, as it closed the Kiln screen it was before 1.1.0.
+        if (ui.KeyPressed(UiKey.Escape, claim: true))
+        {
+            _window?.Hide();
+        }
         _rowHeight = RowHeight * ui.Scale;
         _textHeight = ui.MeasureText("X").Height;
         // Every value gets the room of the widest one, so the + buttons of a card line up.
@@ -460,7 +468,7 @@ public sealed class BetterSpellsMod : Mod
         float margin = Math.Max(0f, _contentLeft - window.X);
         UiCursor cursor = ui.Cursor;
         string size = string.Create(CultureInfo.InvariantCulture,
-            $"{(_contentRight - window.X + margin) / scale:0} x {(cursor.Y + cursor.ScrollY + margin) / scale:0} needed, screen {ScreenWidth:0} x {ScreenHeight:0} (scale {ui.Scale:0.##})");
+            $"{(_contentRight - window.X + margin) / scale:0} x {(cursor.Y + cursor.ScrollY + margin) / scale:0} needed, first size {ScreenWidth:0} x {ScreenHeight:0} (scale {ui.Scale:0.##})");
         if (size != _loggedContentSize)
         {
             _loggedContentSize = size;
