@@ -292,13 +292,14 @@ public sealed partial class AutoDoorsMod : Mod
                 if (d.LockTemplate && _lockLogs++ < 20)
                     Log.Info($"auto doors: door {id.Value} ({template}) at {KeyOf(at)} is a locked kind{(_unlocked.Contains(KeyOf(at)) ? ", unlocked before" : "")}; {LockParts(id)}");
             }
-            // Locked doors (1.2.1, 1.2.2; Fuzen: outside bases the mod opened doors that need a lockpick). The mod's own
-            // toggle skips the lock. The lock's InteractionLock is template data, not a component of the door itself (1.2.1's
-            // World.Has never saw it), so a door is locked by its template (*_Locked_*, *_Key) until it is seen open: it can
-            // only open once picked or opened with its key. Unlocked doors are kept by position in the world's door file.
+            // Locked doors (1.2.1-1.2.3; Fuzen: outside bases the mod opened doors that need a lockpick). Before 1.2.1 the
+            // mod's accept as a player went through the lock and removed it (DestroyLock) without a lockpick. A door of a
+            // locked template (*_Locked_*, *_Key) is locked while it carries InteractionLock, and also (should the lock be
+            // template-only) until it is seen open, which it can only be once picked or opened with its key. Doors seen
+            // open are kept by position in the world's door file.
             d.At = at;
             d.Key = KeyOf(at);
-            d.Locked = d.LockTemplate && !_unlocked.Contains(d.Key);
+            d.Locked = d.LockTemplate && (World.ComponentSize(id, "InteractionLock") > 0 || !_unlocked.Contains(d.Key));
             d.Forward = World.Transform(id) is { } tf ? Vector3.Transform(Vector3.UnitZ, tf.Rotation) : Vector3.Zero;
             d.InBase = bases.Any(b => b.Contains(at));
         }
@@ -592,7 +593,7 @@ public sealed partial class AutoDoorsMod : Mod
                 Follow(d, isOpen, players);
                 continue;
             }
-            if (d.Locked)
+            if (d.Locked && !s.BypassLockedDoors)
             {
                 if (!isOpen) { d.LastSeen = isOpen; continue; }
                 Unlocked(d);

@@ -78,6 +78,8 @@ public sealed partial class AutoDoorsMod
         ui.Separator("Where");
         Toggle(ui, "Bases Only", s.OnlyInsideBases, (x, v) => x.OnlyInsideBases = v,
             "Only doors inside a flame altar's area open and close by themselves. Off: doors everywhere do. Door modes, their key and the label are for doors in your base either way.");
+        Toggle(ui, "Bypass Locked Doors", s.BypassLockedDoors, (x, v) => x.BypassLockedDoors = v,
+            "Doors that need a lockpick or a key open by themselves too, which unlocks them for good. Off: they stay shut until you pick or unlock them.");
 
         ui.Spacing();
         ui.Separator("Who Opens Doors");
@@ -130,7 +132,7 @@ public sealed partial class AutoDoorsMod
             {
                 var d = new DoorSettings { Enabled = x.Enabled };
                 x.OpenDistance = d.OpenDistance; x.CloseDistance = d.CloseDistance; x.HeightReach = d.HeightReach;
-                x.CloseDelaySeconds = d.CloseDelaySeconds; x.OnlyInsideBases = d.OnlyInsideBases;
+                x.CloseDelaySeconds = d.CloseDelaySeconds; x.OnlyInsideBases = d.OnlyInsideBases; x.BypassLockedDoors = d.BypassLockedDoors;
                 x.OpenForPlayers = d.OpenForPlayers; x.OpenForSurvivors = d.OpenForSurvivors; x.OpenForBuildCamera = d.OpenForBuildCamera;
                 x.OpenForAnimals = d.OpenForAnimals; x.CloseDoorsOpenedByHand = d.CloseDoorsOpenedByHand;
                 x.RespectHandToggles = d.RespectHandToggles; x.DoorLabel = d.DoorLabel; x.Toasts = d.Toasts;

@@ -36,6 +36,10 @@ public sealed class DoorSettings
     [Comment("Only Inside Bases. Only doors inside a flame altar's area open by themselves. Off: every door in the world does; door modes, their key and the label stay for base doors.")]
     public bool OnlyInsideBases { get; set; } = true;
 
+    [ConfigKey("bypassLockedDoors")]
+    [Comment("Bypass Locked Doors. Doors that need a lockpick or a key open by themselves too, and opening one this way unlocks it for good. Off: they stay shut until you pick or unlock them.")]
+    public bool BypassLockedDoors { get; set; } = false;
+
     [ConfigKey("openForPlayers")]
     [Comment("Open For Players.")]
     public bool OpenForPlayers { get; set; } = true;

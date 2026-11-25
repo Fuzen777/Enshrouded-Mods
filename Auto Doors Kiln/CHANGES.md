@@ -2,6 +2,11 @@
 
 A rebuild of Auto Doors (SellTheWorldGames, closed source) as a Kiln mod, from its described behaviour, not its code. Doors are toggled by sending the game's own `ToggleInteractionEvent {guest, host, offer}` from the mod's ECS program `door_toggle` (`src\kiln.programs.json`); `interaction_toggle_new` flips `ServerToggleState` and `interaction_directional` swings the door away from the guest.
 
+## 1.2.3
+
+- Picking a locked door opened it without the lockpick (Fuzen, 1.2.2 test). That door had already lost its lock: before 1.2.2 the mod accepted the door's offer as the player, and the game's accept goes through the lock and removes `InteractionLock` (lockMask `DestroyLock`) without a lockpick. 1.2.2's log shows it: the door (`Prop_Door_Small_Quarters_Locked_Pickable_T5_T6`) had `ClientInteractionLock` (1 B) but no `InteractionLock`. So 1.2.1's per-entity check was probably right and simply met only doors already unlocked this way; 1.2.2's "template data" reading is likely wrong. A door of a locked template is now locked while it carries `InteractionLock`, and also until it is seen open (in case the lock is template-only after all). Doors unlocked by earlier versions stay unlocked: the game no longer has their lock.
+- New setting Bypass Locked Doors (`bypassLockedDoors`, off by default, under Where): locked doors open and close by themselves too. Opening one that way removes its lock for good, as before 1.2.1.
+
 ## 1.2.2
 
 - Locked doors, second try (Fuzen: 1.2.1 still opened them). 1.2.1's `World.Has(door, "InteractionLock")` was false for every door: the lock is template data, not a component the door entity carries, so nothing was ever seen as locked. A door is now locked by its template (`*_Locked_*`, `*_Key`, which are exactly the door templates whose `InteractionLock` has `DestroyLock` in the dump) until it is seen open, which it can only be once picked or opened with its key. Unlocked doors are kept by position in the world's door file (`unlocked`), so a door picked once stays unlocked after a restart. A locked-kind door unlocked before 1.2.2 is left alone until it is opened by hand once. The log names the first 20 locked-kind doors with their template and the sizes of `InteractionLock` and `ClientInteractionLock` on the door, and each unlock.
