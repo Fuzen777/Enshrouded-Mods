@@ -53,6 +53,10 @@ var rows = GrimoireRules.HudRows(new uint[] { 2, 3, 1 }, stored, 3, 7, new (uint
 Check(rows.SequenceEqual(new (uint, int)[] { (2, 50), (3, 6), (1, 1), (9, 4) }), "HUD rows: book order, the game's live count for the equipped stack, then the game's other rows");
 rows = GrimoireRules.HudRows(new uint[] { 3 }, stored, 3, 7, Array.Empty<(uint, int)>());
 Check(rows.SequenceEqual(new (uint, int)[] { (3, 7) }), "HUD rows: the book's count of the equipped stack when the game lists none");
+rows = GrimoireRules.HudRows(new uint[] { 2, 1 }, stored, 2, 3, new (uint, int)[] { (9, 4), (8, 2), (2, 3) }, hideOthers: true, ownEquipped: 0);
+Check(rows.SequenceEqual(new (uint, int)[] { (2, 53), (1, 1) }), "Hide Other Spells And Arrows: only the book's rows");
+rows = GrimoireRules.HudRows(new uint[] { 2, 1 }, stored, 0, 0, new (uint, int)[] { (9, 4), (8, 2) }, hideOthers: true, ownEquipped: 8);
+Check(rows.SequenceEqual(new (uint, int)[] { (2, 50), (1, 1), (8, 2) }), "Hide Other Spells And Arrows: the player's own equipped row stays");
 
 Check(GrimoireRules.ClampSlots(0) == GrimoireRules.MinSlots && GrimoireRules.ClampSlots(99) == GrimoireRules.MaxSlots && GrimoireRules.ClampSlots(12) == 12,
     "Spell Slots stays within 1 to 32");

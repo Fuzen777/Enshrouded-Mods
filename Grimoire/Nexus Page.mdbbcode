@@ -28,7 +28,7 @@ It works with the game's own equipment, not around it, so it doesn't always beha
 
 ### The Equipped One Still Takes a Backpack Slot
 
-- The game only casts a spell (or fires an arrow) from your backpack or hotbar, so **the equipped spell and the equipped arrows each keep one slot there**. Everything else stays in the grimoire.
+- The game only casts a spell (or fires an arrow) from your backpack or hotbar, so **the equipped spell and the equipped arrows each keep one slot there**. Everything else stays in the grimoire. You can put the spell in your hotbar as visual reminder of which arrow/spell you currently have equipped.
 - Switching swaps the new pick into that same slot and puts the old one back in the grimoire, so you never need more than that one slot.
 - With nothing equipped and a **full backpack**, a spell can't be equipped from the grimoire. Free one slot.
 - If the equipped spell sits on your hotbar, it stays there, and the spells you switch to take its place. When switching extremely fast, it can move to another hotbar slot, but it is always just that one spell.
@@ -41,7 +41,7 @@ It works with the game's own equipment, not around it, so it doesn't always beha
 ### What Joins the Grimoire by Itself
 
 - Any spell or arrow **already in your grimoire** that shows up in your backpack (looted, crafted, picked up, or the one you just switched away from) is filed into the grimoire within about a second, unless it is the equipped one.
-- Spells and arrows you never added stay in your backpack, and you can still pick them from the HUD. Picking one puts the grimoire's equipped one back in the grimoire.
+- Spells and arrows you never added stay in your backpack. By default they are **hidden from the HUD** (see **Hide Other Spells And Arrows** below): turn that off to pick them from the HUD again. Picking one puts the grimoire's equipped one back in the grimoire.
 - **Take Out** (right-click in the grimoire window) removes a spell from the grimoire for good, so it stops being filed in again.
 
 ### Removing the Mod
@@ -52,7 +52,7 @@ It works with the game's own equipment, not around it, so it doesn't always beha
 
 ### HUD Lists
 
-- The HUD shows the grimoire's spells first, in your order, then the other spells in your backpack.
+- The HUD shows only the grimoire's spells, in your order, plus the one you have equipped if it isn't in the grimoire. With **Hide Other Spells And Arrows** off, the other spells in your backpack follow them.
 - When the list has hidden itself, moving to one of the grimoire's spells doesn't bring it back the way moving to a backpack spell does. The pick still works. That's a Kiln limit (reported).
 - While you switch spells very quickly, the game sometimes empties the spell slot for a moment. Grimoire puts the spell back, so you may see the HUD flash no spell for a split second.
 
@@ -62,7 +62,7 @@ It works with the game's own equipment, not around it, so it doesn't always beha
 
 ### Other Mods
 
-- Don't use it together with another mod that changes the HUD's spell or arrow list, like **Quiver & Spellbook**. If you're replacing Quiver & Spellbook, move its hidden spells and arrows back into your backpack and save **before** you remove it, or they will be lost.
+- Don't use it together with another mod that changes the HUD's spell or arrow list, like **Quiver &amp; Spellbook**. If you're replacing Quiver &amp; Spellbook, move its hidden spells and arrows back into your backpack and save **before** you remove it, or they will be lost.
 
 ---
 
@@ -78,6 +78,7 @@ It works with the game's own equipment, not around it, so it doesn't always beha
 ### Settings
 
 - **Mod Enabled**: off gives you the game's own lists back. The grimoire keeps what it holds.
+- **Hide Other Spells And Arrows** (on by default, below the backpack list of each tab): the HUD lists show only what is in the grimoire, and the one you have equipped. Off: the other spells and arrows in your backpack come after the grimoire's.
 - **Spell Slots** and **Arrow Slots** (1 to 32, default 12): how many kinds the grimoire holds, one slot each. More of a kind already in it tops up its slot. Lowering it keeps what is already in it.
 
 ### Running Out

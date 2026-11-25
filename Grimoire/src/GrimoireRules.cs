@@ -142,9 +142,11 @@ public static class GrimoireRules
     }
 
     /// <summary>The HUD list: the book's entries in their order with what is stored of each, the equipped stack counted on its entry,
-    /// then every row of the game's list the book does not show, in the game's order.</summary>
+    /// then the rows of the game's list the book does not show, in the game's order. With <paramref name="hideOthers"/> (Hide Other
+    /// Spells And Arrows) only one of those stays: the player's own equipped item (<paramref name="ownEquipped"/>), because the game
+    /// switches to the first row when the equipped item is missing from the list.</summary>
     public static List<(uint Item, int Count)> HudRows(IReadOnlyList<uint> shown, IReadOnlyDictionary<uint, int> stored, uint equipped, int equippedCount,
-        IEnumerable<(uint Item, int Count)> gameRows)
+        IEnumerable<(uint Item, int Count)> gameRows, bool hideOthers = false, uint ownEquipped = 0)
     {
         var rows = new List<(uint Item, int Count)>();
         var listed = new HashSet<uint>();
@@ -165,6 +167,10 @@ public static class GrimoireRules
         }
         foreach ((uint item, int count) in game)
         {
+            if (hideOthers && (item == 0 || item != ownEquipped))
+            {
+                continue;
+            }
             if (listed.Add(item))
             {
                 rows.Add((item, count));

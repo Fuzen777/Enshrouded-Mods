@@ -37,8 +37,8 @@ public sealed class GrimoireMod : Mod
         _settings = Config.Register<GrimoireSettings>(ConfigKind.Common, null);
         _books = new[]
         {
-            new Book(this, BookKind.Spells, () => Setting(GrimoireSettings.SpellSlotsKey, GrimoireRules.DefaultSlots), () => Enabled),
-            new Book(this, BookKind.Arrows, () => Setting(GrimoireSettings.ArrowSlotsKey, GrimoireRules.DefaultSlots), () => Enabled),
+            new Book(this, BookKind.Spells, () => Setting(GrimoireSettings.SpellSlotsKey, GrimoireRules.DefaultSlots), () => Enabled, () => HideOthers),
+            new Book(this, BookKind.Arrows, () => Setting(GrimoireSettings.ArrowSlotsKey, GrimoireRules.DefaultSlots), () => Enabled, () => HideOthers),
         };
         foreach (Book book in _books)
         {
@@ -150,6 +150,8 @@ public sealed class GrimoireMod : Mod
 
     private bool Enabled => _settings?.Value.Enabled ?? true;
 
+    private bool HideOthers => _settings?.Value.HideOthers ?? true;
+
     // A number setting as the file holds it, inside its range (any thread).
     private int Setting(string key, int fallback)
     {
@@ -191,6 +193,18 @@ public sealed class GrimoireMod : Mod
         ui.TextDisabled($"Or Press {_windowKey?.Key}");
     }
 
+    // Hide Other Spells And Arrows, right after a book's "In Your Backpack" section (the user's place for it, 25 Nov 2026). It is also on
+    // the mod's page in Kiln's menu.
+    private void DrawHideOthers(UiDraw ui)
+    {
+        bool hideOthers = HideOthers;
+        if (ui.Checkbox("Hide Other Spells And Arrows", ref hideOthers))
+        {
+            Change(GrimoireSettings.HideOthersKey, hideOthers);
+        }
+        ui.Tooltip("The HUD lists show only what is in the grimoire, and the one you have equipped. Off: the other spells and arrows in your backpack come after the grimoire's.");
+    }
+
     // The screen: a tab per book, then the settings (Mod Enabled and the shown book's slots).
     private void DrawWindow(UiDraw ui)
     {
@@ -217,6 +231,7 @@ public sealed class GrimoireMod : Mod
                     if (ui.BeginChild("##book" + books[i].Name, 0f, -settingsHeight))
                     {
                         books[i].Draw(ui);
+                        DrawHideOthers(ui);
                     }
                     ui.EndChild();
                     ui.EndTab();

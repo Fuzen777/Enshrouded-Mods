@@ -8,10 +8,15 @@ public sealed class GrimoireSettings
     public const string EnabledKey = "enabled";
     public const string SpellSlotsKey = "spellSlots";
     public const string ArrowSlotsKey = "arrowSlots";
+    public const string HideOthersKey = "hideOthers";
 
     [ConfigKey(EnabledKey)]
     [Comment("Mod Enabled. Spells and arrows kept in the grimoire stay out of the backpack (the equipped one takes one slot), and the HUD's spell and arrow lists follow the grimoire's order. Off: the game's own lists; the grimoire keeps what it holds. Works in a world you host.")]
     public bool Enabled { get; set; } = true;
+
+    [ConfigKey(HideOthersKey)]
+    [Comment("Hide Other Spells And Arrows. The HUD's spell and arrow lists show only what is in the grimoire (and the equipped one). Off: the other spells and arrows in the backpack follow the grimoire's.")]
+    public bool HideOthers { get; set; } = true;
 
     [ConfigKey(SpellSlotsKey)]
     [Comment("Spell Slots. How many spells the grimoire holds, one slot per spell; more of a spell already in it tops up its slot. Lowering it keeps the spells already in it.")]

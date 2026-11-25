@@ -49,7 +49,7 @@ internal sealed class Book : IDisposable
     }
     private sealed record BagEntry(uint Item, string Name, int Count, bool Equipped);
     private sealed record View(Entry[] Entries, BagEntry[] Bag, uint[] Shown, IReadOnlyDictionary<uint, int> Stored, uint Equipped, int EquippedCount,
-        int Limit, bool Enabled, string? NotReady)
+        int Limit, bool Enabled, string? NotReady, uint OwnEquipped = 0)
     {
         public static readonly View Empty = new View(Array.Empty<Entry>(), Array.Empty<BagEntry>(), Array.Empty<uint>(), new Dictionary<uint, int>(), 0, 0,
             GrimoireRules.DefaultSlots, false, "not read yet");
@@ -83,6 +83,7 @@ internal sealed class Book : IDisposable
     private readonly BookKind _kind;
     private readonly Func<int> _limit;
     private readonly Func<bool> _enabled;
+    private readonly Func<bool> _hideOthers;
     private PlayerStorage? _storage;
     private AmmoListProvider? _rows;
     private IDisposable? _clicks;
@@ -100,12 +101,13 @@ internal sealed class Book : IDisposable
     private int _slotChanges;
     private ulong _loggedRevision = ulong.MaxValue;
 
-    public Book(Mod mod, BookKind kind, Func<int> limit, Func<bool> enabled)
+    public Book(Mod mod, BookKind kind, Func<int> limit, Func<bool> enabled, Func<bool> hideOthers)
     {
         _mod = mod;
         _kind = kind;
         _limit = limit;
         _enabled = enabled;
+        _hideOthers = hideOthers;
     }
 
     private Logger Log => _mod.Context.Log;
@@ -851,7 +853,9 @@ internal sealed class Book : IDisposable
                 }
             }
         }
-        _view = new View(entries, bag.ToArray(), shown.ToArray(), counts, bookEquipped, equippedCount, limit, enabled, null);
+        // The player's own equipped stack (not the grimoire's) keeps its HUD row when the other rows are hidden.
+        uint ownEquipped = equipped != null && !equipped.InStorage && bookEquipped == 0 ? equipped.Stack.Item.Value : 0;
+        _view = new View(entries, bag.ToArray(), shown.ToArray(), counts, bookEquipped, equippedCount, limit, enabled, null, ownEquipped);
         _rows?.Refresh();
     }
 
@@ -868,7 +872,7 @@ internal sealed class Book : IDisposable
             return ctx.GameRows;
         }
         List<(uint Item, int Count)> rows = GrimoireRules.HudRows(view.Shown, view.Stored, view.Equipped, view.EquippedCount,
-            ctx.GameRows.Select(r => (r.Item.Value, r.Count)));
+            ctx.GameRows.Select(r => (r.Item.Value, r.Count)), _hideOthers(), view.OwnEquipped);
         if (ctx.Revision != _loggedRevision)
         {
             _loggedRevision = ctx.Revision;
