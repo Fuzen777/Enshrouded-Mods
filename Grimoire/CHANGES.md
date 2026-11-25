@@ -4,6 +4,11 @@ Kiln mod (C#, id `grimoire`) that keeps spells and arrows out of the backpack in
 
 It was the spellbook of Better Spells (3.3.0-dev.1 to dev.11, 23 and 24 Nov 2026); that history, with what was found in game, is in `..\Better Spells\CHANGES.md`.
 
+## 1.0.0
+
+- **First Nexus release** (asked 25 Nov 2026): 0.2.1 renumbered, no code change. The Nexus page (`Nexus Page.mdbbcode`) leads with the caveats, at the user's request: the equipped spell and arrows keep one backpack slot, host only, what joins the grimoire by itself, taking everything out before uninstalling, the HUD list limits, Quiver & Spellbook.
+- Seen in game with 0.2.1 (the user, 25 Nov 2026): no anomaly when switching as fast as the game allows; at the most extreme speed the equipped spell can move to another hotbar slot, but it is always one spell.
+
 ## 0.2.1 (not released)
 
 - **Fix: switching as fast as the game allows no longer leaves spells behind** (seen by the user in 0.2.0, 25 Nov 2026: copies left on the action bar that were never taken back, several spells in the backpack, a spell gone from the grimoire's list until added again). kiln.log showed three causes:
