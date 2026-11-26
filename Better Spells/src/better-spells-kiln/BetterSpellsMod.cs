@@ -157,6 +157,9 @@ public sealed class BetterSpellsMod : Mod
     private volatile int _selectedSpell;
     // The Gems tab: its gem items (found with the spell items), each gem card's icon, the chosen gem, and whether the tab is shown.
     private List<GameDataEntry> _gemItems = new List<GameDataEntry>();
+    // The gem items by the name SpellCatalog.GemSpells gives them (an item the list misses is looked up by that name).
+    private Dictionary<string, GameDataEntry> _gemItemsByName = new Dictionary<string, GameDataEntry>(StringComparer.Ordinal);
+    private bool _gemLookupLogged;
     private volatile uint[] _gemIconItems = new uint[SpellCatalog.GemWindowSpells.Count];
     private volatile int _selectedGem;
     private volatile bool _gemsTab;
@@ -169,8 +172,6 @@ public sealed class BetterSpellsMod : Mod
     private float _textHeight;
     private float _valueWidth;
     private float _controlGap;
-    // The Default button's width.
-    private float _defaultWidth;
     // A checkbox's size as last drawn, to center the next ones in their cells; 0 until one was drawn.
     private float _checkboxWidth;
     private float _checkboxHeight;
@@ -464,7 +465,6 @@ public sealed class BetterSpellsMod : Mod
         // Every value gets the room of the widest one, so the + buttons of a card line up.
         _valueWidth = Math.Max(Math.Max(ui.MeasureText("x00.00").Width, ui.MeasureText("00 units").Width), Math.Max(ui.MeasureText("-29.99%").Width, ui.MeasureText("0.333 s").Width));
         _controlGap = _textHeight * 0.35f;
-        _defaultWidth = (float)Math.Ceiling(ui.MeasureText("Default").Width + 1.2f * _textHeight);
         float iconSize = IconButtonSize * ui.Scale;
         float sectionWidth = 0f;
         float labelWidth = 0f;
@@ -508,8 +508,8 @@ public sealed class BetterSpellsMod : Mod
         ui.Tooltip("Weapon gems: damage, durations, chances and more. A gem takes a new value when its weapon is next equipped or switched to on the hotbar.");
         _contentRight = Math.Max(_contentRight, ui.LastItem.MaxX);
         ui.TextWrapped(gemsTab
-            ? "Click a gem to see its settings, scroll over a value to change it; hold Shift for 10 steps, Ctrl for 100. Switch away from the weapon and back to apply a change."
-            : "Click a spell to see its settings, scroll over a value to change it; hold Shift for 10 steps, Ctrl for 100. A dot marks a spell with a changed value.");
+            ? "Click a gem to see its settings, scroll over a value to change it, right-click it to reset it; hold Shift for 10 steps, Ctrl for 100. Switch away from the weapon and back to apply a change."
+            : "Click a spell to see its settings, scroll over a value to change it, right-click it to reset it; hold Shift for 10 steps, Ctrl for 100. A dot marks a spell with a changed value.");
         int spellIndex = 0;
         foreach (WindowSection section in sections)
         {
@@ -725,6 +725,10 @@ public sealed class BetterSpellsMod : Mod
                 {
                     Ask(setting, on ? 1 : 0);
                 }
+                else if (ui.ItemClicked(UiMouseButton.Right))
+                {
+                    Ask(setting, setting.Default);
+                }
                 UiItem checkbox = ui.LastItem;
                 _checkboxWidth = checkbox.Width;
                 _checkboxHeight = checkbox.Height;
@@ -737,10 +741,13 @@ public sealed class BetterSpellsMod : Mod
             {
                 Ask(setting, SpellRules.Stepped(setting, shown, -steps));
             }
+            // A right click on -, the value or + puts the setting back to its default.
+            bool reset = ui.ItemClicked(UiMouseButton.Right);
             bool hovered = ui.LastItem.Hovered;
             ui.SameLine(0f, _controlGap);
             DrawRowText(ui, setting.Format(shown), _valueWidth, _rowHeight, true, SpellRules.Same(shown, setting.Default) ? null : ui.Palette.Accent);
             hovered |= ui.LastItem.Hovered;
+            reset |= ui.ItemClicked(UiMouseButton.Right);
             Describe(ui, setting);
             ui.SameLine(0f, _controlGap);
             if (ui.Button("+", _rowHeight, _rowHeight))
@@ -748,24 +755,16 @@ public sealed class BetterSpellsMod : Mod
                 Ask(setting, SpellRules.Stepped(setting, shown, steps));
             }
             hovered |= ui.LastItem.Hovered;
+            reset |= ui.ItemClicked(UiMouseButton.Right);
             if (hovered)
             {
                 _hoveredThisFrame = key;
             }
-            // Back to the default; its room is kept while the value is the default, so the lines stay lined up.
-            ui.SameLine(0f, _controlGap);
-            if (SpellRules.Same(shown, setting.Default))
+            if (reset)
             {
-                ui.Space(_defaultWidth, _rowHeight);
+                Ask(setting, setting.Default);
             }
-            else
-            {
-                if (ui.Button("Default", _defaultWidth, _rowHeight))
-                {
-                    Ask(setting, setting.Default);
-                }
-                ui.Tooltip($"Back to {setting.Format(setting.Default)}.");
-            }
+            // What a gem multiplier or chance gives, right after +.
             string? result = GemResult(key, shown);
             if (result != null)
             {
@@ -823,11 +822,19 @@ public sealed class BetterSpellsMod : Mod
             {
                 Ask(setting, 0);
             }
+            else if (ui.ItemClicked(UiMouseButton.Right))
+            {
+                Ask(setting, setting.Default);
+            }
             Describe(ui, setting);
             ui.SameLine(0f, _controlGap);
             if (ModeButton(ui, "At Least", atLeast, width))
             {
                 Ask(setting, 1);
+            }
+            else if (ui.ItemClicked(UiMouseButton.Right))
+            {
+                Ask(setting, setting.Default);
             }
             Describe(ui, setting);
         }
@@ -849,7 +856,7 @@ public sealed class BetterSpellsMod : Mod
     private void Describe(UiDraw ui, SettingInfo setting)
     {
         string description = _descriptions.TryGetValue(setting.Key, out string? text) ? text : setting.Label;
-        ui.Tooltip($"{description} Default: {setting.Format(setting.Default)}.");
+        ui.Tooltip($"{description} Default: {setting.Format(setting.Default)} (right-click to reset).");
     }
 
     // What a row shows: the value a click asked for until the settings file holds it, then the file's.
@@ -965,6 +972,7 @@ public sealed class BetterSpellsMod : Mod
                 _gemItems.Add(item);
             }
         }
+        FindGemItems();
         var templatePatterns = new List<Regex> { SpellCatalog.BallTemplate };
         foreach (RadiusSpell spell in SpellCatalog.RadiusSpells)
         {
@@ -997,7 +1005,49 @@ public sealed class BetterSpellsMod : Mod
     private void FindRowIcons()
     {
         _rowIconItems = IconItems(SpellCatalog.WindowSpells, _spellItems);
-        _gemIconItems = IconItems(SpellCatalog.GemWindowSpells, _gemItems);
+        _gemIconItems = GemIconItems();
+    }
+
+    // The gem items by their catalog names. Gem of Necromancy (T5_Gem_GemOfNecromancy) was missing from the item list in game
+    // (1.2.0, build 26430625) although the game has it: a gem the list misses is looked up by its name.
+    private void FindGemItems()
+    {
+        var byName = new Dictionary<string, GameDataEntry>(StringComparer.Ordinal);
+        foreach (GemSpell gem in SpellCatalog.GemSpells)
+        {
+            GameDataEntry? item = _gemItems.FirstOrDefault(entry => entry.Name == gem.ItemName);
+            if (item == null)
+            {
+                item = Content.ItemData.Get(gem.ItemName);
+                if (!_gemLookupLogged)
+                {
+                    Log.Info(item == null
+                        ? $"{gem.ItemName} is in neither the item list nor found by name"
+                        : string.Create(CultureInfo.InvariantCulture, $"{gem.ItemName} is not in the item list, found by name as {item.Name} (0x{item.Id:x8})"));
+                }
+            }
+            if (item != null)
+            {
+                byName[gem.ItemName] = item;
+            }
+        }
+        _gemLookupLogged = true;
+        _gemItemsByName = byName;
+    }
+
+    // Each gem card's icon: its gem item's (the General card has none).
+    private uint[] GemIconItems()
+    {
+        var icons = new uint[SpellCatalog.GemWindowSpells.Count];
+        for (int rowIndex = 0; rowIndex < icons.Length; rowIndex++)
+        {
+            GemSpell? gem = SpellCatalog.GemSpells.FirstOrDefault(spell => spell.DisplayName == SpellCatalog.GemWindowSpells[rowIndex].Spell);
+            if (gem != null && _gemItemsByName.TryGetValue(gem.ItemName, out GameDataEntry? item))
+            {
+                icons[rowIndex] = item.Id;
+            }
+        }
+        return icons;
     }
 
     private static uint[] IconItems(IReadOnlyList<WindowSpell> spells, List<GameDataEntry> items)
@@ -1289,7 +1339,7 @@ public sealed class BetterSpellsMod : Mod
             SettingInfo setting = SpellCatalog.Setting(gem.DamageKey);
             double multiplier = Value(gem.DamageKey);
             Begin($"{setting.Label} {setting.Format(multiplier)}");
-            GameDataEntry? item = _gemItems.Find(entry => entry.Name == gem.ItemName);
+            GameDataEntry? item = _gemItemsByName.TryGetValue(gem.ItemName, out GameDataEntry? found) ? found : null;
             if (item == null)
             {
                 Note($"{gem.ItemName} is not in this world's data");
@@ -1364,7 +1414,7 @@ public sealed class BetterSpellsMod : Mod
             double perLevel = stat.Kind == GemStatKind.BaseAndLevel ? Value(stat.PerLevelKey) : 1;
             Begin(stat.Kind == GemStatKind.BaseAndLevel ? $"{setting.Label} {setting.Format(value)}, per level {setting.Format(perLevel)}" : $"{setting.Label} {setting.Format(value)}");
             GemSpell gem = SpellCatalog.GemSpells.First(spell => spell.Name == stat.Gem);
-            GameDataEntry? item = _gemItems.Find(entry => entry.Name == gem.ItemName);
+            GameDataEntry? item = _gemItemsByName.TryGetValue(gem.ItemName, out GameDataEntry? found) ? found : null;
             if (item == null)
             {
                 Note($"{gem.ItemName} is not in this world's data");

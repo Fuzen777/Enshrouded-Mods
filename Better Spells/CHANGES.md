@@ -9,6 +9,8 @@ Since 3.0.0 Better Spells is one **Kiln mod** (`src\better-spells-kiln`, id `bet
 ## 1.2.0
 
 - **Nexus upload of 1.1.6** (asked 26 Nov 2026): no code change, the DLL is 1.1.6's (2512b74); only kiln.mod.json's version changes. `Changelog.mdbbcode` covers 1.1.1 to 1.1.6. The Nexus page now describes the Gems tab (gem damage, gem stats, summon levels and Sync With Player), Perception and Shot Lifetime, the Default button and the value shown next to a multiplier, Cast Time as the charge time, and asks Kiln 0.2.0-dev.31.11 for docking with Grimoire; the settings path is in a code block of its own (Nexus has no inline code).
+- **Folded in before the upload** (the user's choice, 26 Nov 2026, seen in game): Gem of Necromancy had no icon and its settings did not apply, because `T5_Gem_GemOfNecromancy` is missing from Kiln's list of item data in build 26430625 although the game has it ("is not in this world's data" at every load). A gem the list misses is now looked up by its name (`FindGemItems`, logged once), and the gem cards take their icons from those items.
+- **Right-click resets** a value (on -, the value or +), a checkbox or a mode button to its default; the Default button is gone, so the "= result" sits right after +. The hint line and each tooltip say so. Not yet seen in game.
 
 ## 1.1.6 (not uploaded)
 

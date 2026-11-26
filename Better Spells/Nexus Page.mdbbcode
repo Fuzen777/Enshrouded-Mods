@@ -36,7 +36,7 @@ Every setting starts at the game's own value, so nothing changes until you decid
 - With **Grimoire** (1.1.0 or newer) installed, **F3** opens the settings window and the grimoire side by side, and they move together while they touch. Hold **Shift** while dragging to move one alone.
 - Spells are laid out as **icon rows by element** : Fire, Ice, Lightning, Shroud, Summons, Others, and Items. Click a spell's icon to open its card.
 - Each setting is a simple **− value +** control. The mouse wheel works over any value; hold **Shift** for 10 steps, **Ctrl** for 100.
-- A **dot** marks every spell you have changed, so you can see your edits at a glance, and a **Default** button sits beside every changed value.
+- A **dot** marks every spell you have changed, so you can see your edits at a glance, and a right-click puts any value back to its default.
 - Next to a multiplier, the window shows what it gives (for example "= 6 s").
 - Every setting has its explanation on hover.
 
