@@ -58,8 +58,13 @@ public sealed class ChestSettings
     public bool AutoSalvage { get; set; }
 
     [ConfigKey("autoQuickDeposit")]
-    [Comment("Auto Quick Deposit. On: when looting fills your backpack (taking an item lying in the world, harvesting, looting a container in the world), a quick deposit runs by itself, by the same rules. Taking from your own storage chests and crafting never start it. Outside a base it needs Quick Deposit Outside A Base.")]
+    [Comment("Auto Quick Deposit. On: when looting leaves fewer free backpack slots than Auto Deposit Free Slots (taking an item lying in the world, harvesting, looting a container in the world), a quick deposit runs by itself, by the same rules. Taking from your own storage chests and crafting never start it. Outside a base it needs Quick Deposit Outside A Base.")]
     public bool AutoQuickDeposit { get; set; }
+
+    [ConfigKey("autoDepositFreeSlots")]
+    [Comment("Auto Deposit Free Slots. Auto Quick Deposit runs when looting leaves fewer free backpack slots than this, so several items arriving at once don't spill into the hotbar. 1: only when the backpack is full.")]
+    [Range(ChestRules.MinAutoDepositFreeSlots, ChestRules.MaxAutoDepositFreeSlots)]
+    public int AutoDepositFreeSlots { get; set; } = ChestRules.DefaultAutoDepositFreeSlots;
 
     [ConfigKey("autoNameChests")]
     [Comment("Auto-Name Chests. 0 Off. 1 Children: when Quick Deposit or Re-Sort finds no chest named for an item with room, the closest chest that still has its default name (and a free slot) is named for the item's sub-category (\"Weapons\"). 2 Parent: named for its group (\"Gear\").")]

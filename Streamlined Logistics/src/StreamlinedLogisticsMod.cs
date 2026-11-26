@@ -2823,7 +2823,9 @@ public sealed class StreamlinedLogisticsMod : Mod
         SettingToggle(ui, "depositReportInChat", "Deposit Report In Chat", settings.DepositReportInChat,
             "After a quick deposit, your chat says which chest got what and what stayed.");
         SettingToggle(ui, "autoQuickDeposit", "Auto Quick Deposit", settings.AutoQuickDeposit,
-            "When looting fills your backpack, a quick deposit runs by itself (taking from your chests and crafting never start it).\nOutside a base it needs Quick Deposit Outside A Base.");
+            "When looting leaves fewer free backpack slots than Auto Deposit Free Slots, a quick deposit runs by itself (taking from your chests and crafting never start it).\nOutside a base it needs Quick Deposit Outside A Base.");
+        SettingSlider(ui, "autoDepositFreeSlots", "Auto Deposit Free Slots", settings.AutoDepositFreeSlots, ChestRules.MinAutoDepositFreeSlots, ChestRules.MaxAutoDepositFreeSlots,
+            "Auto Quick Deposit runs when fewer backpack slots than this are free, so several items arriving at once don't spill into the hotbar.\n1: only when the backpack is full.");
         SettingChoice(ui, "autoNameChests", "Auto-Name Chests", settings.AutoNameChests, ChestRules.AutoNameChoices,
             "When Quick Deposit or Re-Sort finds no chest named for an item with room, the closest chest that still has its default name is named for it.\nChildren: its sub-category (Weapons). Parent: its group (Gear).");
         DrawRules(ui, salvage: false);
@@ -3811,8 +3813,8 @@ public sealed class StreamlinedLogisticsMod : Mod
         }
     }
 
-    // Once after loot arrived: a quick deposit when the backpack has no free slot left, at most every few seconds, so a backpack
-    // that stays full (nothing any chest takes) doesn't start one deposit after another.
+    // Once after loot arrived: a quick deposit when fewer backpack slots than Auto Deposit Free Slots are free, at most every few
+    // seconds, so a backpack that stays that full (nothing any chest takes) doesn't start one deposit after another.
     private void CheckBackpackAfterLoot()
     {
         _pickupCheckPending = false;
@@ -3821,13 +3823,15 @@ public sealed class StreamlinedLogisticsMod : Mod
         {
             return;
         }
+        int threshold = _settings?.Value.AutoDepositFreeSlots ?? ChestRules.DefaultAutoDepositFreeSlots;
         EntityId player = Client.LocalPlayer;
-        if (player.IsNone || ReadPlayer(player) is not { } playerRead || ChestRules.BackpackFreeSlots(playerRead.Layout, playerRead.Slots) > 0)
+        if (player.IsNone || ReadPlayer(player) is not { } playerRead
+            || !ChestRules.AutoDepositWanted(ChestRules.BackpackFreeSlots(playerRead.Layout, playerRead.Slots), threshold))
         {
             return;
         }
         _autoDepositNotBeforeTick = now + AutoDepositPauseMilliseconds;
-        Log.Info("auto quick deposit: loot filled the backpack");
+        Log.Info($"auto quick deposit: loot left fewer than {threshold} free backpack slots");
         Post(() => QuickDeposit("loot filled the backpack", quiet: true));
     }
 

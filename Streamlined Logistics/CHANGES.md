@@ -7,6 +7,13 @@ How it works: the screen is a Kiln screen (`Ui.Screen`) drawn in the player's ga
 `Scripts\Build.ps1` runs the tests (`tests\ChestRulesTests`), builds against Kiln's assemblies in `<game>\kiln\host` and puts the mod in `dist\streamlined-logistics`; `-Install` copies it to `<game>\kiln\mods\streamlined-logistics`, where Kiln loads it as a drop-in (game closed).
 
 
+## 1.1.2
+
+- **Auto Quick Deposit before the backpack is full** (the user: several items arriving at once overflowed to the hotbar, since the deposit only started once no slot was free): a new setting, Auto Deposit Free Slots (`autoDepositFreeSlots`, 1 to 20, default 5), starts it when looting leaves fewer free backpack slots than that. 1 is the old behavior (only a full backpack). The 10 s pause between automatic deposits is unchanged, so a backpack that stays under the threshold with items no chest takes starts at most one deposit every 10 s of looting. The rule is `ChestRules.AutoDepositWanted`, with tests.
+
+> [!warning]
+> Not yet seen in game.
+
 ## 1.1.1
 
 - **Auto Salvage waits for loot to settle** (the user: the runes from Auto Salvage seemed abnormally low; Kiln Auto Loot had added a similar wait for loot leveling): a looted piece is salvaged only once its level and rarity have read the same for 1.5 s (rechecked every 0.25 s), and never while its level reads 0. Up to 1.1.0 it was salvaged as soon as it was in its slot; kiln.log of 26 Nov 2026 shows both pieces that were found a step late (loot from a container) read as level 0 Common, for 36 and 9 runes, while Kiln Auto Loot read the same Battering Ram Hammer as level 35 Epic. It also stops a piece a rule would not take (here Epic) from being salvaged on a wrong Common read, and leaves time for loot-level mods (Kiln's loot-leveler, Unified Tweaks' loot sync) to set the level. After 15 s a piece whose level still reads 0 is kept, and one whose reads keep changing is judged as it reads then. kiln.log names each change ("now reads level ..."). The backpack check of Auto Quick Deposit waits for the queue as before, so it now comes about 1.5 s after loot that Auto Salvage looks at.

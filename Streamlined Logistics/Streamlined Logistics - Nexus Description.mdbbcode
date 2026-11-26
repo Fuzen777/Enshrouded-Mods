@@ -82,7 +82,7 @@ The F2 menu offers :
 
 - Inside a base, press **Sort Inventory twice** (G by default, or LT + X) or use a **Quick Stack Station**, and your backpack empties into the base's chests.
 - The **Quick Deposit button** in the window sends your backpack to your linked chests, wherever you are.
-- **Auto Quick Deposit** (optional): when loot fills your backpack, a quick deposit runs by itself (at most every 10 seconds). Only looting triggers it, not taking from your own chests or crafting.
+- **Auto Quick Deposit** (optional): when loot leaves fewer free slots in your backpack than Auto Deposit Free Slots (5 by default), a quick deposit runs by itself (at most every 10 seconds), so several items looted at once don't spill into your hotbar. Only looting triggers it, not taking from your own chests or crafting.
 - Existing stacks are topped up first, then items go to a chest named for their category, then to a chest that already holds them.
 - Never touched: your hotbars, what you wear, your favorites, chests named with **--**, and Magic Chests with Receive Quick Stacking turned off.
 - **Quick Deposit and Auto Salvage**: set rules for Weapons, Shields, Armor and Rings, matching items get deposited, the rest remain in your inventory. Set up auto salvage and "the rest" can be salvaged when you loot it. (Note that it reaches your inventory first, so you still unlock recipes for items that you loot.)

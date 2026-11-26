@@ -269,6 +269,11 @@ public static class ChestRules
     public const int MinHighlightSeconds = 1;
     public const int MaxHighlightSeconds = 120;
     public const int DefaultHighlightSeconds = 15;
+
+    // Auto Quick Deposit starts when fewer backpack slots than this are free (since 1.1.2; up to 1.1.1, only when none were).
+    public const int MinAutoDepositFreeSlots = 1;
+    public const int MaxAutoDepositFreeSlots = 20;
+    public const int DefaultAutoDepositFreeSlots = 5;
     /// <summary>A chest farther away than this is not marked in the world.</summary>
     public const double MaxHighlightMeters = 200;
     /// <summary>The stored items' share of the F2 window's width beside the backpack: its default and its bounds (since 0.10.40).</summary>
@@ -943,7 +948,7 @@ public static class ChestRules
         return sentences.Count > 0 ? string.Join(" ", sentences) : null;
     }
 
-    // The backpack's empty unlocked slots (Auto Quick Deposit starts when there are none left).
+    // The backpack's empty unlocked slots (Auto Quick Deposit starts when fewer than its threshold are left).
     public static int BackpackFreeSlots(PlayerLayout layout, IReadOnlyList<SlotContent> slots)
     {
         int free = 0;
@@ -955,6 +960,13 @@ public static class ChestRules
             }
         }
         return free;
+    }
+
+    // True when looting left fewer free backpack slots than the threshold (clamped to its range), so Auto Quick Deposit should run:
+    // several items arriving at once would otherwise spill into the hotbar once the last slot is taken.
+    public static bool AutoDepositWanted(int freeSlots, int threshold)
+    {
+        return freeSlots < Math.Clamp(threshold, MinAutoDepositFreeSlots, MaxAutoDepositFreeSlots);
     }
 
     private static List<int[]> RuleRows(IReadOnlyList<GearRule> rules)
