@@ -4,6 +4,12 @@ Kiln mod (C#, id `grimoire`) that keeps spells and arrows out of the backpack in
 
 It was the spellbook of Better Spells (3.3.0-dev.1 to dev.11, 23 and 24 Nov 2026); that history, with what was found in game, is in `..\Better Spells\CHANGES.md`.
 
+## 1.1.1 (not uploaded)
+
+- **Kiln's window docking replaces WindowPair** (asked 26 Nov 2026; Kiln 0.2.0-dev.31.16, GitHub issue 149). When the grimoire opens, it docks on the right of Better Spells' settings window (`Ui.FindWindow("better-spells", "settings")`, `DockTo(…, DockSide.Right)`), and Kiln keeps the two together in the same frame: no lag, no flash when one key opens both (Kiln holds the docked window back until Better Spells' opens, at most 250 ms), **Shift** while dragging moves one alone, dropping it back within 16 px docks it again, and the pair stays on the screen (the grimoire goes on the left when there is no room on the right). Shift-dragged away, it stays alone until the game restarts (`DockChanged` with `ByPlayer`). A place the grimoire only got from the dock is never remembered: opened alone, it goes back where the player left it. Docking needs Better Spells 1.2.1 (its window accepts docks).
+- **Kiln remembers the window** (`RememberPlacement`, `PlacementId = "grimoire"`, in Kiln's `ui-placement.json`). `window.json` only gives its first place and size, until Kiln has one of its own, so players keep the place they had. `WindowPair.cs`, `WindowPairRules.cs` and their tests are gone; `WindowPlacement` only reads `window.json`, and keeps its old tracking for an older Kiln.
+- **Older Kiln** (before 0.2.0-dev.31.16): the new members are used only in `[MethodImpl(NoInlining)]` helpers, whose `MissingMethodException` or `TypeLoadException` gives a plain window that opens where it was left (`window.json`, as before), not docked, with one line in kiln.log. Not tested in game yet.
+
 ## 1.1.0
 
 - **Nexus upload of 1.0.4** (asked 26 Nov 2026): no code change, the DLL is 1.0.4's (88d3336); only kiln.mod.json's version changes. `Changelog.mdbbcode` covers 1.0.1 to 1.0.4. The Nexus page says dedicated servers haven't been tested in game yet (the user's ask), and that docking with Better Spells needs Better Spells 1.2.0 and Kiln 0.2.0-dev.31.11.

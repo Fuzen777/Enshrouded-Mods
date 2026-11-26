@@ -1,7 +1,7 @@
 {
   "id": "grimoire",
   "name": "Grimoire - Spells and Arrows Slots",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Spells and arrows kept out of the backpack in slots of their own, equipped and listed in the HUD in your own order. F3 opens the grimoire. Works in single player, hosted co-op and on dedicated servers (the server needs Grimoire too).",
   "authors": [
     "Fuzen777"

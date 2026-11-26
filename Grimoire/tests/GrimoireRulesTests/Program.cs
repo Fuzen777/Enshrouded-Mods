@@ -61,25 +61,6 @@ Check(rows.SequenceEqual(new (uint, int)[] { (2, 50), (1, 1), (8, 2) }), "Hide O
 Check(GrimoireRules.ClampSlots(0) == GrimoireRules.MinSlots && GrimoireRules.ClampSlots(99) == GrimoireRules.MaxSlots && GrimoireRules.ClampSlots(12) == 12,
     "Spell Slots stays within 1 to 32");
 
-// WindowPairRules (the same file as Better Spells'): which side, docked, snapped.
-Check(WindowPairRules.BesideOnRight(0.2f, 0.5f, 0.2f, preferRight: true), "grimoire, room on the right: right");
-Check(!WindowPairRules.BesideOnRight(0.6f, 0.9f, 0.2f, preferRight: true), "grimoire, no room on the right, room on the left: left");
-Check(WindowPairRules.BesideOnRight(0.1f, 0.85f, 0.2f, preferRight: true), "grimoire, room on neither side, more on the right: right");
-Check(WindowPairRules.BesideOnRight(0.5f, 0.95f, 0f, preferRight: true), "grimoire, width not known yet: right");
-Check(!WindowPairRules.BesideOnRight(0.5f, 0.8f, 0.3f, preferRight: false), "better spells, room on the left: left");
-Check(WindowPairRules.BesideOnRight(0.1f, 0.4f, 0.3f, preferRight: false), "better spells, no room on the left, room on the right: right");
-Check(!WindowPairRules.BesideOnRight(0.05f, 0.2f, 0f, preferRight: false), "better spells, width not known yet: left");
-var bs = new WindowPairRules.Rect(100, 100, 500, 700);
-Check(WindowPairRules.Adjacent(new WindowPairRules.Rect(501, 120, 801, 600), bs, 3), "touching on the right: adjacent");
-Check(WindowPairRules.Adjacent(new WindowPairRules.Rect(-198, 50, 102, 300), bs, 3), "touching on the left: adjacent");
-Check(!WindowPairRules.Adjacent(new WindowPairRules.Rect(510, 120, 810, 600), bs, 3), "10 px apart: not adjacent");
-Check(!WindowPairRules.Adjacent(new WindowPairRules.Rect(500, 700, 800, 900), bs, 3), "edge to edge but below it: not adjacent");
-Check(WindowPairRules.OnRight(new WindowPairRules.Rect(500, 100, 800, 700), bs) && !WindowPairRules.OnRight(new WindowPairRules.Rect(-200, 100, 100, 700), bs), "OnRight");
-Check(WindowPairRules.Docked(bs, 300, onRight: true, 20) == (500f, 120f) && WindowPairRules.Docked(bs, 300, onRight: false, -5) == (-200f, 95f), "Docked corner on either side");
-Check(WindowPairRules.Snap(new WindowPairRules.Rect(512, 110, 812, 600), bs, 16) == (500f, 100f), "dropped 12 px right of it: snaps, tops lined up");
-Check(WindowPairRules.Snap(new WindowPairRules.Rect(-210, 300, 90, 600), bs, 16) == (-200f, 300f), "dropped 10 px over its left edge: snaps, its own top kept");
-Check(WindowPairRules.Snap(new WindowPairRules.Rect(540, 100, 840, 600), bs, 16) == null, "40 px away: no snap");
-
 // The default tab (spellsInBackpack, spellsInGrimoire, arrowsInBackpack, arrowsInGrimoire).
 Check(GrimoireRules.OpenOnArrows(false, true, true, false), "arrows in the backpack and no spell there: Arrows, even with spells in the grimoire");
 Check(GrimoireRules.OpenOnArrows(false, false, false, true), "no spell anywhere, arrows only in the grimoire: Arrows");

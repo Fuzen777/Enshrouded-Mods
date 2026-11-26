@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Kiln;
@@ -88,8 +89,11 @@ public sealed class BetterSpellsMod : Mod
     private const string WindowBindingId = "better-spells.window";
     private const string WindowDefaultKey = "F3";
     private const string WindowTitle = "Better Spells";
+    // The id Grimoire finds this window by (Ui.FindWindow("better-spells", "settings")) to dock its own to it (1.2.1).
+    private const string WindowPlacementId = "settings";
     // The window's first size before the overlay's scale: it fits the longest card (Totems) under the six rows of icons, with the hint
-    // wrapped to the width. The player can resize and move the window, and WindowPlacement keeps both for the next game start.
+    // wrapped to the width. The player can resize and move the window, and Kiln keeps both for the next game start (WindowPlacement on
+    // a Kiln without window docking).
     private const float ScreenWidth = 370f;
     private const float ScreenHeight = 760f;
     // The tables' ids. The overlay keeps a table's column widths by id, so a changed layout gets new ids and starts from fitted widths.
@@ -101,11 +105,11 @@ public sealed class BetterSpellsMod : Mod
     private ModConfig<SpellSettings>? _settings;
     private IDisposable? _settingsPage;
     // A Kiln window, not a screen (1.1.0): a screen always opens centred with a fixed size. The window takes the input while open
-    // (Interactive), Escape closes it (claimed in DrawWindow), and its place and size come from WindowPlacement.
+    // (Interactive), Escape closes it (claimed in DrawWindow), Kiln remembers its place and size (window.json gives the first ones), and
+    // Grimoire's window docks to it (1.2.1, Kiln 0.2.0-dev.31.16).
     private UiWindow? _window;
+    // Only on a Kiln without window docking (before 0.2.0-dev.31.16): follows the window and keeps its place in window.json.
     private WindowPlacement? _placement;
-    // Where the window is, for Grimoire to open beside it (1.1.1).
-    private WindowPair? _pair;
     // The size the screen's contents took, as last logged, to tune ScreenWidth and ScreenHeight.
     private string _loggedContentSize = "";
     // The left edge of the first line and the right edge of the widest item, in screen pixels, measured while drawing.
@@ -219,10 +223,19 @@ public sealed class BetterSpellsMod : Mod
         if (Ui.Available)
         {
             ReadDescriptions();
-            _placement = new WindowPlacement(Context.DataDirectory, Log, ScreenWidth, ScreenHeight);
-            _window = Ui.Window(WindowTitle, DrawWindow, _placement.Options(new UiWindowOptions { Interactive = true, StartOpen = false }));
-            // Beside the grimoire's window, on its left, and docked to it (1.1.3); this window leads when both open together.
-            _pair = new WindowPair(Context, Log, "grimoire", leader: true, preferRight: false, _window, _placement);
+            var placement = new WindowPlacement(Context.DataDirectory, Log, ScreenWidth, ScreenHeight);
+            UiWindowOptions options = placement.Options(new UiWindowOptions { Interactive = true, StartOpen = false });
+            try
+            {
+                // Kiln remembers where the player leaves it, and Grimoire's window may dock to it (1.2.1); window.json gives its first place.
+                _window = DockableWindow(options);
+            }
+            catch (Exception error) when (error is MissingMethodException or TypeLoadException)
+            {
+                Log.Info($"this Kiln has no window docking (0.2.0-dev.31.16 or newer): the settings window opens where it was left, Grimoire's does not dock to it ({error.Message})");
+                _window = Ui.Window(WindowTitle, DrawWindow, options);
+                _placement = placement;
+            }
             _windowKey = KeyBindings.Register(WindowBindingId, WindowDefaultKey, ToggleWindow, "Open Settings Window", Context.Info.Name);
             _wheelListener = KeyInput.Listen(OnKeyOrWheel);
             if (!_wheelListener.Ok || !_wheelListener.Mouse)
@@ -249,8 +262,6 @@ public sealed class BetterSpellsMod : Mod
         _windowKey = null;
         _wheelListener?.Dispose();
         _wheelListener = null;
-        _pair?.Dispose();
-        _pair = null;
         _window?.Dispose();
         _window = null;
     }
@@ -402,6 +413,12 @@ public sealed class BetterSpellsMod : Mod
         }
     }
 
+    // Kiln 0.2.0-dev.31.16's members are used only here: on an older Kiln the call fails (MissingMethodException) instead of the whole
+    // OnLoad.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private UiWindow DockableWindow(UiWindowOptions options) =>
+        Ui.Window(WindowTitle, DrawWindow, options with { PlacementId = WindowPlacementId, AcceptDock = true, RememberPlacement = true });
+
     private void ToggleWindow()
     {
         if (_window?.Open == true)
@@ -420,21 +437,12 @@ public sealed class BetterSpellsMod : Mod
         {
             return;
         }
-        UiWindow window = _window;
-        if (_pair != null)
-        {
-            _pair.Open(window.Show);
-        }
-        else
-        {
-            window.Show();
-        }
+        _window.Show();
     }
 
     private void HideWindow()
     {
         _window?.Hide();
-        _pair?.Closed();
     }
 
     // The mod's own part of its page in the Kiln menu, under Kiln's generated sliders: the way to the settings window.
@@ -458,10 +466,6 @@ public sealed class BetterSpellsMod : Mod
         if (ui.KeyPressed(UiKey.Escape, claim: true))
         {
             HideWindow();
-        }
-        else
-        {
-            _pair?.Track(ui);
         }
         _rowHeight = RowHeight * ui.Scale;
         _textHeight = ui.MeasureText("X").Height;

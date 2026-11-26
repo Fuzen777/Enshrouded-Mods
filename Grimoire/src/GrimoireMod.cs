@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using Kiln;
 
@@ -15,8 +16,12 @@ public sealed class GrimoireMod : Mod
     private const string WindowBindingId = "grimoire.window";
     private const string WindowDefaultKey = "F3";
     private const string WindowTitle = "Grimoire";
+    private const string WindowPlacementId = "grimoire";
+    // Better Spells' settings window, which this window docks to on its right (1.1.1, Kiln 0.2.0-dev.31.16).
+    private const string PartnerModId = "better-spells";
+    private const string PartnerPlacementId = "settings";
     // The window's first size: it fits the default 12 slots and a short backpack list; the rest scrolls. The player can resize and move
-    // it, and WindowPlacement keeps both for the next game start.
+    // it, and Kiln keeps both for the next game start (WindowPlacement on a Kiln without window docking).
     private const float ScreenWidth = 360f;
     private const float ScreenHeight = 780f;
     private const byte SpellsTab = 0;
@@ -25,8 +30,11 @@ public sealed class GrimoireMod : Mod
     private ModConfig<GrimoireSettings>? _settings;
     private Book[] _books = Array.Empty<Book>();
     private UiWindow? _window;
+    // Only on a Kiln without window docking (before 0.2.0-dev.31.16): follows the window and keeps its place in window.json.
     private WindowPlacement? _placement;
-    private WindowPair? _pair;
+    // The window docks to Better Spells' window; _alone: the player Shift-dragged it away from it this game start.
+    private bool _docking;
+    private volatile bool _alone;
     private GrimoireNet? _net;
     private KeyBinding? _windowKey;
     private IDisposable? _settingsPage;
@@ -73,10 +81,20 @@ public sealed class GrimoireMod : Mod
         {
             // A Kiln window, not a screen: a screen always opens centred with a fixed size (1.0.0, asked 25 Nov 2026: resizable, and it
             // opens where the player left it).
-            _placement = new WindowPlacement(Context.DataDirectory, Log, ScreenWidth, ScreenHeight);
-            _window = Ui.Window(WindowTitle, DrawWindow, _placement.Options(new UiWindowOptions { Interactive = true, StartOpen = false }));
-            // Beside Better Spells' window, on its right, and docked to it (1.0.3); Better Spells leads when both open together.
-            _pair = new WindowPair(Context, Log, "better-spells", leader: false, preferRight: true, _window, _placement);
+            var placement = new WindowPlacement(Context.DataDirectory, Log, ScreenWidth, ScreenHeight);
+            UiWindowOptions options = placement.Options(new UiWindowOptions { Interactive = true, StartOpen = false });
+            try
+            {
+                // Kiln remembers where the player leaves it, and docks it to Better Spells' window (1.1.1); window.json gives its first place.
+                _window = DockingWindow(options);
+                _docking = true;
+            }
+            catch (Exception error) when (error is MissingMethodException or TypeLoadException)
+            {
+                Log.Info($"this Kiln has no window docking (0.2.0-dev.31.16 or newer): the grimoire opens where it was left, not docked to Better Spells ({error.Message})");
+                _window = Ui.Window(WindowTitle, DrawWindow, options);
+                _placement = placement;
+            }
             _windowKey = KeyBindings.Register(WindowBindingId, WindowDefaultKey, ToggleWindow, "Open Grimoire", Context.Info.Name);
             _settingsPage = Ui.AddConfigPage(Context.Info.Id, DrawSettingsPage);
         }
@@ -100,8 +118,6 @@ public sealed class GrimoireMod : Mod
         _settingsPage = null;
         _windowKey?.Dispose();
         _windowKey = null;
-        _pair?.Dispose();
-        _pair = null;
         _window?.Dispose();
         _window = null;
         _net?.Dispose();
@@ -196,6 +212,34 @@ public sealed class GrimoireMod : Mod
         return (prefs.Enabled, kind == BookKind.Spells ? prefs.SpellSlots : prefs.ArrowSlots);
     }
 
+    // Kiln 0.2.0-dev.31.16's members are used only in these helpers: on an older Kiln the call fails (MissingMethodException) instead of
+    // the whole OnLoad.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private UiWindow DockingWindow(UiWindowOptions options)
+    {
+        UiWindow window = Ui.Window(WindowTitle, DrawWindow, options with { PlacementId = WindowPlacementId, RememberPlacement = true });
+        // Shift-dragged away from Better Spells' window: it stays alone until the game restarts. Dropped back on it: docked again.
+        window.DockChanged += change =>
+        {
+            if (change.ByPlayer)
+            {
+                _alone = change.DockedTo is null;
+            }
+        };
+        return window;
+    }
+
+    // Docks the window on the right of Better Spells' settings window when that exists (its mod may load after this one, or not at all).
+    // Kiln shows it beside that window, or holds it back up to 250 ms when one key press opens both.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void DockToBetterSpells(UiWindow window)
+    {
+        if (window.DockedTo is null && Ui.FindWindow(PartnerModId, PartnerPlacementId) is { } settings)
+        {
+            window.DockTo(settings, DockSide.Right);
+        }
+    }
+
     private void ToggleWindow()
     {
         if (_window?.Open == true)
@@ -211,7 +255,6 @@ public sealed class GrimoireMod : Mod
     private void HideWindow()
     {
         _window?.Hide();
-        _pair?.Closed();
     }
 
     private void OpenWindow()
@@ -220,21 +263,19 @@ public sealed class GrimoireMod : Mod
         {
             return;
         }
-        UiWindow window = _window;
-        void Show()
+        if (_docking && !_alone)
         {
-            window.Show();
-            OnWindowOpened();
+            try
+            {
+                DockToBetterSpells(_window);
+            }
+            catch (InvalidOperationException error)
+            {
+                Log.Warn($"not docked to Better Spells' window: {error.Message}");
+            }
         }
-        if (_pair != null)
-        {
-            // Waits a moment for Better Spells' window when its key is the same (1.0.4).
-            _pair.Open(Show);
-        }
-        else
-        {
-            Show();
-        }
+        _window.Show();
+        OnWindowOpened();
     }
 
     // The window opened: both books read the game again, then the default tab is chosen on what they hold.
@@ -318,10 +359,6 @@ public sealed class GrimoireMod : Mod
         if (ui.KeyPressed(UiKey.Escape, claim: true))
         {
             HideWindow();
-        }
-        else
-        {
-            _pair?.Track(ui);
         }
         Book[] books = _books;
         if (books.Length == 0)
