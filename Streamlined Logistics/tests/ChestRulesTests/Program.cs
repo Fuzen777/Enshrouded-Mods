@@ -533,14 +533,7 @@ var toolState = new StoredState();
 toolState.Favorites.Add(ChestRules.ConstructionHammerKey);
 FavoriteSet toolSet = toolState.FavoriteSet(new Dictionary<uint, uint> { [500] = ChestRules.ConstructionHammerKey, [501] = ChestRules.SummoningStaffKey });
 Check(toolSet.Contains(500, -1, false) && !toolSet.Contains(501, -1, false) && !toolSet.Contains(502, -1, false), "a hammer's shape is a favorite when the hammer is");
-// Auto-Stations (0.10.33).
-Check(ChestRules.IsAutoStationsName(" auto-stations ") && !ChestRules.IsAutoStationsName("Auto Stations") && ChestRules.IsExcludedChestName("Auto-Stations")
-    && ChestRules.IsExcludedChestName("--Spare") && !ChestRules.IsExcludedChestName("Ores"), "an Auto-Stations chest is kept out of deposits and re-sorts, like --");
-Dictionary<uint, long> shortfall = ChestRules.AutoStationsShortfall(new List<IReadOnlyList<(uint, int)>>
-{
-    new List<(uint, int)> { (1, 2), (2, 1) }, new List<(uint, int)> { (1, 3) },
-}, 10, item => item == 1 ? 20 : 100);
-Check(shortfall.Count == 1 && shortfall[1] == 30, "two stations' inputs for 10 crafts, summed (item 1: 20 + 30 = 50), less the base's stock (20): 30; item 2 is covered");
+Check(ChestRules.IsExcludedChestName("--Spare") && !ChestRules.IsExcludedChestName("Ores"), "a chest named with -- in front is kept out of deposits and re-sorts");
 IReadOnlyList<ItemRow> favoritesFirst = ChestRules.FavoritesFirst(new List<ItemRow> { TreeRow(1, "A"), TreeRow(2, "B", favorite: true), TreeRow(3, "C"), TreeRow(4, "D", favorite: true) });
 Check(favoritesFirst[0].Name == "B" && favoritesFirst[1].Name == "D" && favoritesFirst[2].Name == "A" && favoritesFirst[3].Name == "C", "favorites move to the top, each part keeps its order");
 // A chest named for a sub-category comes before one named for its group (0.10.16).

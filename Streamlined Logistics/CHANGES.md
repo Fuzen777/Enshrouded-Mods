@@ -7,6 +7,13 @@ How it works: the screen is a Kiln screen (`Ui.Screen`) drawn in the player's ga
 `Scripts\Build.ps1` runs the tests (`tests\ChestRulesTests`), builds against Kiln's assemblies in `<game>\kiln\host` and puts the mod in `dist\streamlined-logistics`; `-Install` copies it to `<game>\kiln\mods\streamlined-logistics`, where Kiln loads it as a drop-in (game closed).
 
 
+## 1.0.3
+
+- **Auto-Stations retired** (the user: "For automated stations : +1/+10 work perfectly. The individual items +1/+n are still grayed out and show Available: 0 ; either way, we can retire the "Auto-Stations" chests alongside their settings since the stations themselves take care of it natively through linked storages now."): production stations now fill from linked chests natively through Kiln's +1 / +10 (Fill Stations From Linked Chests, 1.0.2), so the Auto-Stations chests and the Auto-Stations Crafts / Auto-Stations Every settings are gone (`AutoStationsSoon`, `TopUpAutoStations`, `AutoStationsRunningLow`, `AutoStationsChestOf`, `ChestRules.AutoStationsName` / `IsAutoStationsName` / `AutoStationsShortfall`, the chest's base and Magic Chest flags, and their tests). A chest named Auto-Stations is now an ordinary chest: Quick Deposit and Re-Sort use it like any other, and it is no longer in the Chests tab's name list. The Nexus page drops its Auto-Stations section.
+
+> [!warning]
+> Not yet seen in game.
+
 ## 1.0.2
 
 - **Fills, building and lockpicks from linked chests** (Kiln 0.2.0-dev.31.12's `CraftSourceOptions.Fills`, `.Building` and `.Locks`, mod API 0.2.21; the user: "Yes." to enabling them): three new settings under Craft From Linked Chests, each on by default and only working while it is on. **Fill Stations From Linked Chests**: a production station's +1 and +10 take from the linked chests, in any base, what the backpack and the base's own chests can't cover. **Build From Linked Chests**: the Construction Hammer and the build menu count and pay blocks and materials from them. **Lockpicks From Linked Chests**: a lock that needs a lockpick (or a key) opens with one held in a linked chest and takes it from there (Kiln #147, report 31). Kiln copies a source's options when it is registered, so changing one registers the sources again. kiln.mod.json asks for mod API 0.2.21; the Nexus page asks for Kiln 0.2.0-dev.31.12 and drops the brittle-crafting warning and the two planned features Kiln now covers.

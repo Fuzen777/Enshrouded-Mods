@@ -99,14 +99,6 @@ The F2 menu offers :
 - **LMB on a category** highlights every chest named for it in the world. LMB on a group highlights the group's chests and all of its sub-categories' chests.
 - Materials and Building blocks are hidden by default, since you mostly use them through the crafting menu and the Construction Hammer. A search still finds them.
 
-### Auto-Stations
-
-- Name a Magic Chest **Auto-Stations** in a base, and the mod keeps it stocked from your linked chests in other bases with what that base's automated stations (Forge, Smelter, Bonemeal...) need for their selected recipes. The game's own station buttons, and mods like Busy Hands, then fill the stations from it.
-- **Auto-Stations Crafts** sets how many crafts' worth to keep (10 by default, 0 turns it off) and **Auto-Stations Every** how often it tops up (30 seconds by default). Once the stations have used half of an item, it restocks right away.
-- It counts every Magic Chest of the base, so nothing moves while the base already has enough. Favorites never move.
-- With **Auto-Name Chests** on, the base's unnamed Magic Chest closest to its stations is named Auto-Stations for you. Otherwise a message tells you to name one.
-- Quick Deposit and Re-Sort leave Auto-Stations chests alone.
-
 ### Cross-Base Storage &amp; Craft
 
 - You can craft (at stations, NPCs and from your inventory) from any base, from your linked chests, and use their dyes at the coloring station. Since Kiln 0.2.0-dev.31.12 this works in every crafting menu without [Cross-Base Storage](https://www.nexusmods.com/enshrouded/mods/245), even next to Building Tools.

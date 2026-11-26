@@ -167,9 +167,6 @@ public sealed class StreamlinedLogisticsMod : Mod
         public InventoryContents Contents = null!;
         // The chest still has the game's default name (no name of its own): Auto-Name Chests may name it.
         public bool Unnamed;
-        // The base it stands in (null: none), and whether it is a Magic Chest (Auto-Stations, since 0.10.33).
-        public BaseId? Base;
-        public bool IsMagic;
     }
 
     private ModConfig<ChestSettings>? _settings;
@@ -465,7 +462,6 @@ public sealed class StreamlinedLogisticsMod : Mod
                 Post(() => QuickDeposit("Quick Stack Station"));
             }
             SalvageLootSoon();
-            AutoStationsSoon();
             SyncChestButton();
             if (_pickupCheckPending && _salvageQueue.Count == 0)
             {
@@ -2120,10 +2116,9 @@ public sealed class StreamlinedLogisticsMod : Mod
                 return;
             }
             _tree = tree;
-            // All first (since 1.0.1), then the tree's names, then Auto-Stations.
+            // All first (since 1.0.1), then the tree's names.
             var choices = new List<string> { ChestRules.CatchAllName };
             choices.AddRange(tree.ChestNameChoices());
-            choices.Add(ChestRules.AutoStationsName);
             _chestNameChoices = choices;
             _placeOfItems.Clear();
             if (!_state.HiddenTreeChosen)
@@ -2829,11 +2824,6 @@ public sealed class StreamlinedLogisticsMod : Mod
         SettingToggle(ui, "autoSalvage", "Auto Salvage", settings.AutoSalvage,
             "Gear you loot that a salvage rule takes is salvaged into runes right after it lands in your backpack (the game's own Trash yield).\nFavorites, worn gear, gear with a gem and gear in the hotbars are never salvaged.");
         DrawRules(ui, salvage: true);
-        ui.Separator("Auto-Stations");
-        SettingSlider(ui, "autoStationsCrafts", "Auto-Stations Crafts", settings.AutoStationsCrafts, 0, 100,
-            "A base's Magic Chest named Auto-Stations is kept holding what its automated stations' recipes need for this many crafts,\nbrought from your linked chests in other bases (the base's Magic Chests count). 0: off.");
-        SettingSlider(ui, "autoStationsSeconds", "Auto-Stations Every (s)", settings.AutoStationsSeconds, 5, 300,
-            "How often the Auto-Stations chests are topped up.");
         ui.Separator("Highlight");
         SettingToggle(ui, "highlightDepositedChests", "Highlight Chests After A Deposit", settings.HighlightDepositedChests,
             "The chests a quick deposit put items into are lit while your inventory is open, then for the Highlight Time.");
@@ -4318,8 +4308,6 @@ public sealed class StreamlinedLogisticsMod : Mod
                 IsCatchAll = ChestRules.IsCatchAllName(name),
                 DistanceMeters = playerPlaced ? position.DistanceTo(playerPosition) : 0,
                 Contents = contents,
-                Base = Bases.Available ? Bases.At(position)?.Id : null,
-                IsMagic = KindOf(container) == ChestKind.Magic,
             });
         }
         return chests;
@@ -4356,228 +4344,9 @@ public sealed class StreamlinedLogisticsMod : Mod
                 IsCatchAll = ChestRules.IsCatchAllName(name),
                 DistanceMeters = playerPlaced ? position.DistanceTo(playerPosition) : 0,
                 Contents = contents,
-                Base = Bases.Available ? Bases.At(position)?.Id : null,
-                IsMagic = KindOf(container) == ChestKind.Magic,
             });
         }
         return chests;
-    }
-
-
-    // ---- Auto-Stations (since 0.10.33): the base's Magic Chests kept stocked for its automated stations from linked chests
-    // elsewhere, so the game's own +1 / +10 and Busy Hands find the inputs (Kiln's crafting sources don't reach a station's
-    // fill). Every Auto-Stations Every seconds, for each base with automated stations: their selected recipes' inputs for
-    // Auto-Stations Crafts crafts, less the base's crafting stock, are moved from linked chests (in other bases, or ordinary
-    // ones in this base) into the base's Magic Chest named Auto-Stations. ----
-
-    private long _autoStationsNextTick;
-    private readonly HashSet<BaseId> _autoStationsToasted = new();
-    // Since 0.10.34: what each base's stations need for the set crafts (from the last full pass), checked against the base's stock
-    // once a second; an item under half of it brings the next pass forward (at most every AutoStationsQuickGapMilliseconds).
-    private volatile IReadOnlyList<(BaseId Base, Dictionary<uint, long> Needed)> _autoStationsNeeds = Array.Empty<(BaseId, Dictionary<uint, long>)>();
-    private long _autoStationsQuickCheckTick;
-    private long _autoStationsLastPassTick;
-    private const long AutoStationsQuickGapMilliseconds = 3000;
-
-    private void AutoStationsSoon()
-    {
-        ChestSettings? settings = _settings?.Value;
-        long now = Environment.TickCount64;
-        if (settings == null || settings.AutoStationsCrafts <= 0 || _busy || !Client.IsHosting)
-        {
-            return;
-        }
-        if (now < _autoStationsNextTick)
-        {
-            if (now < _autoStationsQuickCheckTick || now - _autoStationsLastPassTick < AutoStationsQuickGapMilliseconds)
-            {
-                return;
-            }
-            _autoStationsQuickCheckTick = now + 1000;
-            if (!AutoStationsRunningLow())
-            {
-                return;
-            }
-        }
-        _autoStationsLastPassTick = now;
-        _autoStationsNextTick = now + Math.Clamp(settings.AutoStationsSeconds, 5, 300) * 1000L;
-        Post(TopUpAutoStations);
-    }
-
-    private async Task TopUpAutoStations()
-    {
-        EntityId player = Client.LocalPlayer;
-        int crafts = _settings?.Value.AutoStationsCrafts ?? 0;
-        if (player.IsNone || crafts <= 0 || !Items.Available || !Stations.Available || !Bases.Available || _state.Links.Count == 0)
-        {
-            return;
-        }
-        // The automated stations with a recipe, by base.
-        var stationsByBase = new Dictionary<BaseId, List<StationInfo>>();
-        foreach (EntityId entity in Stations.All())
-        {
-            if (Stations.Read(entity) is not { } station || station.BaseIndex < 0 || station.SelectedRecipe == 0)
-            {
-                continue;
-            }
-            if (!stationsByBase.TryGetValue(station.Base, out List<StationInfo>? list))
-            {
-                stationsByBase[station.Base] = list = new List<StationInfo>();
-            }
-            list.Add(station);
-        }
-        if (stationsByBase.Count == 0)
-        {
-            return;
-        }
-        List<DepositChestState> linked = ReadLinkedDepositChests(player);
-        FavoriteSet favorites = _state.FavoriteSet(_toolEntries);
-        int autoName = _settings?.Value.AutoNameChests ?? 0;
-        var needs = new List<(BaseId Base, Dictionary<uint, long> Needed)>();
-        foreach ((BaseId baseId, List<StationInfo> stations) in stationsByBase)
-        {
-            var inputs = new List<IReadOnlyList<(uint Item, int Count)>>();
-            foreach (StationInfo station in stations)
-            {
-                try
-                {
-                    var stationInputs = new List<(uint Item, int Count)>();
-                    foreach (StationStack stack in Stations.ResolveInputs(station.SelectedRecipe, station.SelectedChoices))
-                    {
-                        stationInputs.Add((stack.Item.Value, stack.Count));
-                    }
-                    inputs.Add(stationInputs);
-                }
-                catch (KeyNotFoundException)
-                {
-                    // an unknown recipe: nothing to bring
-                }
-            }
-            needs.Add((baseId, ChestRules.AutoStationsShortfall(inputs, crafts, _ => 0)));
-            Dictionary<uint, long> shortfall = ChestRules.AutoStationsShortfall(inputs, crafts, item => Bases.Stock(baseId, new ItemId(item)));
-            if (shortfall.Count == 0)
-            {
-                continue;
-            }
-            DepositChestState? target = await AutoStationsChestOf(baseId, stations[0].Position, autoName);
-            if (target == null)
-            {
-                continue;
-            }
-            var received = new Dictionary<uint, Dictionary<string, long>>();
-            long moved = 0;
-            foreach ((uint item, long missing) in shortfall)
-            {
-                if (favorites.ContainsItem(item))
-                {
-                    continue;  // a favorite never moves
-                }
-                long left = missing;
-                string itemName = NameOfItem(item);
-                foreach (DepositChestState source in linked)
-                {
-                    // Linked chests in another base (or none), and ordinary linked chests here: this base's Magic Chests are its stock already.
-                    if (left <= 0 || (source.Base is { } sourceBase && sourceBase.Equals(baseId) && source.IsMagic))
-                    {
-                        continue;
-                    }
-                    foreach (InventorySlot slot in new List<InventorySlot>(source.Contents.Slots))
-                    {
-                        if (left <= 0)
-                        {
-                            break;
-                        }
-                        if (slot.IsEmpty || slot.Item.Value != item || slot.Category != InventoryCategory.Generic)
-                        {
-                            continue;
-                        }
-                        StackView stack = ToStackView(source.Entity, slot);
-                        int amount = (int)Math.Min(left, slot.Count);
-                        int done = await DepositInto(source.Entity, stack, target, amount == slot.Count ? 0 : amount, itemName, received);
-                        left -= done;
-                        moved += done;
-                        if (done == 0)
-                        {
-                            break;  // the Auto-Stations chest is full, or the game refused
-                        }
-                    }
-                }
-            }
-            if (moved > 0)
-            {
-                Log.Info($"auto-stations: {moved} item(s) into {target.Label} ({target.Entity.Value}) for {stations.Count} station(s): {(received.TryGetValue(target.Entity.Value, out Dictionary<string, long>? items) ? DescribeItems(items) : "")}");
-            }
-        }
-        _autoStationsNeeds = needs;
-    }
-
-    // Once a second between passes: true when a base's stock of an item its stations use has fallen under half of what they
-    // need for the set crafts (a few stock reads, no station or chest scan).
-    private bool AutoStationsRunningLow()
-    {
-        foreach ((BaseId baseId, Dictionary<uint, long> needed) in _autoStationsNeeds)
-        {
-            foreach ((uint item, long count) in needed)
-            {
-                if (Bases.Stock(baseId, new ItemId(item)) * 2 < count)
-                {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    // The base's Magic Chest named Auto-Stations; with Auto-Name Chests on, the closest default-named Magic Chest of the base to
-    // its stations is named so; else a toast, once per base per session.
-    private async Task<DepositChestState?> AutoStationsChestOf(BaseId baseId, WorldPosition near, int autoName)
-    {
-        DepositChestState? closestUnnamed = null;
-        double closestDistance = double.MaxValue;
-        foreach (EntityId container in Bases.Storage(baseId, false))
-        {
-            if (KindOf(container) != ChestKind.Magic || Items.Read(container) is not { } contents)
-            {
-                continue;
-            }
-            string? name = ContainerNameOrNull(container);
-            World.TryGetPosition(container, out WorldPosition position);
-            var chest = new DepositChestState { Entity = container, Label = name ?? "Magic Chest", Contents = contents, Base = baseId, IsMagic = true };
-            if (ChestRules.IsAutoStationsName(name))
-            {
-                return chest;
-            }
-            double distance = position.DistanceTo(near);
-            if (name == null && Items.ContainerNamesAvailable && contents.FreeSlots() > 0 && distance < closestDistance)
-            {
-                closestUnnamed = chest;
-                closestDistance = distance;
-            }
-        }
-        if (autoName != 0 && closestUnnamed != null)
-        {
-            try
-            {
-                if (await Items.SetContainerName(closestUnnamed.Entity, ChestRules.AutoStationsName))
-                {
-                    closestUnnamed.Label = ChestRules.AutoStationsName;
-                    Log.Info($"auto-stations: chest {closestUnnamed.Entity.Value} named {ChestRules.AutoStationsName}");
-                    Hud.Toast($"A Magic Chest of this base is now named {ChestRules.AutoStationsName}: it keeps the automated stations stocked.", ToastKind.Info, 6);
-                    return closestUnnamed;
-                }
-            }
-            catch (Exception problem) when (problem is ArgumentException or InvalidOperationException or NotSupportedException)
-            {
-                Problem($"auto-stations: chest {closestUnnamed.Entity.Value} could not be named: {problem.Message}");
-            }
-        }
-        if (_autoStationsToasted.Add(baseId))
-        {
-            Hud.Toast(autoName != 0
-                ? $"Auto-Stations: no Magic Chest of a base with automated stations is free to be named {ChestRules.AutoStationsName}."
-                : $"Auto-Stations: name a Magic Chest {ChestRules.AutoStationsName} in a base with automated stations (or turn Auto-Name Chests on) to keep them stocked from your linked chests.", ToastKind.Info, 8);
-        }
-        return null;
     }
 
     private static List<DepositCandidate> DepositCandidates(List<DepositChestState> chests, uint item, int maxStack, ulong itemCategories, int itemSection)
