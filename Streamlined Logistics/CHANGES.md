@@ -7,6 +7,14 @@ How it works: the screen is a Kiln screen (`Ui.Screen`) drawn in the player's ga
 `Scripts\Build.ps1` runs the tests (`tests\ChestRulesTests`), builds against Kiln's assemblies in `<game>\kiln\host` and puts the mod in `dist\streamlined-logistics`; `-Install` copies it to `<game>\kiln\mods\streamlined-logistics`, where Kiln loads it as a drop-in (game closed).
 
 
+## 1.0.2
+
+- **Fills, building and lockpicks from linked chests** (Kiln 0.2.0-dev.31.12's `CraftSourceOptions.Fills`, `.Building` and `.Locks`, mod API 0.2.21; the user: "Yes." to enabling them): three new settings under Craft From Linked Chests, each on by default and only working while it is on. **Fill Stations From Linked Chests**: a production station's +1 and +10 take from the linked chests, in any base, what the backpack and the base's own chests can't cover. **Build From Linked Chests**: the Construction Hammer and the build menu count and pay blocks and materials from them. **Lockpicks From Linked Chests**: a lock that needs a lockpick (or a key) opens with one held in a linked chest and takes it from there (Kiln #147, report 31). Kiln copies a source's options when it is registered, so changing one registers the sources again. kiln.mod.json asks for mod API 0.2.21; the Nexus page asks for Kiln 0.2.0-dev.31.12 and drops the brittle-crafting warning and the two planned features Kiln now covers.
+- Auto-Stations stays: Fills only feeds the station screen's own +1 / +10 (and `Stations.Fill` calls that ask for linked sources). Automated stations and Busy Hands still fill from the base's Magic Chests, which Auto-Stations keeps stocked; SL doesn't call `Stations.Fill` itself, so nothing races Busy Hands.
+
+> [!warning]
+> Not yet seen in game.
+
 ## 1.0.1
 
 - **A chest named All is a catch-all** (the user: "let's just add the "All" name, also at the top of the rename dropdown list. Forget about the setting, no automation; as you say, renaming will be the opt in."): Quick Deposit and Re-Sort send an All chest any item, but only when no other chest's name asks for the item, or all of those are full (`CategoryTree.CatchAllRank`, below a hand-made category's word). All is first in the Chests tab's name list. Auto-Name Chests never names a chest All, and an All chest with room doesn't stop it from naming a chest for an item's category. Re-Sort moves items out of the All chest once a chest is named for them, and moves items from unnamed linked chests into it. The name ranks are renumbered (sub-category 4, group 3, word 2, All 1).

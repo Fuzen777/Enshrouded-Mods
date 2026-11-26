@@ -109,7 +109,11 @@ The F2 menu offers :
 
 ### Cross-Base Storage &amp; Craft
 
-- You can craft (at stations and NPCs) from any base, from your linked chests, and use their dyes at the coloring station. At least that’s what’s supposed to happen. Honestly, the approach is currently <span style="color: #d9534f">very brittle</span>, because of Kiln’s limitations in that regard ; until it’s properly implemented, I really recommend using [Cross-Base Storage](https://www.nexusmods.com/enshrouded/mods/245) instead.
+- You can craft (at stations, NPCs and from your inventory) from any base, from your linked chests, and use their dyes at the coloring station. Since Kiln 0.2.0-dev.31.12 this works in every crafting menu without [Cross-Base Storage](https://www.nexusmods.com/enshrouded/mods/245), even next to Building Tools.
+- **Fill Stations From Linked Chests**: a production station's +1 and +10 also take from your linked chests what your backpack and the base's own chests can't cover.
+- **Build From Linked Chests**: the Construction Hammer and the build menu count and use the blocks and materials your linked chests hold.
+- **Lockpicks From Linked Chests**: a lock that needs a lockpick opens with one held in your linked chests.
+- Your backpack and the base's own chests are always used first. Each option can be turned off in the Settings tab.
 
 ### Settings in the window
 
@@ -160,7 +164,7 @@ The key is **Open Streamlined Logistics** in the Keys tab of Kiln's menu.
 
 ## Requirements
 
-- [Kiln](https://github.com/frostdev-ops/kiln) mod loader, **0.2.0-dev.31 or newer**.
+- [Kiln](https://github.com/frostdev-ops/kiln) mod loader, **0.2.0-dev.31.12 or newer**.
 
 ## Installation
 
@@ -189,8 +193,6 @@ To update, check with Kiln or download the newest version and install it manuall
 
 These are designed and waiting on a Kiln update that gives mods what they need. They will come as soon as Kiln supports them.
 
-- **Reliable crafting from your linked chests**, without needing Cross-Base Storage.
-- **Lockpicks from your linked chests** when picking a lock.
 - **Use the repair kit** from the window, like other consumables.
 
 ---

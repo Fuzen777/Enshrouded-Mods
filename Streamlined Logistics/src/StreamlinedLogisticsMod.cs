@@ -287,6 +287,8 @@ public sealed class StreamlinedLogisticsMod : Mod
     private int _craftSourcesStateVersion = -1;
     private int _stateVersion;
     private bool _craftSourcesBroken;
+    // The options the current sources were registered with (Kiln copies them at registration): a change registers them again.
+    private (bool Fills, bool Building, bool Locks) _craftSourcesOptions;
     private const ulong StepsBetweenCraftSourceChecks = 600;
     // The deposit and salvage rules as the Settings tab shows them (written on the world's thread after a load or a save), and the
     // render thread's edits waiting to be saved.
@@ -1223,11 +1225,16 @@ public sealed class StreamlinedLogisticsMod : Mod
     private void SyncCraftSources(ulong step)
     {
         EntityId player = Client.LocalPlayer;
-        bool wanted = (_settings?.Value.CraftFromLinkedChests ?? true) && !player.IsNone && !_craftSourcesBroken;
-        if (!wanted || player != _craftSourcesPlayer)
+        ChestSettings? settings = _settings?.Value;
+        bool wanted = (settings?.CraftFromLinkedChests ?? true) && !player.IsNone && !_craftSourcesBroken;
+        // Fills, building and locks from linked chests (Kiln 0.2.0-dev.31.12, mod API 0.2.21): each off in Kiln until the link asks.
+        (bool Fills, bool Building, bool Locks) options = (settings?.FillStationsFromLinkedChests ?? true,
+            settings?.BuildFromLinkedChests ?? true, settings?.LocksFromLinkedChests ?? true);
+        if (!wanted || player != _craftSourcesPlayer || (_craftSources.Count > 0 && options != _craftSourcesOptions))
         {
             DropCraftSources();
         }
+        _craftSourcesOptions = options;
         if (!wanted || (_stateVersion == _craftSourcesStateVersion && step - _craftSourcesCheckedStep < StepsBetweenCraftSourceChecks))
         {
             return;
@@ -1268,7 +1275,8 @@ public sealed class StreamlinedLogisticsMod : Mod
             }
             try
             {
-                _craftSources[chest] = Crafting.AddSource(player, new EntityId(chest), new CraftSourceOptions());
+                _craftSources[chest] = Crafting.AddSource(player, new EntityId(chest),
+                    new CraftSourceOptions { Fills = options.Fills, Building = options.Building, Locks = options.Locks });
                 added++;
             }
             catch (KilnUnavailableException problem)
@@ -1285,7 +1293,7 @@ public sealed class StreamlinedLogisticsMod : Mod
         }
         if (added > 0 || gone.Count > 0)
         {
-            Log.Info($"craft from linked chests: {_craftSources.Count} linked chest(s) lend to player {player.Value}'s crafting ({added} added, {gone.Count} removed)");
+            Log.Info($"craft from linked chests: {_craftSources.Count} linked chest(s) lend to player {player.Value}'s crafting ({added} added, {gone.Count} removed; fills {options.Fills}, building {options.Building}, locks {options.Locks})");
         }
     }
 
@@ -2790,6 +2798,12 @@ public sealed class StreamlinedLogisticsMod : Mod
             "How far from your character Link Nearby Chests reaches.");
         SettingToggle(ui, "craftFromLinkedChests", "Craft From Linked Chests", settings.CraftFromLinkedChests,
             "Crafting at a station, an NPC or from your inventory uses what your linked chests hold, in any base,\nafter your backpack and the base's own chests. The tinting screen offers their dyes too.");
+        SettingToggle(ui, "fillStationsFromLinkedChests", "Fill Stations From Linked Chests", settings.FillStationsFromLinkedChests,
+            "A production station's +1 and +10 also take from your linked chests, in any base,\nwhat your backpack and the base's own chests can't cover. Needs Craft From Linked Chests.");
+        SettingToggle(ui, "buildFromLinkedChests", "Build From Linked Chests", settings.BuildFromLinkedChests,
+            "The Construction Hammer and the build menu count and use the blocks and materials your linked chests hold,\nin any base, after your backpack and the base's own chests. Needs Craft From Linked Chests.");
+        SettingToggle(ui, "locksFromLinkedChests", "Lockpicks From Linked Chests", settings.LocksFromLinkedChests,
+            "A lock that needs a lockpick or a key opens with one held in your linked chests,\nand takes it from there when your backpack has none. Needs Craft From Linked Chests.");
         ui.Separator("Favorites");
         SettingToggle(ui, "favoritesStayInBackpack", "Favorites Stay In Backpack", settings.FavoritesStayInBackpack,
             "The game's own Deposit Stacks, Deposit All and Quick Stack Station leave your favorite items in your backpack.");

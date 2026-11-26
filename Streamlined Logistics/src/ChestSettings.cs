@@ -9,6 +9,18 @@ public sealed class ChestSettings
     [Comment("Craft From Linked Chests. On: crafting at a station, an NPC or from your inventory uses what your linked chests hold, in any base, after your backpack and the base's own chests; the tinting screen offers their dyes. Needs Kiln 0.2.0-dev.30.6.")]
     public bool CraftFromLinkedChests { get; set; } = true;
 
+    [ConfigKey("fillStationsFromLinkedChests")]
+    [Comment("Fill Stations From Linked Chests. On: a production station's +1 and +10 also take from your linked chests, in any base, what your backpack and the base's own chests can't cover. Needs Craft From Linked Chests and Kiln 0.2.0-dev.31.12.")]
+    public bool FillStationsFromLinkedChests { get; set; } = true;
+
+    [ConfigKey("buildFromLinkedChests")]
+    [Comment("Build From Linked Chests. On: the Construction Hammer and the build menu count and use the blocks and materials your linked chests hold, in any base, after your backpack and the base's own chests. Needs Craft From Linked Chests and Kiln 0.2.0-dev.31.12.")]
+    public bool BuildFromLinkedChests { get; set; } = true;
+
+    [ConfigKey("locksFromLinkedChests")]
+    [Comment("Lockpicks From Linked Chests. On: a lock that needs a lockpick or a key opens with one held in your linked chests, and takes it from there when your backpack has none. Needs Craft From Linked Chests and Kiln 0.2.0-dev.31.12.")]
+    public bool LocksFromLinkedChests { get; set; } = true;
+
     [ConfigKey("linkRegularChests")]
     [Comment("Link Regular Chests. Off: only Magic Chests are offered for linking. On: regular chests too.")]
     public bool LinkRegularChests { get; set; }
