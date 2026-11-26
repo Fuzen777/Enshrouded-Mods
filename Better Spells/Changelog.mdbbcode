@@ -6,8 +6,8 @@ Gem stats - every gem's other numbers too: durations, cooldowns, tick intervals,
 Gem summons - add levels to the Skull, Wretch and Reaper, or let them follow your own level with Sync With Player (experimental).
 Gems - a gem takes its new values when its weapon is next equipped or switched to on the hotbar.
 Values - the window shows what a multiplier gives next to it (for example "= 6 s"). Right-click a value to put it back to its default.
-Shots Through Walls - new toggle for Totems, Lightning Wisp and Fire Wisp Scroll: their shots fly through terrain, walls and water and still hit enemies (experimental).
-Ball Lightning - new Through Walls toggle: the ball flies through terrain, walls and water and still hits enemies (experimental).
+Shots Through Walls - new toggle for Totems, Lightning Wisp and Fire Wisp Scroll: their shots fly through terrain, walls and water and still hit enemies.
+Ball Lightning - new Through Walls toggle: the ball flies through terrain, walls and water and still hits enemies.
 F3 - now opens the settings window by default (was Shift+F3). If you already picked your own key in Kiln, you keep it.
 Grimoire - with Grimoire 1.1.0 installed, F3 opens both windows side by side, and they move together while they touch. Hold Shift while dragging to move one alone. Needs Kiln 0.2.0-dev.31.11 or newer.
 ```
