@@ -12,7 +12,7 @@
 
 <div style="text-align: center">
 
-The source code for all my Enshrouded mods is available on [GitHub](https://github.com/Fuzen777/Enshrouded-Mods) (MIT)
+*The source code for all my Enshrouded mods is available on [GitHub](https://github.com/Fuzen777/Enshrouded-Mods) (MIT)*
 
 </div>
 
@@ -20,7 +20,7 @@ The source code for all my Enshrouded mods is available on [GitHub](https://gith
 
 Grimoire is a **Kiln** mod that keeps your spells and arrows in a grimoire of their own instead of your backpack. Each kind of spell or arrow gets one slot, the HUD's spell and arrow lists follow the order you set, and picking one in the HUD equips it as usual.
 
-This means, you can place spells you use often next to each other or group them thematically and the order will never move around randomly.
+This means you can place spells you use often next to each other or group them thematically, and the order will never move around randomly.
 
 It works with the game's own equipment, not around it, so it doesn't always behave the way you might expect. **Please read the Caveats below before you install it.**
 
@@ -32,7 +32,6 @@ It works with the game's own equipment, not around it, so it doesn't always beha
 
 - The game only casts a spell (or fires an arrow) from your backpack or hotbar, so **the equipped spell and the equipped arrows each keep one slot there**. Everything else stays in the grimoire. You can put the spell in your hotbar as visual reminder of which arrow/spell you currently have equipped.
 - Switching swaps the new pick into that same slot and puts the old one back in the grimoire, so you never need more than that one slot.
-
 - With nothing equipped and a **full backpack**, a spell can't be equipped from the grimoire. Free one slot.
 - If the equipped spell sits on your hotbar, it stays there, and the spells you switch to take its place. When switching extremely fast, it can move to another hotbar slot, but it is always just that one spell. This shouldn’t happen anymore.
 
@@ -46,7 +45,7 @@ It works with the game's own equipment, not around it, so it doesn't always beha
 
 - Any spell or arrow **already in your grimoire** that shows up in your backpack (looted, crafted, picked up, or the one you just switched away from) is filed into the grimoire within about a second, unless it is the equipped one.
 - Spells and arrows you never added stay in your backpack. By default they are **hidden from the HUD** (see **Hide Other Spells And Arrows** below): turn that off to pick them from the HUD again. Picking one puts the grimoire's equipped one back in the grimoire.
-- **Take Out** (right-click in the grimoire window) removes a spell from the grimoire for good, so it stops being filed in again.
+- **Take Out** (RMB in the grimoire window) removes a spell from the grimoire for good, so it stops being filed in again.
 
 ### Removing the Mod
 
@@ -77,8 +76,8 @@ It works with the game's own equipment, not around it, so it doesn't always beha
 - Opens with **F3** (or the **Open Grimoire** button on the mod's page in Kiln's menu), with a **Spells** tab and an **Arrows** tab. It opens on Spells, unless you only have arrows to sort.
 - Move it and resize it as you like: it opens where you left it, at the same size, even after a restart. **Esc** or **F3** closes it.
 - With **Better Spells** (1.2.1 or newer) installed, the grimoire and Better Spells' settings window open side by side, even on the same key, and move together (Kiln **0.2.0-dev.31.16 or newer**). Hold **Shift** while dragging to move one alone, and drop it back beside the other to join them again.
-- Click an entry to equip it, drag to reorder, right-click (or drag it onto the backpack list) to take it out.
-- The spells or arrows in your backpack are listed below: click one or drag it in to add it. **Ctrl+Click** a spell or arrow in the game's inventory adds it too. **Add All** and **Take All Out** move everything at once.
+- Click an entry to equip it, drag to reorder, RMB (or drag it onto the backpack list) to take it out.
+- The spells or arrows in your backpack are listed below: click one or drag it in to add it. **Ctrl + LMB** a spell or arrow in the game's inventory adds it too. **Add All** and **Take All Out** move everything at once.
 
 ### Settings
 
