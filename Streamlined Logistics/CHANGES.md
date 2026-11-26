@@ -7,6 +7,10 @@ How it works: the screen is a Kiln screen (`Ui.Screen`) drawn in the player's ga
 `Scripts\Build.ps1` runs the tests (`tests\ChestRulesTests`), builds against Kiln's assemblies in `<game>\kiln\host` and puts the mod in `dist\streamlined-logistics`; `-Install` copies it to `<game>\kiln\mods\streamlined-logistics`, where Kiln loads it as a drop-in (game closed).
 
 
+## 1.1.0
+
+- **Nexus upload of 1.0.3** (asked 26 Nov 2026): no code change, the DLL is 1.0.3's (2e8d405); only kiln.mod.json's version changes. `Changelog.mdbbcode` covers 1.0.1 to 1.0.3. The Nexus page no longer mentions Cross-Base Storage as a way to craft (its section is now Craft From Linked Chests, and Compatibility says it isn't needed), and says Build From Linked Chests waits on a Kiln fix (report 32: the Construction Hammer and build menu show and pay nothing from linked chests on Kiln 0.2.0-dev.31.13), and that Kiln 0.2.0-dev.31.15 turns a lock's Required: Lockpick line green when the pick is in a linked chest (#147 follow-up, report 31b; before, the lock opened but the line stayed red).
+
 ## 1.0.3
 
 - **Auto-Stations retired** (the user: "For automated stations : +1/+10 work perfectly. The individual items +1/+n are still grayed out and show Available: 0 ; either way, we can retire the "Auto-Stations" chests alongside their settings since the stations themselves take care of it natively through linked storages now."): production stations now fill from linked chests natively through Kiln's +1 / +10 (Fill Stations From Linked Chests, 1.0.2), so the Auto-Stations chests and the Auto-Stations Crafts / Auto-Stations Every settings are gone (`AutoStationsSoon`, `TopUpAutoStations`, `AutoStationsRunningLow`, `AutoStationsChestOf`, `ChestRules.AutoStationsName` / `IsAutoStationsName` / `AutoStationsShortfall`, the chest's base and Magic Chest flags, and their tests). A chest named Auto-Stations is now an ordinary chest: Quick Deposit and Re-Sort use it like any other, and it is no longer in the Chests tab's name list. The Nexus page drops its Auto-Stations section.

@@ -32,16 +32,18 @@ Every setting starts at the game's own value, so nothing changes until you decid
 ### Setting Windows
 
 - Opens with **F3** (or the button on the mod's page in Kiln's menu), where you left it, at the same size.
-- With **Grimoire** installed, **F3** opens the settings window and the grimoire side by side, and they move together while they touch. Hold **Shift** while dragging to move one alone.
+- Two tabs: **Spells** and **Gems**.
+- With **Grimoire** (1.1.0 or newer) installed, **F3** opens the settings window and the grimoire side by side, and they move together while they touch. Hold **Shift** while dragging to move one alone.
 - Spells are laid out as **icon rows by element** : Fire, Ice, Lightning, Shroud, Summons, Others, and Items. Click a spell's icon to open its card.
 - Each setting is a simple **− value +** control. The mouse wheel works over any value; hold **Shift** for 10 steps, **Ctrl** for 100.
-- A **dot** marks every spell you have changed, so you can see your edits at a glance.
+- A **dot** marks every spell you have changed, so you can see your edits at a glance, and a **Default** button sits beside every changed value.
+- Next to a multiplier, the window shows what it gives (for example "= 6 s").
 - Every setting has its explanation on hover.
 
 ### Settings for Every Spell
 
 - **Mana Cost** (x0.1 to x10), on every spell.
-- **Cast Time** (x0.1 to x10): how soon the spell is ready again.
+- **Cast Time** (x0.1 to x10): how long you hold your staff before the spell goes off. The cast itself keeps its full length, so the spell always goes out.
 - **Damage** (x0.1 to x50): multiplies the spell's own share of the damage.
 - **Duration** (x0.1 to x10), for every spell that lasts: Fire Pillar, Blizzard, Ball Lightning, Acid Cone, Root, Magic Shield, Totems, Skeletons and Lightning Wisps. The tooltip follows.
 - **Radius** (x0.1 to x5) for Fireball, Fire Pillar, Light Burst, Ice Bolt, Blizzard, Ball Lightning, Shroud Meteor and Root. Areas, visuals and tooltips follow.
@@ -60,6 +62,8 @@ Every setting starts at the game's own value, so nothing changes until you decid
 - **Invulnerable Totems**: totems take no damage, like Lightning Wisps.
 - **Enemies Ignore Totems** (experimental): enemies stop targeting totems, so they no longer act as decoys.
 - **Keep Older Wisps** (experimental): a new Lightning Wisp cast no longer removes your earlier wisps, so they add up while they last.
+- **Perception** for Totems, Skeleton, Lightning Wisp, Skull Vessel and Fire Wisp Scroll: how far the summon notices enemies and goes for them. Wisps' and totems' shots fly longer to match.
+- **Shot Lifetime** for Lightning Wisp and Fire Wisp Scroll (5 s by default, the game's is 2 s), so their shots reach enemies at the edge of their range.
 
 ### Lightning
 
@@ -73,6 +77,14 @@ Every setting starts at the game's own value, so nothing changes until you decid
 - **Meteor Shower Scroll**: Mana Cost and Damage.
 - **Crawler Bomb**: Mana Cost, Cast Time, Duration, Damage and Health.
 - The General card covers these too.
+
+### Weapon Gems
+
+- The **Gems** tab lists all 29 gems by tier, each with its own card.
+- **Damage** for every gem that deals damage, with its own General card (Multiply or At Least) that leaves your spells alone. The damage grows with the setting at every gem level.
+- **Every other number** of a gem: durations, cooldowns, tick intervals, chances, regeneration, armor, orb healing and more. Durations that grow with the gem's level have a **Base** and a **Per Level** multiplier.
+- **Summon levels** for the Skull, Wretch, Damned and Reaper gems, and **Sync With Player** (experimental): the summon takes your level plus those levels.
+- A gem takes its new values when its weapon is next **equipped or switched to** on the hotbar.
 
 ### Live, safe and reversible
 
@@ -96,13 +108,20 @@ Every setting starts at the game's own value, so nothing changes until you decid
 - On the General card, **At Least** is the easy way to set a floor ("every spell at least x2 damage") without stacking on top of your per-spell values.
 - Values below x1 make a spell weaker: handy for a challenge run.
 
-**Changing the key**: it is **Open Settings Window** in the Keys tab of Kiln's menu. The settings themselves are in Kiln's profile (`%LOCALAPPDATA%\Kiln\profiles\<your profile>\config\better-spells.json`), so updating the mod never resets them.
+**Changing the key**: it is **Open Settings Window** in the Keys tab of Kiln's menu.
+
+The settings themselves are kept in Kiln's profile, so updating the mod never resets them. You'll find them in this file:
+
+```
+%LOCALAPPDATA%\Kiln\profiles\<your profile>\config\better-spells.json
+```
 
 ---
 
 ## Requirements
 
 - [Kiln](https://github.com/frostdev-ops/kiln) mod loader, **0.2.0-dev.31 or newer**.
+- Opening side by side with Grimoire: Kiln **0.2.0-dev.31.11 or newer**.
 
 ## Installation
 
@@ -115,6 +134,7 @@ Every setting starts at the game's own value, so nothing changes until you decid
 
 - Made and tested in single player and worlds you host. Not tested on dedicated servers.
 - Other mods that change the same spell values will stack with or overwrite these.
+- Gem damage is decided by the host. Other players see the new numbers in tooltips only if they run Kiln.
 
 ## Known limitations
 

@@ -6,6 +6,10 @@ Its companion **Better Spells Live** (`src\better-spells-live`, id `better-spell
 
 Since 3.0.0 Better Spells is one **Kiln mod** (`src\better-spells-kiln`, id `better-spells`, C#) with every setting of the two Shroudforge mods above, all applied while playing. The Shroudforge mods (2.0.9 and Live 1.0.5) are retired. Their entries stay here as the record; their sources, tests, probes and build script were removed from the folder on 21 Nov 2026 on the user's request and are in the repository's history under the tags `better-spells/v2.0.9` and `better-spells-live/v1.0.5`, so paths below such as `src\better-spells`, `tests\test_live.py` or `Scripts\Build.ps1` name files of that history. `Scripts\Build-Kiln.ps1` runs the tests (`tests\SpellRulesTests`) and builds the mod into `dist\kiln\better-spells`; with `-Install` it copies it to `<game>\kiln\mods\better-spells` (game closed). The settings are in Kiln's profile (`%LOCALAPPDATA%\Kiln\profiles\my-mods\config\better-spells.json`), so an install never touches them. Tags are `better-spells/vX.Y.Z` as before. The Kiln Proof entry below is the small mod that tested the move.
 
+## 1.2.0
+
+- **Nexus upload of 1.1.6** (asked 26 Nov 2026): no code change, the DLL is 1.1.6's (2512b74); only kiln.mod.json's version changes. `Changelog.mdbbcode` covers 1.1.1 to 1.1.6. The Nexus page now describes the Gems tab (gem damage, gem stats, summon levels and Sync With Player), Perception and Shot Lifetime, the Default button and the value shown next to a multiplier, Cast Time as the charge time, and asks Kiln 0.2.0-dev.31.11 for docking with Grimoire; the settings path is in a code block of its own (Nexus has no inline code).
+
 ## 1.1.6 (not uploaded)
 
 - **Gems tab: every gem and its other numbers** (the user's picks in the Gem Stat Picker, 26 Nov 2026). The tab now has all 29 gems, with a Tier 7 row; a gem that deals no damage has no Damage line. `SpellCatalog.GemStats` lists 65 stats: durations, cooldowns, tick intervals, chances, summon levels, regeneration, armor, orb healing and more, each with the config of the gem item it changes and the tooltip row (by loca id) that shows it.

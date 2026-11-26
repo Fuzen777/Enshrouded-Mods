@@ -1,3 +1,12 @@
+## 1.1.0
+
+```
+Multiplayer - Grimoire now works on dedicated servers and when you join someone else's world, not only in worlds you host. The server (or the host) needs Grimoire too, and so does each player who wants a grimoire. Dedicated servers haven't been tested in game yet.
+Multiplayer - each player has their own grimoire, order and settings. Players without Grimoire are left alone.
+Better Spells - with Better Spells 1.2.0 installed, the grimoire and its settings window open side by side, even on the same key, and move together while they touch. Hold Shift while dragging to move one alone. Needs Kiln 0.2.0-dev.31.11 or newer.
+Window - opened alone, the grimoire still opens where you left it.
+```
+
 ## 1.0.0
 
 ```

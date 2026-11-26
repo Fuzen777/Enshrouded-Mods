@@ -32,6 +32,7 @@ It works with the game's own equipment, not around it, so it doesn't always beha
 
 - The game only casts a spell (or fires an arrow) from your backpack or hotbar, so **the equipped spell and the equipped arrows each keep one slot there**. Everything else stays in the grimoire. You can put the spell in your hotbar as visual reminder of which arrow/spell you currently have equipped.
 - Switching swaps the new pick into that same slot and puts the old one back in the grimoire, so you never need more than that one slot.
+
 - With nothing equipped and a **full backpack**, a spell can't be equipped from the grimoire. Free one slot.
 - If the equipped spell sits on your hotbar, it stays there, and the spells you switch to take its place. When switching extremely fast, it can move to another hotbar slot, but it is always just that one spell. This shouldn’t happen anymore.
 
@@ -39,6 +40,7 @@ It works with the game's own equipment, not around it, so it doesn't always beha
 
 - Grimoire works in **single player**, in **co-op** and on **dedicated servers** (since 1.0.2). In multiplayer, **the server (or the host) needs Grimoire too**, and each player who wants a grimoire installs it as well.
 - Each player has their own grimoire, order and settings. Players without Grimoire on their game are left alone.
+- **Dedicated servers haven't been tested in game yet.** Grimoire is built for them, but if something doesn't work on yours, please report it with your kiln.log from the server and from your game.
 
 ### What Joins the Grimoire by Itself
 
@@ -74,7 +76,7 @@ It works with the game's own equipment, not around it, so it doesn't always beha
 
 - Opens with **F3** (or the **Open Grimoire** button on the mod's page in Kiln's menu), with a **Spells** tab and an **Arrows** tab. It opens on Spells, unless you only have arrows to sort.
 - Move it and resize it as you like: it opens where you left it, at the same size, even after a restart. **Esc** or **F3** closes it.
-- With **Better Spells** installed, the grimoire and Better Spells' settings window open side by side, even on the same key, and move together while they touch. Hold **Shift** while dragging to move one alone.
+- With **Better Spells** (1.2.0 or newer) installed, the grimoire and Better Spells' settings window open side by side, even on the same key, and move together while they touch. Hold **Shift** while dragging to move one alone.
 - Click an entry to equip it, drag to reorder, right-click (or drag it onto the backpack list) to take it out.
 - The spells or arrows in your backpack are listed below: click one or drag it in to add it. **Ctrl+Click** a spell or arrow in the game's inventory adds it too. **Add All** and **Take All Out** move everything at once.
 
@@ -94,6 +96,7 @@ It works with the game's own equipment, not around it, so it doesn't always beha
 
 - [Kiln](https://github.com/frostdev-ops/kiln) mod loader, **0.2.0-dev.31 or newer** (Kiln's player storage).
 - In multiplayer: Kiln and Grimoire on the server (or the host) and on each player's game that wants a grimoire.
+- Opening side by side with Better Spells: Kiln **0.2.0-dev.31.11 or newer**.
 
 ## Installation
 

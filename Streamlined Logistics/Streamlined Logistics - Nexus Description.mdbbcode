@@ -99,12 +99,12 @@ The F2 menu offers :
 - **LMB on a category** highlights every chest named for it in the world. LMB on a group highlights the group's chests and all of its sub-categories' chests.
 - Materials and Building blocks are hidden by default, since you mostly use them through the crafting menu and the Construction Hammer. A search still finds them.
 
-### Cross-Base Storage &amp; Craft
+### Craft From Linked Chests
 
-- You can craft (at stations, NPCs and from your inventory) from any base, from your linked chests, and use their dyes at the coloring station. Since Kiln 0.2.0-dev.31.12 this works in every crafting menu without [Cross-Base Storage](https://www.nexusmods.com/enshrouded/mods/245), even next to Building Tools.
+- Craft from your linked chests in any base: at stations, at NPCs and from your inventory. Their dyes work at the coloring station too. It works in every crafting menu, even next to Building Tools, with no other mod needed.
 - **Fill Stations From Linked Chests**: a production station's +1 and +10 also take from your linked chests what your backpack and the base's own chests can't cover.
-- **Build From Linked Chests**: the Construction Hammer and the build menu count and use the blocks and materials your linked chests hold.
-- **Lockpicks From Linked Chests**: a lock that needs a lockpick opens with one held in your linked chests.
+- **Build From Linked Chests**: the Construction Hammer and the build menu count and use the blocks and materials your linked chests hold. **Coming with the next Kiln update**: the setting is already in the mod, but Kiln doesn't count or pay building materials from linked chests yet. A fix is on its way, and it will work without a mod update.
+- **Lockpicks From Linked Chests**: a lock that needs a lockpick opens with one held in your linked chests. With Kiln **0.2.0-dev.31.15 or newer**, the lock's *Required: Lockpick* line turns green too (on older Kiln versions it stays red, but the lock still opens).
 - Your backpack and the base's own chests are always used first. Each option can be turned off in the Settings tab.
 
 ### Settings in the window
@@ -169,6 +169,7 @@ To update, check with Kiln or download the newest version and install it manuall
 ## Compatibility
 
 - **Works in a world you host** (single player or as the host). Joining someone else's world and dedicated servers are not supported yet.
+- **Cross-Base Storage**: not needed. Crafting from linked chests is built in, through Kiln.
 - **XHL-Remote Chest**: Streamlined Logistics replaces it and does not need XHL-Core. They don't share links. Running both is not recommended.
 - **Quick Deposit (Greeneye)**: while it is installed and enabled, this mod's own G G deposit stands down and leaves it to Quick Deposit.
 - **Custom categories**: if a **chestsort\_categories.json** sits next to the game's exe (the file Quick Deposit uses), the material categories are read from it and follow your edits live. Otherwise the copy bundled with the mod is used.
@@ -180,6 +181,7 @@ To update, check with Kiln or download the newest version and install it manuall
 - The game's full item detail (damage, perks, gems) only shows for items you have looked at in the game's own screens this session.
 - No controller button to open the window yet, nor controller navigation.
 - A large Re-Sort takes a little while; the window's other buttons wait until it ends.
+- Building from linked chests (Construction Hammer and build menu) waits on a Kiln fix, see above.
 
 ## Planned features
 

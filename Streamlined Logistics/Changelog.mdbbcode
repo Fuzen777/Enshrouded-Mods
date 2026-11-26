@@ -1,3 +1,15 @@
+## 1.1.0
+
+```
+Catch-all chest - name a chest All and it takes any item that no other chest's name asks for, or whose chests are full. All is first in the rename dropdown, and Auto-Name Chests never uses it.
+Crafting - crafting from linked chests now works in every crafting menu without Cross-Base Storage, even next to Building Tools.
+Fill Stations From Linked Chests - new setting, on by default. A production station's +1 and +10 also take from your linked chests.
+Lockpicks From Linked Chests - new setting, on by default. A lock that needs a lockpick opens with one held in a linked chest. With Kiln 0.2.0-dev.31.15 or newer, the lock's Required: Lockpick line also turns green.
+Build From Linked Chests - new setting, on by default. The Construction Hammer and the build menu will count and use blocks and materials from your linked chests once Kiln ships its fix. It does nothing yet.
+Auto-Stations - removed. Stations now fill from your linked chests by themselves, so the Auto-Stations chests and their settings are gone. A chest named Auto-Stations is now an ordinary chest.
+Requirements - now needs Kiln 0.2.0-dev.31.12 or newer.
+```
+
 ## 1.0.0
 
 ```

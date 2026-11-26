@@ -4,6 +4,10 @@ Kiln mod (C#, id `grimoire`) that keeps spells and arrows out of the backpack in
 
 It was the spellbook of Better Spells (3.3.0-dev.1 to dev.11, 23 and 24 Nov 2026); that history, with what was found in game, is in `..\Better Spells\CHANGES.md`.
 
+## 1.1.0
+
+- **Nexus upload of 1.0.4** (asked 26 Nov 2026): no code change, the DLL is 1.0.4's (88d3336); only kiln.mod.json's version changes. `Changelog.mdbbcode` covers 1.0.1 to 1.0.4. The Nexus page says dedicated servers haven't been tested in game yet (the user's ask), and that docking with Better Spells needs Better Spells 1.2.0 and Kiln 0.2.0-dev.31.11.
+
 ## 1.0.4 (not uploaded)
 
 - **No more flash when one key opens both windows** (the user's report, 26 Nov 2026: both windows showed for a split second at their own places before snapping together). The grimoire opened before it knew where Better Spells' window was going, so it showed at its own place and jumped beside it a frame or two later. Now, when its key is the same as Better Spells' (`KeyBindings.Find("better-spells.window")`) and Better Spells' window is not open yet, `WindowPair.Open` holds the grimoire back until Better Spells' first message (one tick after its window opens), at most 250 ms, and shows it already beside it. Opened alone, or on a different key, it shows at once as before. Not tested in game yet.
