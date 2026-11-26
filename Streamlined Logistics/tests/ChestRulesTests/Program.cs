@@ -561,6 +561,26 @@ IReadOnlyList<DepositCandidate> fullWeapons = ChestRules.BestNamed(new List<Depo
 Check(fullWeapons.Count == 1 && fullWeapons[0].Entity == 2, "a full Weapons chest lets the Gear chest take the item");
 Check(ChestRules.BestNamed(new List<DepositCandidate> { new(1, 10, 0, 0, 1, true, CategoryTree.SectionNameRank), new(2, 0, 0, 0, 9, true, CategoryTree.GroupNameRank) }).Count == 1,
     "all named chests full: the best rank still (the item stays and is reported as Full)");
+// A chest named All takes any item, but only when no other chest's name asks for it or those chests are full (1.0.1).
+Check(ChestRules.IsCatchAllName(" all ") && ChestRules.IsCatchAllName("All") && !ChestRules.IsCatchAllName("All Ores") && !ChestRules.IsCatchAllName(null),
+    "All is the catch-all's name, in any case");
+IReadOnlyList<DepositCandidate> allAndGear = ChestRules.BestNamed(new List<DepositCandidate>
+{
+    new(1, 0, 0, 9, 1, true, CategoryTree.CatchAllRank), new(2, 0, 0, 3, 9, true, CategoryTree.GroupNameRank), new(3, 50, 50, 3, 2, false),
+});
+Check(allAndGear.Count == 1 && allAndGear[0].Entity == 2, "a chest named for the item comes before the All chest");
+IReadOnlyList<DepositCandidate> allOnly = ChestRules.BestNamed(new List<DepositCandidate>
+{
+    new(1, 0, 0, 9, 9, true, CategoryTree.CatchAllRank), new(3, 50, 50, 3, 2, false),
+});
+Check(allOnly.Count == 1 && ChestRules.PlaceChest(allOnly) == 1, "no chest named for the item: the All chest takes it");
+IReadOnlyList<DepositCandidate> fullOres = ChestRules.BestNamed(new List<DepositCandidate>
+{
+    new(1, 10, 0, 0, 1, true, CategoryTree.SectionNameRank), new(2, 0, 0, 5, 9, true, CategoryTree.CatchAllRank),
+});
+Check(fullOres.Count == 1 && fullOres[0].Entity == 2, "a full Ores chest lets the All chest take the item");
+Check(ChestRules.BestNamed(new List<DepositCandidate> { new(1, 0, 0, 5, 1, true, CategoryTree.CatchAllRank), new(2, 0, 0, 3, 9, true) })[0].Entity == 2,
+    "a hand-made category's chest comes before the All chest");
 Check(!CategoryTree.TryParse("{}", handNames, handMaterial, out _, out _) && !CategoryTree.TryParse(null, handNames, handMaterial, out _, out _), "no table, no tree");
 var treeState = new StoredState { HiddenTreeChosen = true };
 treeState.HiddenTree.Add("Materials");

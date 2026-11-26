@@ -161,6 +161,8 @@ public sealed class StreamlinedLogisticsMod : Mod
         public ulong NameCategories;
         // How closely the name asks for each of those sections (CategoryTree.SectionRanksOfChestName).
         public Dictionary<int, int> SectionRanks = new();
+        // The chest is named All (since 1.0.1): it takes what no other chest's name asks for.
+        public bool IsCatchAll;
         public double DistanceMeters;
         public InventoryContents Contents = null!;
         // The chest still has the game's default name (no name of its own): Auto-Name Chests may name it.
@@ -2110,7 +2112,10 @@ public sealed class StreamlinedLogisticsMod : Mod
                 return;
             }
             _tree = tree;
-            var choices = new List<string>(tree.ChestNameChoices()) { ChestRules.AutoStationsName };
+            // All first (since 1.0.1), then the tree's names, then Auto-Stations.
+            var choices = new List<string> { ChestRules.CatchAllName };
+            choices.AddRange(tree.ChestNameChoices());
+            choices.Add(ChestRules.AutoStationsName);
             _chestNameChoices = choices;
             _placeOfItems.Clear();
             if (!_state.HiddenTreeChosen)
@@ -2539,11 +2544,16 @@ public sealed class StreamlinedLogisticsMod : Mod
         return _tree?.SectionRanksOfChestName(name) ?? new Dictionary<int, int>();
     }
 
-    // How closely a chest's name asks for an item: its sub-category's rank, or a hand-made category's word.
+    // How closely a chest's name asks for an item: its sub-category's rank, or a hand-made category's word; a chest named All asks
+    // for every item, after all of those (since 1.0.1).
     private static int NameRankFor(DepositChestState chest, ulong itemCategories, int itemSection)
     {
         int rank = itemSection >= 0 ? chest.SectionRanks.GetValueOrDefault(itemSection) : 0;
-        return (chest.NameCategories & itemCategories) != 0 ? Math.Max(rank, CategoryTree.WordRank) : rank;
+        if ((chest.NameCategories & itemCategories) != 0)
+        {
+            rank = Math.Max(rank, CategoryTree.WordRank);
+        }
+        return rank == 0 && chest.IsCatchAll ? CategoryTree.CatchAllRank : rank;
     }
 
     // ---- Item details on hover: the rows of the game's own tooltip (effects, durations), with its labels, and the description. ----
@@ -4026,7 +4036,8 @@ public sealed class StreamlinedLogisticsMod : Mod
         }
         foreach (DepositCandidate candidate in DepositCandidates(chests, item, maxStack, itemCategories, itemSection))
         {
-            if (candidate.NamedForCategory && (candidate.FreeSlots > 0 || candidate.PartialRoom > 0))
+            // A chest named All doesn't count (since 1.0.1): it only takes what no chest can be named for.
+            if (candidate.NamedForCategory && candidate.NameRank > CategoryTree.CatchAllRank && (candidate.FreeSlots > 0 || candidate.PartialRoom > 0))
             {
                 return null;  // a chest named for it still has room
             }
@@ -4147,7 +4158,7 @@ public sealed class StreamlinedLogisticsMod : Mod
                 int itemSection = PlaceOf(item).Section;
                 // Auto-Name Chests (since 0.10.19 for Re-Sort too): a stack in a chest that doesn't ask for it, with no chest named
                 // for it that has room, gets the closest default-named chest named for it (possibly its own chest).
-                if (autoName != 0 && itemSection >= 0 && NameRankFor(source, itemCategories, itemSection) == 0
+                if (autoName != 0 && itemSection >= 0 && NameRankFor(source, itemCategories, itemSection) <= CategoryTree.CatchAllRank
                     && await AutoNameChest(chests, item, Items.Get(new ItemId(item))?.MaxStack ?? 0, itemCategories, itemSection, autoName) is { } newName)
                 {
                     namedChests.Add(newName);
@@ -4290,6 +4301,7 @@ public sealed class StreamlinedLogisticsMod : Mod
                 NameCategories = HandMadeBitsOfChestName(name),
                 Unnamed = name == null && Items.ContainerNamesAvailable,
                 SectionRanks = TreeSectionRanksOfChestName(name),
+                IsCatchAll = ChestRules.IsCatchAllName(name),
                 DistanceMeters = playerPlaced ? position.DistanceTo(playerPosition) : 0,
                 Contents = contents,
                 Base = Bases.Available ? Bases.At(position)?.Id : null,
@@ -4327,6 +4339,7 @@ public sealed class StreamlinedLogisticsMod : Mod
                 NameCategories = HandMadeBitsOfChestName(name),
                 Unnamed = name == null && Items.ContainerNamesAvailable,
                 SectionRanks = TreeSectionRanksOfChestName(name),
+                IsCatchAll = ChestRules.IsCatchAllName(name),
                 DistanceMeters = playerPlaced ? position.DistanceTo(playerPosition) : 0,
                 Contents = contents,
                 Base = Bases.Available ? Bases.At(position)?.Id : null,
@@ -5663,7 +5676,7 @@ public sealed class StreamlinedLogisticsMod : Mod
             _renameText = current;
             _renameFocusPending = true;
         }
-        ui.Tooltip("Choose a category's name: Quick Deposit and Re-Sort send this chest that category.\nRMB: type a name of your own. An empty name clears it.");
+        ui.Tooltip("Choose a category's name: Quick Deposit and Re-Sort send this chest that category.\nAll: this chest takes any item that no other chest takes.\nRMB: type a name of your own. An empty name clears it.");
     }
 
     private void DrawChests(UiDraw ui, Snapshot snapshot)

@@ -1111,7 +1111,7 @@ public static class ChestRules
     /// <summary>
     /// The chests a deposit may use (since 0.10.15): when some chest's name asks for the item, only those of the highest rank
     /// (<see cref="CategoryTree.SectionRanksOfChestName"/>: a chest named for the exact sub-category before one sharing a word
-    /// with it); when none does, all of them.
+    /// with it, and a chest named All last of all); when none does, all of them.
     /// </summary>
     public static IReadOnlyList<DepositCandidate> BestNamed(IReadOnlyList<DepositCandidate> chests)
     {
@@ -1121,7 +1121,7 @@ public static class ChestRules
         int bestWithRoom = 0;
         foreach (DepositCandidate chest in chests)
         {
-            int rank = chest.NamedForCategory ? Math.Max(chest.NameRank, 1) : 0;
+            int rank = NamedRank(chest);
             best = Math.Max(best, rank);
             if (chest.FreeSlots > 0 || chest.PartialRoom > 0)
             {
@@ -1136,12 +1136,18 @@ public static class ChestRules
         var kept = new List<DepositCandidate>();
         foreach (DepositCandidate chest in chests)
         {
-            if (chest.NamedForCategory && Math.Max(chest.NameRank, 1) == best)
+            if (NamedRank(chest) == best)
             {
                 kept.Add(chest);
             }
         }
         return kept;
+    }
+
+    // A candidate's name rank; a chest named for a category with no rank given counts as a hand-made category's word.
+    private static int NamedRank(DepositCandidate chest)
+    {
+        return !chest.NamedForCategory ? 0 : chest.NameRank > 0 ? chest.NameRank : CategoryTree.WordRank;
     }
 
     public static IReadOnlyList<DepositCandidate> TopUpOrder(IReadOnlyList<DepositCandidate> chests)
@@ -1322,6 +1328,17 @@ public static class ChestRules
     public static bool IsAutoStationsName(string? chestName)
     {
         return chestName != null && string.Equals(chestName.Trim(), AutoStationsName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// The name of a catch-all chest (since 1.0.1): it takes any item, but only when no other chest's name asks for it or those
+    /// chests are full (<see cref="CategoryTree.CatchAllRank"/>). Only the player names a chest so: Auto-Name Chests never does.
+    /// </summary>
+    public const string CatchAllName = "All";
+
+    public static bool IsCatchAllName(string? chestName)
+    {
+        return chestName != null && string.Equals(chestName.Trim(), CatchAllName, StringComparison.OrdinalIgnoreCase);
     }
 
     // What an Auto-Stations chest must bring for the base's stations: each station's inputs for that many crafts, summed per

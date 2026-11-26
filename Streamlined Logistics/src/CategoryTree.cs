@@ -206,11 +206,13 @@ public sealed class CategoryTree
     }
 
     /// <summary>A chest named for a sub-category ("Weapons").</summary>
-    public const int SectionNameRank = 3;
+    public const int SectionNameRank = 4;
     /// <summary>A chest named for a group ("Gear"): a sub-category's own chest comes first.</summary>
-    public const int GroupNameRank = 2;
+    public const int GroupNameRank = 3;
     /// <summary>A hand-made category's word, used only when the tree's table is missing.</summary>
-    public const int WordRank = 1;
+    public const int WordRank = 2;
+    /// <summary>A chest named All (since 1.0.1): it takes any item, after every chest whose name asks for the item.</summary>
+    public const int CatchAllRank = 1;
 
     /// <summary>
     /// The sections a chest's name asks for, and how (since 0.10.16, the user's choice: no other names, "too confusing without a

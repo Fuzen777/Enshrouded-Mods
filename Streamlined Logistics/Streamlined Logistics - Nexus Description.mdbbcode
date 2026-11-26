@@ -74,6 +74,7 @@ The F2 menu offers :
 - Name a chest after a category (*Weapons*, *Meals*, *Ores*) or a whole group (*Gear*, *Materials*) and Quick Deposit and Re-Sort send it exactly that.
 - **Rename from the window**: the name column is a dropdown of every category name. RMB on it to type a custom name instead. Names are the game's own, so they are saved with the world and everyone sees them.
 - **Specific before general**: a chest named *Weapons* fills before one named *Gear*. When every chest of the best name is full, the next one takes over.
+- **Catch-all chest**: name a chest *All* and it takes any item that no other chest's name asks for, or whose chests are full. *All* is first in the dropdown. Auto-Name Chests never uses it.
 - Start a chest's name with **--** and the mod never puts anything in it.
 - **Auto-Name Chests** (optional): when nothing has room for an item, the closest chest that still has its default name is named for it, either by sub-category (*Weapons*) or by group (*Gear*).
 

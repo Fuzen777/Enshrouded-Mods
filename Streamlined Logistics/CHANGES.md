@@ -7,6 +7,13 @@ How it works: the screen is a Kiln screen (`Ui.Screen`) drawn in the player's ga
 `Scripts\Build.ps1` runs the tests (`tests\ChestRulesTests`), builds against Kiln's assemblies in `<game>\kiln\host` and puts the mod in `dist\streamlined-logistics`; `-Install` copies it to `<game>\kiln\mods\streamlined-logistics`, where Kiln loads it as a drop-in (game closed).
 
 
+## 1.0.1
+
+- **A chest named All is a catch-all** (the user: "let's just add the "All" name, also at the top of the rename dropdown list. Forget about the setting, no automation; as you say, renaming will be the opt in."): Quick Deposit and Re-Sort send an All chest any item, but only when no other chest's name asks for the item, or all of those are full (`CategoryTree.CatchAllRank`, below a hand-made category's word). All is first in the Chests tab's name list. Auto-Name Chests never names a chest All, and an All chest with room doesn't stop it from naming a chest for an item's category. Re-Sort moves items out of the All chest once a chest is named for them, and moves items from unnamed linked chests into it. The name ranks are renumbered (sub-category 4, group 3, word 2, All 1).
+
+> [!warning]
+> Not yet seen in game.
+
 ## 1.0.0
 
 First Nexus release (the user: "Can you package SL for upload ? That'll be 1.0.0."): 0.10.41 renumbered, same code. The Nexus page (`Streamlined Logistics - Nexus Description.mdbbcode`) now covers Auto-Stations, the navigation sidebar, the kept window size and draggable split, the Functional and Seedlings categories, the game-drawn favorite background, Link Chest in a chest's screen and dyes from linked chests, asks for Kiln 0.2.0-dev.31, and plans lockpicks from linked chests (Kiln report 31). `Changelog.mdbbcode` holds the player-facing changelog.
