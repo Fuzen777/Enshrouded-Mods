@@ -78,7 +78,7 @@ public sealed class BetterSpellsMod : Mod
 
     private const int MaxRefusalLines = 40;
     private const string WindowBindingId = "better-spells.window";
-    private const string WindowDefaultKey = "Shift+F3";
+    private const string WindowDefaultKey = "F3";
     private const string WindowTitle = "Better Spells";
     // The window's first size before the overlay's scale: it fits the longest card (Totems) under the six rows of icons, with the hint
     // wrapped to the width. The player can resize and move the window, and WindowPlacement keeps both for the next game start.
