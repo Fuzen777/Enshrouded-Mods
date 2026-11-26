@@ -220,9 +220,21 @@ public sealed class GrimoireMod : Mod
         {
             return;
         }
-        _pair?.Opening();
-        _window.Show();
-        OnWindowOpened();
+        UiWindow window = _window;
+        void Show()
+        {
+            window.Show();
+            OnWindowOpened();
+        }
+        if (_pair != null)
+        {
+            // Waits a moment for Better Spells' window when its key is the same (1.0.4).
+            _pair.Open(Show);
+        }
+        else
+        {
+            Show();
+        }
     }
 
     // The window opened: both books read the game again, then the default tab is chosen on what they hold.

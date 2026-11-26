@@ -394,8 +394,15 @@ public sealed class BetterSpellsMod : Mod
         {
             return;
         }
-        _pair?.Opening();
-        _window.Show();
+        UiWindow window = _window;
+        if (_pair != null)
+        {
+            _pair.Open(window.Show);
+        }
+        else
+        {
+            window.Show();
+        }
     }
 
     private void HideWindow()

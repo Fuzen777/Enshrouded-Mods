@@ -6,6 +6,10 @@ Its companion **Better Spells Live** (`src\better-spells-live`, id `better-spell
 
 Since 3.0.0 Better Spells is one **Kiln mod** (`src\better-spells-kiln`, id `better-spells`, C#) with every setting of the two Shroudforge mods above, all applied while playing. The Shroudforge mods (2.0.9 and Live 1.0.5) are retired. Their entries stay here as the record; their sources, tests, probes and build script were removed from the folder on 21 Nov 2026 on the user's request and are in the repository's history under the tags `better-spells/v2.0.9` and `better-spells-live/v1.0.5`, so paths below such as `src\better-spells`, `tests\test_live.py` or `Scripts\Build.ps1` name files of that history. `Scripts\Build-Kiln.ps1` runs the tests (`tests\SpellRulesTests`) and builds the mod into `dist\kiln\better-spells`; with `-Install` it copies it to `<game>\kiln\mods\better-spells` (game closed). The settings are in Kiln's profile (`%LOCALAPPDATA%\Kiln\profiles\my-mods\config\better-spells.json`), so an install never touches them. Tags are `better-spells/vX.Y.Z` as before. The Kiln Proof entry below is the small mod that tested the move.
 
+## 1.1.5 (not uploaded)
+
+- Same `WindowPair` as Grimoire 1.0.4 (the grimoire no longer flashes at its own place when one key opens both windows). Nothing changes for Better Spells' own window, which never waits.
+
 ## 1.1.4 (not uploaded)
 
 - **F3 opens the settings window by default** (was Shift+F3; the user's ask, 26 Nov 2026): it now opens with the grimoire on the same key, side by side (1.1.3). Players who already chose a key in Kiln's Keys page keep theirs (keybinds.json wins over the default).

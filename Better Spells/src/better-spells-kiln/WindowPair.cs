@@ -16,7 +16,9 @@ namespace BetterSpells;
 /// <item>A window that opens while the other one is open goes beside it, on its preferred side (Grimoire on the right, Better Spells on the
 /// left) when it fits there.</item>
 /// <item>Both opened by one key press: the leader (Better Spells) stays where it is and the other one goes beside it, whichever opened
-/// first.</item>
+/// first. When both mods' window bindings (<c>&lt;mod id&gt;.window</c>) are on the same key and the follower does not know the leader's
+/// window yet, the follower waits up to 250 ms for it before it shows, so it appears beside it at once instead of flashing at its own
+/// place first (1.0.4 / 1.1.5).</item>
 /// <item>While the two touch side by side they are docked: moving or resizing one moves the other with it. Hold Shift while dragging to
 /// move one alone. Of two docked windows that no longer touch, the one the player moved last stays and the other follows it (both
 /// never moved: the leader stays), so the two never chase each other. A window dropped within a few pixels of the other one's side snaps
@@ -42,6 +44,8 @@ internal sealed class WindowPair : IDisposable
     private const int OwnMoveFrames = 3;
     // Shift held: a press or auto-repeat seen this recently (a release lost to alt-tab must not leave it held).
     private const long ShiftMilliseconds = 1000;
+    // How long a follower opened by the leader's key waits for the leader's window before showing at its own place.
+    private const long WaitForLeaderMilliseconds = 250;
     // In pixels at UI scale 1.
     private const float DockTolerance = 3f;
     private const float SnapDistance = 16f;
@@ -79,6 +83,9 @@ internal sealed class WindowPair : IDisposable
     private float _offsetY;        // pixels
     private float[]? _told;
     private long _toldAt;
+    // A follower's show waiting for the leader's window (under _gate), and the timer that shows it anyway.
+    private Action? _pendingShow;
+    private Timer? _pendingTimer;
 
     /// <param name="leader">Stays put when both windows open together (the partner goes beside it).</param>
     /// <param name="preferRight">The side of the partner's window this window goes on when it fits there.</param>
@@ -104,6 +111,12 @@ internal sealed class WindowPair : IDisposable
 
     public void Dispose()
     {
+        lock (_gate)
+        {
+            _pendingShow = null;
+            _pendingTimer?.Dispose();
+            _pendingTimer = null;
+        }
         _subscription.Dispose();
         _shiftListener?.Dispose();
     }
@@ -128,6 +141,18 @@ internal sealed class WindowPair : IDisposable
         {
             return;
         }
+        try
+        {
+            Receive(message);
+        }
+        finally
+        {
+            ShowPending(beside: true);
+        }
+    }
+
+    private void Receive(ImcMessage message)
+    {
         float[]? rect = message.PayloadAs<float[]>();
         if (rect is not { Length: >= 4 } || !Array.TrueForAll(rect, float.IsFinite) || rect[2] <= rect[0] || rect[3] <= rect[1])
         {
@@ -151,22 +176,88 @@ internal sealed class WindowPair : IDisposable
     }
 
     /// <summary>
-    /// Called right before the window is shown (any thread): beside the partner's window when that is open (for the leader, only when it
-    /// was not opened by the same key press), else where the player left it.
+    /// Opens the window (any thread): <paramref name="show"/> shows it, now or, for a follower opened by the leader's key before the
+    /// leader's window is known, once it is (at most 250 ms later). Placed beside the partner's window when that is open (for the leader,
+    /// only when it was not opened by the same key press), else where the player left it.
     /// </summary>
-    public void Opening()
+    public void Open(Action show)
     {
         lock (_gate)
         {
+            if (_pendingShow != null)
+            {
+                return;
+            }
+            if (!_leader && FreshPartner(Environment.TickCount64) == null && SameKeyAsPartner())
+            {
+                Reset(Environment.TickCount64);
+                _pendingShow = show;
+                _pendingTimer = new Timer(_ => ShowPending(beside: false), null, WaitForLeaderMilliseconds, Timeout.Infinite);
+                return;
+            }
+            Opening();
+        }
+        show();
+    }
+
+    // Shows a window waiting for the leader's: beside it when it is known now, else at the player's own place (any thread).
+    private void ShowPending(bool beside)
+    {
+        Action? show;
+        lock (_gate)
+        {
+            show = _pendingShow;
+            if (show == null)
+            {
+                return;
+            }
+            Partner? partner = FreshPartner(Environment.TickCount64);
+            if (beside && partner == null)
+            {
+                return;
+            }
+            _pendingShow = null;
+            _pendingTimer?.Dispose();
+            _pendingTimer = null;
+            Opening();
+        }
+        show();
+    }
+
+    // Both mods' window bindings are on the same key: one press opens both.
+    private bool SameKeyAsPartner()
+    {
+        try
+        {
+            KeyBinding? own = KeyBindings.Find(_ownMethod);
+            KeyBinding? partner = KeyBindings.Find(_partnerId + ".window");
+            return own != null && partner != null && partner.Enabled && !own.Key.IsNone && own.Key.ToString() == partner.Key.ToString();
+        }
+        catch (Exception error) when (error is MissingMethodException or InvalidOperationException or ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    // Before the window shows. Under _gate.
+    private void Reset(long now)
+    {
+        _openedAt = now;
+        _joinPending = !_leader;
+        _docked = false;
+        _last = null;
+        _ownMoveFrames = 0;
+        _dragging = false;
+        _wasActive = false;
+        _told = null;
+    }
+
+    // Places the window as it opens. Under _gate.
+    private void Opening()
+    {
+        {
             long now = Environment.TickCount64;
-            _openedAt = now;
-            _joinPending = !_leader;
-            _docked = false;
-            _last = null;
-            _ownMoveFrames = 0;
-            _dragging = false;
-            _wasActive = false;
-            _told = null;
+            Reset(now);
             Partner? partner = FreshPartner(now);
             if (partner != null && (!_leader || now - partner.OpenedAt > TogetherMilliseconds) && MoveBeside(partner.Edges))
             {
@@ -196,6 +287,9 @@ internal sealed class WindowPair : IDisposable
     {
         lock (_gate)
         {
+            _pendingShow = null;
+            _pendingTimer?.Dispose();
+            _pendingTimer = null;
             _docked = false;
             _joinPending = false;
             _last = null;
