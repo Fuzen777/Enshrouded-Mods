@@ -641,7 +641,8 @@ public sealed class BetterSpellsMod : Mod
                 {
                     int cardIndex = index++;
                     string name = SkillName(card.Spell);
-                    if (filter.Length > 0 && name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0 && card.Spell.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0)
+                    if (filter.Length > 0 && name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0 && card.Spell.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0
+                        && SkillSearchText(card).IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0)
                     {
                         continue;
                     }
@@ -687,6 +688,32 @@ public sealed class BetterSpellsMod : Mod
             DrawSkillCard(ui, cards[selected], labelWidth);
         }
         ui.EndChild();
+    }
+
+    // What the search looks through besides a card's name: the description its card shows (the game's, with its numbers) and the
+    // labels of its lines; for a group, its members' names.
+    private string SkillSearchText(WindowSpell card)
+    {
+        var text = new System.Text.StringBuilder();
+        foreach (CardLine line in card.Lines)
+        {
+            text.Append(line.Label).Append(' ');
+        }
+        SkillGroup? group = SpellCatalog.SkillGroups.FirstOrDefault(skillGroup => skillGroup.Name == card.Spell);
+        if (group != null)
+        {
+            foreach (SkillStat stat in SpellCatalog.SkillStats.Where(stat => group.Members.Contains(stat.Key)))
+            {
+                text.Append(SkillName(stat.Skill)).Append(' ');
+            }
+            return text.ToString();
+        }
+        SkillInfo? info = SpellCatalog.SkillInfos.FirstOrDefault(skill => skill.Skill == card.Spell);
+        if (info != null && _skillTexts.TryGetValue(info.Skill, out var texts))
+        {
+            text.Append(SkillDescription(info, texts.Description).Replace(NumberStart.ToString(), "", StringComparison.Ordinal).Replace(NumberEnd.ToString(), "", StringComparison.Ordinal));
+        }
+        return text.ToString();
     }
 
     // A card's name: the game's, in the player's language, once read.

@@ -6,6 +6,10 @@ Its companion **Better Spells Live** (`src\better-spells-live`, id `better-spell
 
 Since 3.0.0 Better Spells is one **Kiln mod** (`src\better-spells-kiln`, id `better-spells`, C#) with every setting of the two Shroudforge mods above, all applied while playing. The Shroudforge mods (2.0.9 and Live 1.0.5) are retired. Their entries stay here as the record; their sources, tests, probes and build script were removed from the folder on 21 Nov 2026 on the user's request and are in the repository's history under the tags `better-spells/v2.0.9` and `better-spells-live/v1.0.5`, so paths below such as `src\better-spells`, `tests\test_live.py` or `Scripts\Build.ps1` name files of that history. `Scripts\Build-Kiln.ps1` runs the tests (`tests\SpellRulesTests`) and builds the mod into `dist\kiln\better-spells`; with `-Install` it copies it to `<game>\kiln\mods\better-spells` (game closed). The settings are in Kiln's profile (`%LOCALAPPDATA%\Kiln\profiles\my-mods\config\better-spells.json`), so an install never touches them. Tags are `better-spells/vX.Y.Z` as before. The Kiln Proof entry below is the small mod that tested the move.
 
+## 1.3.1 (not uploaded)
+
+- **Skills search also looks through descriptions** (the user's ask, 26 Nov 2026): a skill shows when the search text is in its name, in its card's line labels, or in its game description as the card shows it (with its numbers); a group shows when it is in one of its members' names.
+
 ## 1.3.0
 
 - **Nexus upload of 1.2.2-dev.7** (asked 26 Nov 2026): no code change, the DLL is dev.7's (25074d8, sha 2f58f2c6); only kiln.mod.json's version changes. `Changelog.mdbbcode` covers 1.2.1 and 1.2.2. The Nexus page describes the Skills tab and asks for Kiln 0.2.0-dev.31.16 (docking, and the build references Kiln.Assets and Kiln.Client). Not yet confirmed in game: the skill icons, and dev.7's Radiant Aura description number.
