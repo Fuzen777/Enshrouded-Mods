@@ -26,7 +26,7 @@ public sealed class GrimoireMod : Mod
     private Book[] _books = Array.Empty<Book>();
     private UiWindow? _window;
     private WindowPlacement? _placement;
-    private BesideBetterSpells? _beside;
+    private WindowPair? _pair;
     private GrimoireNet? _net;
     private KeyBinding? _windowKey;
     private IDisposable? _settingsPage;
@@ -75,7 +75,8 @@ public sealed class GrimoireMod : Mod
             // opens where the player left it).
             _placement = new WindowPlacement(Context.DataDirectory, Log, ScreenWidth, ScreenHeight);
             _window = Ui.Window(WindowTitle, DrawWindow, _placement.Options(new UiWindowOptions { Interactive = true, StartOpen = false }));
-            _beside = new BesideBetterSpells(Context, Log);
+            // Beside Better Spells' window, on its right, and docked to it (1.0.3); Better Spells leads when both open together.
+            _pair = new WindowPair(Context, Log, "better-spells", leader: false, preferRight: true, _window, _placement);
             _windowKey = KeyBindings.Register(WindowBindingId, WindowDefaultKey, ToggleWindow, "Open Grimoire", Context.Info.Name);
             _settingsPage = Ui.AddConfigPage(Context.Info.Id, DrawSettingsPage);
         }
@@ -99,10 +100,10 @@ public sealed class GrimoireMod : Mod
         _settingsPage = null;
         _windowKey?.Dispose();
         _windowKey = null;
+        _pair?.Dispose();
+        _pair = null;
         _window?.Dispose();
         _window = null;
-        _beside?.Dispose();
-        _beside = null;
         _net?.Dispose();
         _net = null;
     }
@@ -199,12 +200,18 @@ public sealed class GrimoireMod : Mod
     {
         if (_window?.Open == true)
         {
-            _window.Hide();
+            HideWindow();
         }
         else
         {
             OpenWindow();
         }
+    }
+
+    private void HideWindow()
+    {
+        _window?.Hide();
+        _pair?.Closed();
     }
 
     private void OpenWindow()
@@ -213,32 +220,9 @@ public sealed class GrimoireMod : Mod
         {
             return;
         }
-        Place(_window);
+        _pair?.Opening();
         _window.Show();
         OnWindowOpened();
-    }
-
-    // Beside Better Spells' window while that is open (1.0.1); else where the player left it, which the window has to be moved back to
-    // when it last opened beside Better Spells' (ImGui keeps the last place while the game runs).
-    private void Place(UiWindow window)
-    {
-        WindowPlacement? placement = _placement;
-        BesideBetterSpells? beside = _beside;
-        if (placement == null || beside == null)
-        {
-            return;
-        }
-        if (beside.Place(window, placement.WidthFraction))
-        {
-            placement.SetBeside(true);
-            return;
-        }
-        if (placement.Beside)
-        {
-            (float x, float y) = placement.Center;
-            beside.MoveCenter(window, x, y);
-        }
-        placement.SetBeside(false);
     }
 
     // The window opened: both books read the game again, then the default tab is chosen on what they hold.
@@ -321,7 +305,11 @@ public sealed class GrimoireMod : Mod
         // Escape closes it, as it closed the Kiln screen it was before 1.0.0.
         if (ui.KeyPressed(UiKey.Escape, claim: true))
         {
-            _window?.Hide();
+            HideWindow();
+        }
+        else
+        {
+            _pair?.Track(ui);
         }
         Book[] books = _books;
         if (books.Length == 0)

@@ -178,13 +178,4 @@ public static class GrimoireRules
         }
         return rows;
     }
-
-    /// <summary>Which side of Better Spells' window the grimoire opens on (edges and width as fractions of the viewport): the right when it
-    /// fits there or has at least as much room as on the left; a width of 0 (not known yet) fits anywhere.</summary>
-    public static bool BesideOnRight(float otherLeft, float otherRight, float width)
-    {
-        float roomRight = 1f - otherRight;
-        float roomLeft = otherLeft;
-        return width <= roomRight || roomRight >= roomLeft;
-    }
 }

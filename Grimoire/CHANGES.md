@@ -4,6 +4,16 @@ Kiln mod (C#, id `grimoire`) that keeps spells and arrows out of the backpack in
 
 It was the spellbook of Better Spells (3.3.0-dev.1 to dev.11, 23 and 24 Nov 2026); that history, with what was found in game, is in `..\Better Spells\CHANGES.md`.
 
+## 1.0.3 (not uploaded)
+
+- **The grimoire and Better Spells' settings window keep together** (the user's report and asks, 26 Nov 2026, with Better Spells 1.1.3; Kiln has no window grouping, so both mods do it with `UiWindow.MoveTo`, mod API 0.2.20). `BesideBetterSpells` (Grimoire) and `WindowToGrimoire` (Better Spells) are replaced by one class, `WindowPair`, the same file in both mods with `WindowPairRules` (its geometry, tested) and `WindowPlacement` (now also the same file in both).
+- Both windows now tell each other where they are (`grimoire.window` and `better-spells.window`: left, top, right, bottom as fractions of the viewport, then the seconds since the window opened and since the player last moved it), when that changes and every half second, and null when they close. Silent for 1.5 s counts as closed, as before.
+- **Better Spells' window opens beside the grimoire when the grimoire is open first** (before, only the grimoire went beside Better Spells'). Better Spells goes on the left, the grimoire on the right, each on the other side when it only fits there.
+- **One key for both** (the user has both on F3): Better Spells' window stays where it opens and the grimoire goes beside it, whichever mod gets the key first. Better Spells tells the grimoire where it is going as it opens; a grimoire that opened without knowing yet goes beside it on the first message within a second.
+- **Docked windows move together**: while the two touch side by side, moving or resizing one moves the other with it (it follows a frame or two behind: the messages go through Kiln's tick). Hold **Shift** while dragging to move one alone; a window dropped within 16 pixels of the other's side snaps against it (tops lined up when they are that close too) and docks again. Of two docked windows that no longer touch, the one the player moved last stays and the other follows, so the two never chase each other (neither moved yet: Better Spells stays). Shift is read with `KeyInput.Listen` (a press or repeat within the last second counts as held, so a release lost to alt-tab does not leave it stuck).
+- A place a window got beside or following the other one is not the player's: opened alone, it goes back to where the player left it (as 1.0.1 did for the grimoire, now for both). A window the player moves with their own drag keeps that place.
+- On a Kiln before mod API 0.2.20 nothing moves, as before. Not tested in game yet.
+
 ## 1.0.2 (not uploaded)
 
 - **Fix: Grimoire works on dedicated servers and for players who join another's world** (reported on Nexus, 26 Nov 2026: on a dedicated server F3 opened the grimoire, but "In Your Backpack" stayed empty and nothing could be added). 1.0.0 and 1.0.1 ran every step for the local player of a game that hosts its world: on a dedicated server the server had no local player and the player's game had no world (Kiln's inventory calls only work where the world runs), so nothing ran on either side. The server's kiln.log showed the storage restored and the slot changes of the player, and nothing else.

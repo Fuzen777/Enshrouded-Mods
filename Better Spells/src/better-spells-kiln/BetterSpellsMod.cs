@@ -97,7 +97,7 @@ public sealed class BetterSpellsMod : Mod
     private UiWindow? _window;
     private WindowPlacement? _placement;
     // Where the window is, for Grimoire to open beside it (1.1.1).
-    private readonly WindowToGrimoire _toGrimoire = new();
+    private WindowPair? _pair;
     // The size the screen's contents took, as last logged, to tune ScreenWidth and ScreenHeight.
     private string _loggedContentSize = "";
     // The left edge of the first line and the right edge of the widest item, in screen pixels, measured while drawing.
@@ -197,6 +197,8 @@ public sealed class BetterSpellsMod : Mod
             ReadDescriptions();
             _placement = new WindowPlacement(Context.DataDirectory, Log, ScreenWidth, ScreenHeight);
             _window = Ui.Window(WindowTitle, DrawWindow, _placement.Options(new UiWindowOptions { Interactive = true, StartOpen = false }));
+            // Beside the grimoire's window, on its left, and docked to it (1.1.3); this window leads when both open together.
+            _pair = new WindowPair(Context, Log, "grimoire", leader: true, preferRight: false, _window, _placement);
             _windowKey = KeyBindings.Register(WindowBindingId, WindowDefaultKey, ToggleWindow, "Open Settings Window", Context.Info.Name);
             _wheelListener = KeyInput.Listen(OnKeyOrWheel);
             if (!_wheelListener.Ok || !_wheelListener.Mouse)
@@ -221,6 +223,8 @@ public sealed class BetterSpellsMod : Mod
         _windowKey = null;
         _wheelListener?.Dispose();
         _wheelListener = null;
+        _pair?.Dispose();
+        _pair = null;
         _window?.Dispose();
         _window = null;
     }
@@ -380,14 +384,24 @@ public sealed class BetterSpellsMod : Mod
         }
         else
         {
-            _window?.Show();
+            OpenWindow();
         }
+    }
+
+    private void OpenWindow()
+    {
+        if (_window == null || _window.Open)
+        {
+            return;
+        }
+        _pair?.Opening();
+        _window.Show();
     }
 
     private void HideWindow()
     {
         _window?.Hide();
-        _toGrimoire.Closed();
+        _pair?.Closed();
     }
 
     // The mod's own part of its page in the Kiln menu, under Kiln's generated sliders: the way to the settings window.
@@ -395,7 +409,7 @@ public sealed class BetterSpellsMod : Mod
     {
         if (ui.Button("Open Settings Window"))
         {
-            _window?.Show();
+            OpenWindow();
         }
         ui.SameLine();
         ui.TextDisabled($"or press {_windowKey?.Key}: the spells by element, click one to see its settings. The sliders above are free and land on the nearest step.");
@@ -414,7 +428,7 @@ public sealed class BetterSpellsMod : Mod
         }
         else
         {
-            _toGrimoire.Track(ui);
+            _pair?.Track(ui);
         }
         _rowHeight = RowHeight * ui.Scale;
         _textHeight = ui.MeasureText("X").Height;

@@ -31,7 +31,8 @@ Every setting starts at the game's own value, so nothing changes until you decid
 
 ### Setting Windows
 
-- Opens with **Shift+F3** (or the button on the mod's page in Kiln's menu), centered on screen.
+- Opens with **Shift+F3** (or the button on the mod's page in Kiln's menu), where you left it, at the same size.
+- With **Grimoire** installed, the settings window and the grimoire open side by side, even on the same key, and move together while they touch. Hold **Shift** while dragging to move one alone.
 - Spells are laid out as **icon rows by element** : Fire, Ice, Lightning, Shroud, Summons, Others, and Items. Click a spell's icon to open its card.
 - Each setting is a simple **− value +** control. The mouse wheel works over any value; hold **Shift** for 10 steps, **Ctrl** for 100.
 - A **dot** marks every spell you have changed, so you can see your edits at a glance.

@@ -11,6 +11,7 @@
   <ItemGroup>
     <!-- The grimoire's rules have no game in them: they run without Kiln. -->
     <Compile Include="..\..\src\GrimoireRules.cs" Link="GrimoireRules.cs" />
+    <Compile Include="..\..\src\WindowPairRules.cs" Link="WindowPairRules.cs" />
   </ItemGroup>
 
 </Project>
