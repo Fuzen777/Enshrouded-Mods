@@ -1101,4 +1101,583 @@ public sealed class SpellSettings
     [Comment("Gem of Hyperspecialization Buff Duration. How long after the special ability kills give focus back. Multiplies the game's value. Never below 0.1 s. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
     [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
     public double HyperspecializationGemBuffDurationMultiplier { get; set; } = 1;
+
+    // Skill stats (1.2.2): skill-tree node configs, card by card (SpellCatalog.SkillStats). A change applies after returning to the main menu and loading the world again.
+    [ConfigKey("constitutionSkillPerNodeBonus")]
+    [Comment("Constitution Per Node. Added to what each Constitution node of the skill tree gives (game: 1 per node). Whole numbers only. Applies after returning to the main menu and loading the world again. Step 1.")]
+    [Range(SpellRules.MinSkillNodeBonus, SpellRules.MaxSkillNodeBonus, 1)]
+    public double ConstitutionSkillPerNodeBonus { get; set; } = 0;
+
+    [ConfigKey("dexteritySkillPerNodeBonus")]
+    [Comment("Dexterity Per Node. Added to what each Dexterity node of the skill tree gives (game: 1 per node). Whole numbers only. Applies after returning to the main menu and loading the world again. Step 1.")]
+    [Range(SpellRules.MinSkillNodeBonus, SpellRules.MaxSkillNodeBonus, 1)]
+    public double DexteritySkillPerNodeBonus { get; set; } = 0;
+
+    [ConfigKey("enduranceSkillPerNodeBonus")]
+    [Comment("Endurance Per Node. Added to what each Endurance node of the skill tree gives (game: 1 per node). Whole numbers only. Applies after returning to the main menu and loading the world again. Step 1.")]
+    [Range(SpellRules.MinSkillNodeBonus, SpellRules.MaxSkillNodeBonus, 1)]
+    public double EnduranceSkillPerNodeBonus { get; set; } = 0;
+
+    [ConfigKey("intelligenceSkillPerNodeBonus")]
+    [Comment("Intelligence Per Node. Added to what each Intelligence node of the skill tree gives (game: 1 per node). Whole numbers only. Applies after returning to the main menu and loading the world again. Step 1.")]
+    [Range(SpellRules.MinSkillNodeBonus, SpellRules.MaxSkillNodeBonus, 1)]
+    public double IntelligenceSkillPerNodeBonus { get; set; } = 0;
+
+    [ConfigKey("spiritSkillPerNodeBonus")]
+    [Comment("Spirit Per Node. Added to what each Spirit node of the skill tree gives (game: 1 per node). Whole numbers only. Applies after returning to the main menu and loading the world again. Step 1.")]
+    [Range(SpellRules.MinSkillNodeBonus, SpellRules.MaxSkillNodeBonus, 1)]
+    public double SpiritSkillPerNodeBonus { get; set; } = 0;
+
+    [ConfigKey("strengthSkillPerNodeBonus")]
+    [Comment("Strength Per Node. Added to what each Strength node of the skill tree gives (game: 1 per node). Whole numbers only. Applies after returning to the main menu and loading the world again. Step 1.")]
+    [Range(SpellRules.MinSkillNodeBonus, SpellRules.MaxSkillNodeBonus, 1)]
+    public double StrengthSkillPerNodeBonus { get; set; } = 0;
+
+    [ConfigKey("warriorsPathSkillDamageMultiplier")]
+    [Comment("Warrior's Path Damage. Multiplies what the skill gives at every level (game: 5% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double WarriorsPathSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("shinyPlatesSkillMagicalArmorMultiplier")]
+    [Comment("Shiny Plates Magical Armor. Multiplies what the skill gives at every level (game: 4% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double ShinyPlatesSkillMagicalArmorMultiplier { get; set; } = 1;
+
+    [ConfigKey("heavyPlatesSkillPhysicalArmorMultiplier")]
+    [Comment("Heavy Plates Physical Armor. Multiplies what the skill gives at every level (game: 4% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double HeavyPlatesSkillPhysicalArmorMultiplier { get; set; } = 1;
+
+    [ConfigKey("slasherSkillDamageMultiplier")]
+    [Comment("Slasher Damage. Multiplies what the skill gives at every level (game: 10% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double SlasherSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("bruteSkillDamageMultiplier")]
+    [Comment("Brute Damage. Multiplies what the skill gives at every level (game: 10% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double BruteSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("heavyHandedSkillEffectMultiplier")]
+    [Comment("Heavy Handed Effect. Multiplies what the skill gives at every level (game: 10% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double HeavyHandedSkillEffectMultiplier { get; set; } = 1;
+
+    [ConfigKey("veteranSkillCriticalChanceMultiplier")]
+    [Comment("Veteran Critical Chance. Multiplies what the skill gives at every level (game: 2% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double VeteranSkillCriticalChanceMultiplier { get; set; } = 1;
+
+    [ConfigKey("absorbSkillChanceMultiplier")]
+    [Comment("Absorb Chance. Multiplies what the skill gives at every level (game: 4% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double AbsorbSkillChanceMultiplier { get; set; } = 1;
+
+    [ConfigKey("bloodRageSkillRangeMultiplier")]
+    [Comment("Blood Rage Range. Multiplies what the skill gives at every level (game: 5 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double BloodRageSkillRangeMultiplier { get; set; } = 1;
+
+    [ConfigKey("soulLeechSkillManaMultiplier")]
+    [Comment("Soul Leech Mana. Multiplies what the skill gives at every level (game: 15 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double SoulLeechSkillManaMultiplier { get; set; } = 1;
+
+    [ConfigKey("soulLeechSkillRangeMultiplier")]
+    [Comment("Soul Leech Range. Multiplies what the skill gives at every level (game: 5 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double SoulLeechSkillRangeMultiplier { get; set; } = 1;
+
+    [ConfigKey("battleHealSkillHealingMultiplier")]
+    [Comment("Battle Heal Healing. Multiplies what the skill gives at every level (game: 1% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double BattleHealSkillHealingMultiplier { get; set; } = 1;
+
+    [ConfigKey("purificationSkillShroudTimeMultiplier")]
+    [Comment("Purification Shroud Time. Multiplies what the skill gives at every level (game: 3 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double PurificationSkillShroudTimeMultiplier { get; set; } = 1;
+
+    [ConfigKey("vigorousDeflectionSkillStaminaMultiplier")]
+    [Comment("Vigorous Deflection Stamina. Multiplies what the skill gives at every level (game: 15 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double VigorousDeflectionSkillStaminaMultiplier { get; set; } = 1;
+
+    [ConfigKey("nemesisSkillAttentionMultiplier")]
+    [Comment("Nemesis Attention. Multiplies what the skill gives at every level (game: 25% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double NemesisSkillAttentionMultiplier { get; set; } = 1;
+
+    [ConfigKey("bashSkillDamageMultiplier")]
+    [Comment("Bash Damage. Multiplies what the skill gives at every level (game: 10 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double BashSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("finesseSkillChanceMultiplier")]
+    [Comment("Finesse Chance. Multiplies what the skill gives at every level (game: 15% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double FinesseSkillChanceMultiplier { get; set; } = 1;
+
+    [ConfigKey("steadfastSkillDurabilityMultiplier")]
+    [Comment("Steadfast Durability. Multiplies what the skill gives at every level (game: 1 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double SteadfastSkillDurabilityMultiplier { get; set; } = 1;
+
+    [ConfigKey("titanEdgeSkillDamageMultiplier")]
+    [Comment("Titan Edge Damage. Multiplies what the skill gives at every level (game: 5% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double TitanEdgeSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("athleteSkillCountMultiplier")]
+    [Comment("Athlete Count. Multiplies what the skill gives at every level (game: 3 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double AthleteSkillCountMultiplier { get; set; } = 1;
+
+    [ConfigKey("barbariansPathSkillDamageMultiplier")]
+    [Comment("Barbarian's Path Damage. Multiplies what the skill gives at every level (game: 5% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double BarbariansPathSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("airborneSkillCostReductionMultiplier")]
+    [Comment("Airborne Cost Reduction. Multiplies what the skill gives at every level (game: 12% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double AirborneSkillCostReductionMultiplier { get; set; } = 1;
+
+    [ConfigKey("marksmanSkillDamageMultiplier")]
+    [Comment("Marksman Damage. Multiplies what the skill gives at every level (game: 5% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double MarksmanSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("snakeEaterSkillResistanceMultiplier")]
+    [Comment("Snake Eater Resistance. Multiplies what the skill gives at every level (game: 4% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double SnakeEaterSkillResistanceMultiplier { get; set; } = 1;
+
+    [ConfigKey("counterBatterySkillDamageMultiplier")]
+    [Comment("Counter Battery Damage. Multiplies what the skill gives at every level (game: 8% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double CounterBatterySkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("rangerSkillEnduranceMultiplier")]
+    [Comment("Ranger Endurance. Multiplies what the skill gives at every level (game: 1 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double RangerSkillEnduranceMultiplier { get; set; } = 1;
+
+    [ConfigKey("rangerSkillStaminaRegenerationMultiplier")]
+    [Comment("Ranger Stamina Regeneration. Multiplies what the skill gives at every level (game: 5 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double RangerSkillStaminaRegenerationMultiplier { get; set; } = 1;
+
+    [ConfigKey("rangerSkillDexterityMultiplier")]
+    [Comment("Ranger Dexterity. Multiplies what the skill gives at every level (game: 1 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double RangerSkillDexterityMultiplier { get; set; } = 1;
+
+    [ConfigKey("sniperSkillCriticalChanceMultiplier")]
+    [Comment("Sniper Critical Chance. Multiplies what the skill gives at every level (game: 2% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double SniperSkillCriticalChanceMultiplier { get; set; } = 1;
+
+    [ConfigKey("blessedArrowsSkillManaMultiplier")]
+    [Comment("Blessed Arrows Mana. Multiplies what the skill gives at every level (game: 8 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double BlessedArrowsSkillManaMultiplier { get; set; } = 1;
+
+    [ConfigKey("thrustSkillDamageMultiplier")]
+    [Comment("Thrust Damage. Multiplies what the skill gives at every level (game: 10% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double ThrustSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("backstabMasterySkillDamageMultiplier")]
+    [Comment("Backstab Mastery Damage. Multiplies what the skill gives at every level (game: 20% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double BackstabMasterySkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("vitalitySurgeSkillStaminaMultiplier")]
+    [Comment("Vitality Surge Stamina. Multiplies what the skill gives at every level (game: 3 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double VitalitySurgeSkillStaminaMultiplier { get; set; } = 1;
+
+    [ConfigKey("eaglesBaneSkillDamageMultiplier")]
+    [Comment("Eagle's Bane Damage. Multiplies what the skill gives at every level (game: 10% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double EaglesBaneSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("skillShotSkillDamageMultiplier")]
+    [Comment("Skill Shot Damage. Multiplies what the skill gives at every level (game: 20% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double SkillShotSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("swiftshotSustenanceSkillChanceMultiplier")]
+    [Comment("Swiftshot Sustenance Chance. Multiplies what the skill gives at every level (game: 12% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double SwiftshotSustenanceSkillChanceMultiplier { get; set; } = 1;
+
+    [ConfigKey("arachnoidSkillCostReductionMultiplier")]
+    [Comment("Arachnoid Cost Reduction. Multiplies what the skill gives at every level (game: 20% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double ArachnoidSkillCostReductionMultiplier { get; set; } = 1;
+
+    [ConfigKey("daggerMasterySkillDamageMultiplier")]
+    [Comment("Dagger Mastery Damage. Multiplies what the skill gives at every level (game: 5% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double DaggerMasterySkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("cutthroatSkillDamageMultiplier")]
+    [Comment("Cutthroat Damage. Multiplies what the skill gives at every level (game: 100% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double CutthroatSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("reboundSkillStaminaRegenerationMultiplier")]
+    [Comment("Rebound Stamina Regeneration. Multiplies what the skill gives at every level (game: 10% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double ReboundSkillStaminaRegenerationMultiplier { get; set; } = 1;
+
+    [ConfigKey("cullTheHerdSkillDamageMultiplier")]
+    [Comment("Cull the Herd Damage. Multiplies what the skill gives at every level (game: 5% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double CullTheHerdSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("primalForceSkillDamageMultiplier")]
+    [Comment("Primal Force Damage. Multiplies what the skill gives at every level (game: 5% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double PrimalForceSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("vileConcoctionSkillDamageMultiplier")]
+    [Comment("Vile Concoction Damage. Multiplies what the skill gives at every level (game: 12% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double VileConcoctionSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("fatalPrecisionSkillCriticalDamageMultiplier")]
+    [Comment("Fatal Precision Critical Damage. Multiplies what the skill gives at every level (game: 5% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double FatalPrecisionSkillCriticalDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("fatalPrecisionSkillCriticalChanceMultiplier")]
+    [Comment("Fatal Precision Critical Chance. Multiplies what the skill gives at every level (game: 1% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double FatalPrecisionSkillCriticalChanceMultiplier { get; set; } = 1;
+
+    [ConfigKey("veiledVigorSkillCountMultiplier")]
+    [Comment("Veiled Vigor Count. Multiplies what the skill gives at every level (game: 3 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double VeiledVigorSkillCountMultiplier { get; set; } = 1;
+
+    [ConfigKey("punctureSkillDamageMultiplier")]
+    [Comment("Puncture Damage. Multiplies what the skill gives at every level (game: 10% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double PunctureSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("barrageSkillChanceMultiplier")]
+    [Comment("Barrage Chance. Multiplies what the skill gives at every level (game: 15% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double BarrageSkillChanceMultiplier { get; set; } = 1;
+
+    [ConfigKey("survivalInstinctSkillShroudTimeMultiplier")]
+    [Comment("Survival Instinct Shroud Time. Multiplies what the skill gives at every level (game: 3 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double SurvivalInstinctSkillShroudTimeMultiplier { get; set; } = 1;
+
+    [ConfigKey("healingReviveSkillHealthMultiplier")]
+    [Comment("Healing Revive Health. Multiplies what the skill gives at every level (game: 8% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double HealingReviveSkillHealthMultiplier { get; set; } = 1;
+
+    [ConfigKey("mageApprenticeSkillDamageMultiplier")]
+    [Comment("Mage Apprentice Damage. Multiplies what the skill gives at every level (game: 5% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double MageApprenticeSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("arsonistSkillDamageMultiplier")]
+    [Comment("Arsonist Damage. Multiplies what the skill gives at every level (game: 10% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double ArsonistSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("darkArtsSkillDamageMultiplier")]
+    [Comment("Dark Arts Damage. Multiplies what the skill gives at every level (game: 10% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double DarkArtsSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("icemanSkillDamageMultiplier")]
+    [Comment("Iceman Damage. Multiplies what the skill gives at every level (game: 10% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double IcemanSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("frostSkillPrimerDurationMultiplier")]
+    [Comment("Frost Primer Duration. Multiplies what the skill gives at every level (game: 3 s per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double FrostSkillPrimerDurationMultiplier { get; set; } = 1;
+
+    [ConfigKey("quickChargeSkillChargeTimeMultiplier")]
+    [Comment("Quick Charge Charge Time. Multiplies what the skill gives at every level (game: -10% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double QuickChargeSkillChargeTimeMultiplier { get; set; } = 1;
+
+    [ConfigKey("counterstrikeSkillReflectedDamageMultiplier")]
+    [Comment("Counterstrike Reflected Damage. Multiplies what the skill gives at every level (game: 20% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double CounterstrikeSkillReflectedDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("counterstrikeSkillChanceMultiplier")]
+    [Comment("Counterstrike Chance. Multiplies what the skill gives at every level (game: 8% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double CounterstrikeSkillChanceMultiplier { get; set; } = 1;
+
+    [ConfigKey("wizardSkillCriticalChanceMultiplier")]
+    [Comment("Wizard Critical Chance. Multiplies what the skill gives at every level (game: 2% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double WizardSkillCriticalChanceMultiplier { get; set; } = 1;
+
+    [ConfigKey("necromancerSkillChanceMultiplier")]
+    [Comment("Necromancer Chance. Multiplies what the skill gives at every level (game: 5% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double NecromancerSkillChanceMultiplier { get; set; } = 1;
+
+    [ConfigKey("terrorSkillChanceMultiplier")]
+    [Comment("Terror Chance. Multiplies what the skill gives at every level (game: 20% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double TerrorSkillChanceMultiplier { get; set; } = 1;
+
+    [ConfigKey("bloodlettingSkillChanceMultiplier")]
+    [Comment("Bloodletting Chance. Multiplies what the skill gives at every level (game: 20% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double BloodlettingSkillChanceMultiplier { get; set; } = 1;
+
+    [ConfigKey("shroudMitigationSkillChanceMultiplier")]
+    [Comment("Shroud Mitigation Chance. Multiplies what the skill gives at every level (game: 10% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double ShroudMitigationSkillChanceMultiplier { get; set; } = 1;
+
+    [ConfigKey("healerSkillHealingMultiplier")]
+    [Comment("Healer Healing. Multiplies what the skill gives at every level (game: 15% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double HealerSkillHealingMultiplier { get; set; } = 1;
+
+    [ConfigKey("arcaneDeflectionSkillManaMultiplier")]
+    [Comment("Arcane Deflection Mana. Multiplies what the skill gives at every level (game: 10 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double ArcaneDeflectionSkillManaMultiplier { get; set; } = 1;
+
+    [ConfigKey("thunderSkillDamageMultiplier")]
+    [Comment("Thunder Damage. Multiplies what the skill gives at every level (game: 10% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double ThunderSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("waterAuraSkillRangeMultiplier")]
+    [Comment("Water Aura Range. Multiplies its base value (game: 0.1 + 5 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double WaterAuraSkillRangeMultiplier { get; set; } = 1;
+
+    [ConfigKey("waterAuraSkillRangePerLevelMultiplier")]
+    [Comment("Water Aura Range Per Level. Multiplies what each skill level adds to it. Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double WaterAuraSkillRangePerLevelMultiplier { get; set; } = 1;
+
+    [ConfigKey("radiantAuraSkillDamageMultiplier")]
+    [Comment("Radiant Aura Damage. Multiplies what the skill gives at every level (game: 1 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double RadiantAuraSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("radiantAuraSkillRangeMultiplier")]
+    [Comment("Radiant Aura Range. Multiplies its base value (game: 0.1 + 2 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double RadiantAuraSkillRangeMultiplier { get; set; } = 1;
+
+    [ConfigKey("radiantAuraSkillRangePerLevelMultiplier")]
+    [Comment("Radiant Aura Range Per Level. Multiplies what each skill level adds to it. Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double RadiantAuraSkillRangePerLevelMultiplier { get; set; } = 1;
+
+    [ConfigKey("unitySkillManaShareMultiplier")]
+    [Comment("Unity Mana Share. Multiplies what the skill gives at every level (game: 2% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double UnitySkillManaShareMultiplier { get; set; } = 1;
+
+    [ConfigKey("unitySkillChanceMultiplier")]
+    [Comment("Unity Chance. Multiplies what the skill gives at every level (game: 10% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double UnitySkillChanceMultiplier { get; set; } = 1;
+
+    [ConfigKey("eternalSparkSkillChanceMultiplier")]
+    [Comment("Eternal Spark Chance. Multiplies what the skill gives at every level (game: 15% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double EternalSparkSkillChanceMultiplier { get; set; } = 1;
+
+    [ConfigKey("lifeEssencesSkillCountMultiplier")]
+    [Comment("Life Essences Count. Multiplies what the skill gives at every level (game: 3 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double LifeEssencesSkillCountMultiplier { get; set; } = 1;
+
+    [ConfigKey("shroudResistanceSkillResistanceMultiplier")]
+    [Comment("Shroud Resistance Resistance. Multiplies what the skill gives at every level (game: 5% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double ShroudResistanceSkillResistanceMultiplier { get; set; } = 1;
+
+    [ConfigKey("fireResistanceSkillResistanceMultiplier")]
+    [Comment("Fire Resistance Resistance. Multiplies what the skill gives at every level (game: 5% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double FireResistanceSkillResistanceMultiplier { get; set; } = 1;
+
+    [ConfigKey("iceResistanceSkillResistanceMultiplier")]
+    [Comment("Ice Resistance Resistance. Multiplies what the skill gives at every level (game: 5% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double IceResistanceSkillResistanceMultiplier { get; set; } = 1;
+
+    [ConfigKey("shockResistanceSkillResistanceMultiplier")]
+    [Comment("Shock Resistance Resistance. Multiplies what the skill gives at every level (game: 5% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double ShockResistanceSkillResistanceMultiplier { get; set; } = 1;
+
+    [ConfigKey("righteousFireSkillFireDamageMultiplier")]
+    [Comment("Righteous Fire Fire Damage. Multiplies what the skill gives at every level (game: 20% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double RighteousFireSkillFireDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("boneToAshSkillDamageMultiplier")]
+    [Comment("Bone to Ash Damage. Multiplies what the skill gives at every level (game: 5% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double BoneToAshSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("sleightOfHandSkillDamageMultiplier")]
+    [Comment("Sleight of Hand Damage. Multiplies what the skill gives at every level (game: 30% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double SleightOfHandSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("manaCurrentsSkillManaRegenerationMultiplier")]
+    [Comment("Mana Currents Mana Regeneration. Multiplies what the skill gives at every level (game: 5 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double ManaCurrentsSkillManaRegenerationMultiplier { get; set; } = 1;
+
+    [ConfigKey("spellslingerSkillDamageMultiplier")]
+    [Comment("Spellslinger Damage. Multiplies what the skill gives at every level (game: 5% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double SpellslingerSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("wandMasterySkillDamageMultiplier")]
+    [Comment("Wand Mastery Damage. Multiplies what the skill gives at every level (game: 5% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double WandMasterySkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("totemMasterySkillTotemsPerLevel")]
+    [Comment("Totem Mastery Totems Per Level. How many each skill level gives, in place of the game's 1. Applies after returning to the main menu and loading the world again. Step 1.")]
+    [Range(SpellRules.MinSkillPerLevel, SpellRules.MaxSkillPerLevel, 1)]
+    public int TotemMasterySkillTotemsPerLevel { get; set; } = 1;
+
+    [ConfigKey("advancedNecromancySkillAlliesPerLevel")]
+    [Comment("Advanced Necromancy Allies Per Level. How many each skill level gives, in place of the game's 1. Applies after returning to the main menu and loading the world again. Step 1.")]
+    [Range(SpellRules.MinSkillPerLevel, SpellRules.MaxSkillPerLevel, 1)]
+    public int AdvancedNecromancySkillAlliesPerLevel { get; set; } = 1;
+
+    [ConfigKey("wellRestedSkillRestedDurationMultiplier")]
+    [Comment("Well Rested Rested Duration. Multiplies what the skill gives at every level (game: 2 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double WellRestedSkillRestedDurationMultiplier { get; set; } = 1;
+
+    [ConfigKey("masonSkillDamageMultiplier")]
+    [Comment("Mason Damage. Multiplies what the skill gives at every level (game: 10% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double MasonSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("lumberjackSkillDamageMultiplier")]
+    [Comment("Lumberjack Damage. Multiplies what the skill gives at every level (game: 10% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double LumberjackSkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("powerParrySkillParryPowerMultiplier")]
+    [Comment("Power Parry Parry Power. Multiplies what the skill gives at every level (game: 10% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double PowerParrySkillParryPowerMultiplier { get; set; } = 1;
+
+    [ConfigKey("innerFiresSkillAmountMultiplier")]
+    [Comment("Inner Fires Amount. Multiplies what the skill gives at every level (game: 60 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double InnerFiresSkillAmountMultiplier { get; set; } = 1;
+
+    [ConfigKey("opportunitySkillDamageMultiplier")]
+    [Comment("Opportunity Damage. Multiplies what the skill gives at every level (game: 40% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double OpportunitySkillDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("fishermansResolveSkillFishingEnduranceMultiplier")]
+    [Comment("Fisherman's Resolve Fishing Endurance. Multiplies what the skill gives at every level (game: 5 per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double FishermansResolveSkillFishingEnduranceMultiplier { get; set; } = 1;
+
+    [ConfigKey("prospectorSkillDamageMultiplier")]
+    [Comment("Prospector Damage. Multiplies what the skill gives at every level (game: 10% per level). Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double ProspectorSkillDamageMultiplier { get; set; } = 1;
+
+    // Skill groups (1.2.2): one value for several skill stats, At Least (the higher of the two) or Override (the group's).
+    [ConfigKey("skillGroupStatsBonus")]
+    [Comment("Stats Group. Bonus per node for the six attribute nodes' bonus (Constitution, Dexterity, Endurance, Intelligence, Spirit, Strength). At Least: each takes the higher of its own and this; Override: each takes this. Applies after returning to the main menu and loading the world again. Step 1.")]
+    [Range(SpellRules.MinSkillNodeBonus, SpellRules.MaxSkillNodeBonus, 1)]
+    public double SkillGroupStatsBonus { get; set; } = 0;
+
+    [ConfigKey("skillGroupStatsOverride")]
+    [Comment("Stats Group Mode. Off: At Least, each member takes the higher of its own value and the group's. On: Override, each member takes the group's value.")]
+    public bool SkillGroupStatsOverride { get; set; } = false;
+
+    [ConfigKey("skillGroupDamageBonusesMultiplier")]
+    [Comment("Damage Bonuses Group. Multiplier for every \"% damage per level\" skill. At Least: each takes the higher of its own and this; Override: each takes this. Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double SkillGroupDamageBonusesMultiplier { get; set; } = 1;
+
+    [ConfigKey("skillGroupDamageBonusesOverride")]
+    [Comment("Damage Bonuses Group Mode. Off: At Least, each member takes the higher of its own value and the group's. On: Override, each member takes the group's value.")]
+    public bool SkillGroupDamageBonusesOverride { get; set; } = false;
+
+    [ConfigKey("skillGroupTerrainDamageMultiplier")]
+    [Comment("Terrain Damage Group. Multiplier for Mason, Lumberjack and Prospector. At Least: each takes the higher of its own and this; Override: each takes this. Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double SkillGroupTerrainDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("skillGroupTerrainDamageOverride")]
+    [Comment("Terrain Damage Group Mode. Off: At Least, each member takes the higher of its own value and the group's. On: Override, each member takes the group's value.")]
+    public bool SkillGroupTerrainDamageOverride { get; set; } = false;
+
+    [ConfigKey("skillGroupCriticalChanceMultiplier")]
+    [Comment("Critical Chance Group. Multiplier for Wizard, Sniper, Veteran and Fatal Precision's critical chance. At Least: each takes the higher of its own and this; Override: each takes this. Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double SkillGroupCriticalChanceMultiplier { get; set; } = 1;
+
+    [ConfigKey("skillGroupCriticalChanceOverride")]
+    [Comment("Critical Chance Group Mode. Off: At Least, each member takes the higher of its own value and the group's. On: Override, each member takes the group's value.")]
+    public bool SkillGroupCriticalChanceOverride { get; set; } = false;
+
+    [ConfigKey("skillGroupResistancesMultiplier")]
+    [Comment("Resistances Group. Multiplier for Snake Eater and the Shroud, Fire, Ice and Shock Resistance skills. At Least: each takes the higher of its own and this; Override: each takes this. Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double SkillGroupResistancesMultiplier { get; set; } = 1;
+
+    [ConfigKey("skillGroupResistancesOverride")]
+    [Comment("Resistances Group Mode. Off: At Least, each member takes the higher of its own value and the group's. On: Override, each member takes the group's value.")]
+    public bool SkillGroupResistancesOverride { get; set; } = false;
+
+    [ConfigKey("skillGroupArmorMultiplier")]
+    [Comment("Armor Group. Multiplier for Shiny Plates and Heavy Plates. At Least: each takes the higher of its own and this; Override: each takes this. Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double SkillGroupArmorMultiplier { get; set; } = 1;
+
+    [ConfigKey("skillGroupArmorOverride")]
+    [Comment("Armor Group Mode. Off: At Least, each member takes the higher of its own value and the group's. On: Override, each member takes the group's value.")]
+    public bool SkillGroupArmorOverride { get; set; } = false;
+
+    [ConfigKey("skillGroupManaStaminaGainsMultiplier")]
+    [Comment("Mana and Stamina Gains Group. Multiplier for Blessed Arrows, Soul Leech, Arcane Deflection, Vitality Surge and Vigorous Deflection. At Least: each takes the higher of its own and this; Override: each takes this. Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double SkillGroupManaStaminaGainsMultiplier { get; set; } = 1;
+
+    [ConfigKey("skillGroupManaStaminaGainsOverride")]
+    [Comment("Mana and Stamina Gains Group Mode. Off: At Least, each member takes the higher of its own value and the group's. On: Override, each member takes the group's value.")]
+    public bool SkillGroupManaStaminaGainsOverride { get; set; } = false;
+
+    [ConfigKey("skillGroupHealingMultiplier")]
+    [Comment("Healing Group. Multiplier for Healer, Battle Heal and Healing Revive. At Least: each takes the higher of its own and this; Override: each takes this. Applies after returning to the main menu and loading the world again. Step 0.05.")]
+    [Range(SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep)]
+    public double SkillGroupHealingMultiplier { get; set; } = 1;
+
+    [ConfigKey("skillGroupHealingOverride")]
+    [Comment("Healing Group Mode. Off: At Least, each member takes the higher of its own value and the group's. On: Override, each member takes the group's value.")]
+    public bool SkillGroupHealingOverride { get; set; } = false;
 }

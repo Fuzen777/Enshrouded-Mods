@@ -78,7 +78,7 @@ Check(SpellRules.ShapeKey(1744623269, 2) != SpellRules.ShapeKey(1744623269, 2.25
 Check(SpellRules.Same(2.6, 2.5999999046325684) && !SpellRules.Same(2.6, 2.61), "a float32 and its double are the same value, 2.6 and 2.61 are not");
 
 // The settings: 220, each once, in a known group, and the settings file's entries agree with the list.
-Check(SpellCatalog.Settings.Count == 220, $"there are 220 settings (found {SpellCatalog.Settings.Count})");
+Check(SpellCatalog.Settings.Count == 337, $"there are 337 settings (found {SpellCatalog.Settings.Count})");
 Check(SpellCatalog.Settings.Select(setting => setting.Key).Distinct().Count() == SpellCatalog.Settings.Count, "no setting key is listed twice");
 Check(SpellCatalog.Settings.All(setting => SpellCatalog.Groups.Contains(setting.Group)), "every setting is in a group of the settings page");
 var fileDefaults = new SpellSettings();
@@ -116,8 +116,8 @@ foreach (string key in SpellCatalog.DurationSpells.Select(spell => spell.Setting
 }
 
 // The settings window shows every setting on exactly one card, in the sections the user chose, and each card's labels are its own.
-List<string> windowKeys = SpellCatalog.WindowSpells.Concat(SpellCatalog.GemWindowSpells).SelectMany(spell => spell.Lines.Select(line => line.Key)).ToList();
-Check(windowKeys.Count == SpellCatalog.Settings.Count && windowKeys.Distinct().Count() == windowKeys.Count, $"the window's two tabs have each of the 220 settings once ({windowKeys.Count} lines, {windowKeys.Distinct().Count()} different)");
+List<string> windowKeys = SpellCatalog.WindowSpells.Concat(SpellCatalog.GemWindowSpells).Concat(SpellCatalog.SkillWindowSpells).SelectMany(spell => spell.Lines.Select(line => line.Key)).ToList();
+Check(windowKeys.Count == SpellCatalog.Settings.Count && windowKeys.Distinct().Count() == windowKeys.Count, $"the window's three tabs have each of the 337 settings once ({windowKeys.Count} lines, {windowKeys.Distinct().Count()} different)");
 Check(SpellCatalog.Settings.All(setting => windowKeys.Contains(setting.Key)), "no setting is missing from the window");
 Check(string.Join(", ", SpellCatalog.WindowSections.Select(section => section.Name)) == "General, Fire, Ice, Lightning, Shroud, Summons, Others, Items", "the sections are General, Fire, Ice, Lightning, Shroud, Summons, Others, Items");
 Check(SpellCatalog.WindowSpells.Where(spell => spell.IconItem != null).All(spell => spell.Lines[0].Key == SpellCatalog.CostKey(spell.Spell)), "every spell's card starts with its Mana Cost");
@@ -160,6 +160,18 @@ Check(SpellCatalog.GemStats.Single(stat => stat.Gem == "Toxic Betrayal").PerLeve
 Check(SpellCatalog.GemStats.Where(stat => stat.Kind == GemStatKind.LevelBonus).All(stat => stat.Program != null && stat.SpawnTemplate != null && SpellCatalog.Settings.Any(setting => setting.Key == stat.SyncKey && setting.IsToggle)), "each summon level has its program, template and Sync With Player toggle");
 Check(SpellCatalog.GemStats.Where(stat => stat.Kind == GemStatKind.SetValue).All(stat => !double.IsNaN(stat.Minimum) && !double.IsNaN(stat.Maximum) && !double.IsNaN(stat.Step) && !double.IsNaN(stat.Default)), "each Set Value stat has its range and default");
 Check(SpellCatalog.Settings.Where(setting => setting.Group == SpellCatalog.GroupGemStats).All(setting => SpellCatalog.GeneralKeyFor(setting) == null), "gem stats have no General multiplier");
+// Skills (1.2.2): a tab of their own, a card per skill, rows of at most 6 skills under their class.
+Check(SpellCatalog.SkillStats.Count == 99 && SpellCatalog.SkillStats.Select(stat => stat.Key).Distinct().Count() == 99, "99 skill stats, no key twice");
+Check(string.Join(", ", SpellCatalog.SkillSections.Select(section => section.Name)) == "Groups, Attributes, Warrior, Ranger, Mage, Neutral", "the Skills tab's list: the groups, then the classes");
+Check(SpellCatalog.SkillGroups.Count == 8 && SpellCatalog.SkillGroups.All(group => group.Members.Length >= 2), "8 skill groups, each of at least 2 stats");
+Check(SpellCatalog.SkillGroups.SelectMany(group => group.Members).Distinct().Count() == SpellCatalog.SkillGroups.Sum(group => group.Members.Length), "no stat is in two groups");
+Check(SpellCatalog.SkillGroups.Single(group => group.Name == "Damage Bonuses").Members.Length == 27, "27 damage bonuses");
+Check(SpellCatalog.SkillStats.Select(stat => stat.Skill).Distinct().All(skill => SpellCatalog.SkillInfos.Any(info => info.Skill == skill)), "every skill card has its game data");
+Check(SpellCatalog.SkillWindowSpells.All(card => card.Lines.Select(line => line.Label).Distinct().Count() == card.Lines.Length), "no skill card has a label twice");
+Check(SpellCatalog.SkillStats.Single(stat => stat.Skill == "Radiant Aura" && stat.Label == "Range").PerLevelKey == "radiantAuraSkillRangePerLevelMultiplier", "a skill's Base + Per Level key");
+Check(SpellCatalog.SkillStats.Single(stat => stat.Skill == "Arsonist").Configs.Length == 3, "Arsonist has one knob for its three configs");
+Check(SpellCatalog.SkillStats.Where(stat => stat.Kind == SkillStatKind.FlatAdd).All(stat => stat.Section == "Attributes" && stat.Nodes.Length >= 7), "attribute bonuses change every node of their attribute");
+Check(SpellCatalog.Settings.Where(setting => setting.Group == SpellCatalog.GroupSkills).All(setting => SpellCatalog.GeneralKeyFor(setting) == null), "skill stats have no General multiplier");
 SettingInfo burnTick = SpellCatalog.Setting("burningGemTickInterval");
 Check(SpellRules.Snap(burnTick, 0.333) == 0.333 && burnTick.Format(0.333) == "0.333 s", "Burning's 0.333 s tick interval is its default, kept off the steps");
 Check(SpellRules.Stepped(burnTick, 0.333, 1) == 0.35 && SpellRules.Stepped(burnTick, 0.333, -1) == 0.3, "from 0.333 s a click goes to 0.35 s up, 0.3 s down");

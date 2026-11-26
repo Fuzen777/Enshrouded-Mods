@@ -169,7 +169,23 @@ public sealed class BetterSpellsMod : Mod
     // The Gems tab's cards to leave out: gems the world's item list does not have (Gem of Necromancy is not obtainable in game).
     private volatile bool[] _hiddenGems = new bool[SpellCatalog.GemWindowSpells.Count];
     private volatile int _selectedGem;
-    private volatile bool _gemsTab;
+    // The window's tab: 0 Spells, 1 Gems, 2 Skills.
+    private volatile int _tab;
+    private const int SpellsTab = 0;
+    private const int GemsTab = 1;
+    private const int SkillsTab = 2;
+    // The Skills tab's chosen skill, and each skill stat's game value and scaleFactor (NaN for none) by setting key, found by Apply.
+    private volatile int _selectedSkill;
+    private volatile Dictionary<string, (double Value, double Scale)> _skillOriginals = new Dictionary<string, (double Value, double Scale)>();
+    // The Skills tab's search text, each skill's game name and description (read on the client's main thread), the numbers of its
+    // description at max level (found by Apply), its icon, and the language the texts are in.
+    private string _skillSearch = "";
+    private volatile Dictionary<string, (string Name, string Description)> _skillTexts = new Dictionary<string, (string Name, string Description)>();
+    private volatile Dictionary<string, double[]> _skillTextValues = new Dictionary<string, double[]>();
+    private volatile Dictionary<string, UiImage> _skillIcons = new Dictionary<string, UiImage>();
+    private volatile string? _skillTextLanguage;
+    private int _skillTextsQueued;
+    private bool _skillIconsTried;
     // Each gem stat's game value and scaleFactor (NaN for none), by setting key, found by Apply for the window's results.
     private volatile Dictionary<string, (double Value, double Scale)> _gemOriginals = new Dictionary<string, (double Value, double Scale)>();
     private IDisposable? _heldPrograms;
@@ -219,7 +235,11 @@ public sealed class BetterSpellsMod : Mod
             Log.Info($"Sync With Player is not available here: {error.Message}");
         }
         // Runs at every world load, after Kiln has put the game's data in place.
-        Content.OnReady(_ => Apply("world loaded"));
+        Content.OnReady(_ =>
+        {
+            Apply("world loaded");
+            QueueSkillTexts();
+        });
         if (Ui.Available)
         {
             ReadDescriptions();
@@ -477,7 +497,7 @@ public sealed class BetterSpellsMod : Mod
         float labelWidth = 0f;
         int longestCard = 0;
         // Both tabs are measured, so the window keeps its size from one tab to the other.
-        foreach (WindowSection section in SpellCatalog.WindowSections.Concat(SpellCatalog.GemSections))
+        foreach (WindowSection section in SpellCatalog.WindowSections.Concat(SpellCatalog.GemSections).Concat(SpellCatalog.SkillSections))
         {
             sectionWidth = Math.Max(sectionWidth, ui.MeasureText(section.Name).Width);
             foreach (WindowSpell spell in section.Spells)
@@ -491,12 +511,14 @@ public sealed class BetterSpellsMod : Mod
         }
         sectionWidth += _textHeight;
         labelWidth += _textHeight;
-        bool gemsTab = _gemsTab;
-        IReadOnlyList<WindowSection> sections = gemsTab ? SpellCatalog.GemSections : SpellCatalog.WindowSections;
-        IReadOnlyList<WindowSpell> spells = gemsTab ? SpellCatalog.GemWindowSpells : SpellCatalog.WindowSpells;
-        uint[] rowIconItems = gemsTab ? _gemIconItems : _rowIconItems;
+        int tab = _tab;
+        bool gemsTab = tab == GemsTab;
+        bool skillsTab = tab == SkillsTab;
+        IReadOnlyList<WindowSection> sections = gemsTab ? SpellCatalog.GemSections : skillsTab ? SpellCatalog.SkillSections : SpellCatalog.WindowSections;
+        IReadOnlyList<WindowSpell> spells = gemsTab ? SpellCatalog.GemWindowSpells : skillsTab ? SpellCatalog.SkillWindowSpells : SpellCatalog.WindowSpells;
+        uint[] rowIconItems = gemsTab ? _gemIconItems : skillsTab ? Array.Empty<uint>() : _rowIconItems;
         bool[] hiddenRows = gemsTab ? _hiddenGems : Array.Empty<bool>();
-        int selected = Math.Clamp(gemsTab ? _selectedGem : _selectedSpell, 0, spells.Count - 1);
+        int selected = Math.Clamp(gemsTab ? _selectedGem : skillsTab ? _selectedSkill : _selectedSpell, 0, spells.Count - 1);
         if (selected < hiddenRows.Length && hiddenRows[selected])
         {
             selected = 0;
@@ -504,24 +526,40 @@ public sealed class BetterSpellsMod : Mod
         ApplyWheelNotches();
         _hoveredThisFrame = null;
 
-        // The tabs: spells, and weapon gems with their own General card.
-        float tabWidth = (float)Math.Ceiling(Math.Max(ui.MeasureText("Spells").Width, ui.MeasureText("Gems").Width) + 1.2f * _textHeight);
-        if (ModeButton(ui, "Spells##tab", !gemsTab, tabWidth))
+        // The tabs: spells, weapon gems with their own General card, and skill-tree skills.
+        float tabWidth = (float)Math.Ceiling(Math.Max(ui.MeasureText("Spells").Width, Math.Max(ui.MeasureText("Gems").Width, ui.MeasureText("Skills").Width)) + 1.2f * _textHeight);
+        if (ModeButton(ui, "Spells##tab", tab == SpellsTab, tabWidth))
         {
-            _gemsTab = false;
+            _tab = SpellsTab;
         }
         _contentLeft = ui.LastItem.MinX;
         _contentRight = ui.LastItem.MaxX;
         ui.SameLine(0f, _controlGap);
         if (ModeButton(ui, "Gems##tab", gemsTab, tabWidth))
         {
-            _gemsTab = true;
+            _tab = GemsTab;
         }
         ui.Tooltip("Weapon gems: damage, durations, chances and more. A gem takes a new value when its weapon is next equipped or switched to on the hotbar.");
         _contentRight = Math.Max(_contentRight, ui.LastItem.MaxX);
-        ui.TextWrapped(gemsTab
+        ui.SameLine(0f, _controlGap);
+        if (ModeButton(ui, "Skills##tab", skillsTab, tabWidth))
+        {
+            _tab = SkillsTab;
+        }
+        ui.Tooltip("Skill-tree skills and attribute nodes. A change applies after returning to the main menu and loading the world again.");
+        _contentRight = Math.Max(_contentRight, ui.LastItem.MaxX);
+        ui.TextWrapped(skillsTab
+            ? "Pick a skill or a group, scroll over a value to change it, right-click it to reset it; hold Shift for 10 steps, Ctrl for 100. Return to the main menu and load the world again to apply a change."
+            : gemsTab
             ? "Click a gem to see its settings, scroll over a value to change it, right-click it to reset it; hold Shift for 10 steps, Ctrl for 100. Switch away from the weapon and back to apply a change."
             : "Click a spell to see its settings, scroll over a value to change it, right-click it to reset it; hold Shift for 10 steps, Ctrl for 100. A dot marks a spell with a changed value.");
+        if (skillsTab)
+        {
+            DrawSkillsTab(ui, labelWidth);
+            _hoveredKey = _hoveredThisFrame;
+            Interlocked.Exchange(ref _hoveredAt, Environment.TickCount64);
+            return;
+        }
         int spellIndex = 0;
         foreach (WindowSection section in sections)
         {
@@ -564,6 +602,280 @@ public sealed class BetterSpellsMod : Mod
         _hoveredKey = _hoveredThisFrame;
         Interlocked.Exchange(ref _hoveredAt, Environment.TickCount64);
         LogContentSize(ui, sectionWidth, iconSize, labelWidth);
+    }
+
+    // The Skills tab: a search box, the list of groups and skills (full names, the icon of an active skill), and the chosen one's
+    // card: its game description with the numbers it has now, then its settings.
+    private void DrawSkillsTab(UiDraw ui, float labelWidth)
+    {
+        if (_skillTextLanguage != null && Content.TextLanguage is { } language && language != _skillTextLanguage)
+        {
+            _skillTextLanguage = null;
+            QueueSkillTexts();
+        }
+        DrawRowText(ui, "Search", ui.MeasureText("Search").Width, _rowHeight, false, null);
+        ui.SameLine(0f, _controlGap);
+        ui.NextItemWidth(-1f);
+        string search = _skillSearch;
+        if (ui.InputText("##skillSearch", ref search, 64))
+        {
+            _skillSearch = search;
+        }
+        IReadOnlyList<WindowSpell> cards = SpellCatalog.SkillWindowSpells;
+        int selected = Math.Clamp(_selectedSkill, 0, cards.Count - 1);
+        float rowSize = (float)Math.Ceiling(_textHeight * 1.5f);
+        float nameWidth = 0f;
+        foreach (WindowSpell card in cards)
+        {
+            nameWidth = Math.Max(nameWidth, ui.MeasureText(SkillName(card.Spell)).Width);
+        }
+        float listWidth = (float)Math.Ceiling(rowSize + _controlGap + nameWidth + 2.5f * _textHeight);
+        string filter = search.Trim();
+        if (ui.BeginChild("##skillList", listWidth, 0f, UiChildFlags.Border, UiWindowFlags.None))
+        {
+            int index = 0;
+            foreach (WindowSection section in SpellCatalog.SkillSections)
+            {
+                bool header = false;
+                foreach (WindowSpell card in section.Spells)
+                {
+                    int cardIndex = index++;
+                    string name = SkillName(card.Spell);
+                    if (filter.Length > 0 && name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0 && card.Spell.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        continue;
+                    }
+                    if (!header)
+                    {
+                        ui.TextDisabled(section.Name);
+                        header = true;
+                    }
+                    if (_skillIcons.TryGetValue(card.Spell, out UiImage? icon))
+                    {
+                        ui.Image(icon, rowSize, rowSize);
+                    }
+                    else
+                    {
+                        ui.Space(rowSize, rowSize);
+                    }
+                    ui.SameLine(0f, _controlGap);
+                    bool overridden = card.Lines.All(line => OverriddenBy(line.Key) != null);
+                    bool clicked;
+                    using (ui.PushColor(UiColorSlot.Text, overridden ? ui.Palette.TextMuted : ui.Palette.Text))
+                    {
+                        clicked = ui.Selectable(name + "##skill" + cardIndex.ToString(CultureInfo.InvariantCulture), cardIndex == selected, 0f, rowSize, UiSelectableFlags.None);
+                    }
+                    if (clicked)
+                    {
+                        _selectedSkill = cardIndex;
+                        selected = cardIndex;
+                    }
+                    if (IsChanged(card))
+                    {
+                        UiItem row = ui.LastItem;
+                        float dot = 7f * ui.Scale;
+                        float top = row.MinY + (float)Math.Floor((row.MaxY - row.MinY - dot) / 2f);
+                        ui.DrawRect(UiLayer.Window, row.MaxX - dot - _controlGap, top, row.MaxX - _controlGap, top + dot, ui.Palette.Accent, dot / 2f);
+                    }
+                }
+            }
+        }
+        ui.EndChild();
+        ui.SameLine(0f, _controlGap);
+        if (ui.BeginChild("##skillCard", 0f, 0f, UiChildFlags.None, UiWindowFlags.None))
+        {
+            DrawSkillCard(ui, cards[selected], labelWidth);
+        }
+        ui.EndChild();
+    }
+
+    // A card's name: the game's, in the player's language, once read.
+    private string SkillName(string skill)
+    {
+        return _skillTexts.TryGetValue(skill, out var text) && text.Name.Length > 0 ? text.Name : skill;
+    }
+
+    // The group whose Override mode replaces a setting's value, or null.
+    private SkillGroup? OverriddenBy(string key)
+    {
+        SkillGroup? group = SpellCatalog.GroupOf(key);
+        return group != null && ShownValue(SpellCatalog.Setting(group.ModeKey)) != 0 ? group : null;
+    }
+
+    private void DrawSkillCard(UiDraw ui, WindowSpell card, float labelWidth)
+    {
+        float width = Math.Max(_textHeight * 8f, ui.WindowRect.Width - _textHeight);
+        SkillInfo? info = SpellCatalog.SkillInfos.FirstOrDefault(skill => skill.Skill == card.Spell);
+        float iconSide = (float)Math.Ceiling(_textHeight * 2.4f);
+        if (_skillIcons.TryGetValue(card.Spell, out UiImage? icon))
+        {
+            ui.Image(icon, iconSide, iconSide);
+            ui.SameLine(0f, _controlGap);
+            DrawRowText(ui, SkillName(card.Spell), ui.MeasureText(SkillName(card.Spell)).Width, iconSide, false, null);
+        }
+        else
+        {
+            DrawRowText(ui, SkillName(card.Spell), ui.MeasureText(SkillName(card.Spell)).Width, _rowHeight, false, null);
+        }
+        SkillGroup? group = SpellCatalog.SkillGroups.FirstOrDefault(skillGroup => skillGroup.Name == card.Spell);
+        if (group != null)
+        {
+            var members = SpellCatalog.SkillStats.Where(stat => group.Members.Contains(stat.Key)).Select(stat => SkillName(stat.Skill)).Distinct();
+            WrapMuted(ui, "One value for " + string.Join(", ", members) + ". At Least: each takes the higher of its own value and this one. Override: each takes this one, and its own is greyed out.", width);
+        }
+        else if (info != null && _skillTexts.TryGetValue(info.Skill, out var text) && text.Description.Length > 0)
+        {
+            WrapDescription(ui, SkillDescription(info, text.Description), width);
+            if (info.MaxLevel > 1)
+            {
+                ui.TextDisabled(string.Create(CultureInfo.InvariantCulture, $"At level {info.MaxLevel}, with your settings once the world is loaded again."));
+            }
+        }
+        ui.Spacing();
+        foreach (CardLine line in card.Lines)
+        {
+            SettingInfo setting = SpellCatalog.Setting(line.Key);
+            SkillGroup? overriding = OverriddenBy(line.Key);
+            DrawRowText(ui, line.Label, labelWidth, _rowHeight, false, overriding != null ? ui.Palette.TextMuted : null);
+            Describe(ui, setting);
+            ui.SameLine(0f, _controlGap);
+            if (overriding == null)
+            {
+                DrawControl(ui, line.Key);
+                continue;
+            }
+            // Override: the group's value, greyed, without its buttons.
+            SettingInfo groupSetting = SpellCatalog.Setting(overriding.Key);
+            ui.Space(_rowHeight, _rowHeight);
+            ui.SameLine(0f, _controlGap);
+            DrawRowText(ui, groupSetting.Format(ShownValue(groupSetting)), _valueWidth, _rowHeight, true, ui.Palette.TextMuted);
+            ui.SameLine(0f, _controlGap);
+            ui.Space(_rowHeight, _rowHeight);
+            ui.SameLine(0f, _controlGap);
+            string note = "Set By " + overriding.Name;
+            DrawRowText(ui, note, ui.MeasureText(note).Width, _rowHeight, false, ui.Palette.TextMuted);
+        }
+    }
+
+    // A description that wraps at the given width: greyed, its numbers bold and green. One text per word, side by side, so each
+    // number can have its own font and colour.
+    private void WrapDescription(UiDraw ui, string text, float width)
+    {
+        float space = ui.MeasureText(" ").Width;
+        foreach (string paragraph in text.Replace("\r", "", StringComparison.Ordinal).Split('\n'))
+        {
+            // The paragraph's words, each with whether it is (or holds) a number of the settings.
+            var words = new List<(string Word, bool Number)>();
+            bool inNumber = false;
+            var word = new System.Text.StringBuilder();
+            bool wordHasNumber = false;
+            void Flush()
+            {
+                if (word.Length > 0)
+                {
+                    words.Add((word.ToString(), wordHasNumber));
+                }
+                word.Clear();
+                wordHasNumber = inNumber;
+            }
+            foreach (char c in paragraph)
+            {
+                if (c == NumberStart || c == NumberEnd)
+                {
+                    // A number is its own run, so the words around it keep their look.
+                    Flush();
+                    inNumber = c == NumberStart;
+                    wordHasNumber = inNumber;
+                }
+                else if (c == ' ')
+                {
+                    Flush();
+                    words.Add((" ", false));
+                }
+                else
+                {
+                    word.Append(c);
+                }
+            }
+            Flush();
+            if (words.All(entry => entry.Word == " "))
+            {
+                ui.Spacing();
+                continue;
+            }
+            float x = 0f;
+            bool lineStarted = false;
+            foreach ((string Word, bool Number) entry in words)
+            {
+                if (entry.Word == " ")
+                {
+                    if (lineStarted)
+                    {
+                        x += space;
+                    }
+                    continue;
+                }
+                float wordWidth;
+                using (entry.Number ? ui.Font(UiFont.GameBold) : default)
+                {
+                    wordWidth = ui.MeasureText(entry.Word).Width;
+                }
+                if (lineStarted && x + wordWidth > width)
+                {
+                    lineStarted = false;
+                    x = 0f;
+                }
+                if (lineStarted)
+                {
+                    // Right after the previous word: the space before it, if any, is already in x.
+                    ui.SameLine(0f, 0f);
+                    UiCursor cursor = ui.Cursor;
+                    ui.SetCursor(_wrapLeft + x, cursor.Y);
+                }
+                else
+                {
+                    _wrapLeft = ui.Cursor.X;
+                }
+                using (entry.Number ? ui.Font(UiFont.GameBold) : default)
+                {
+                    ui.Text(entry.Number ? ui.Palette.Ok : ui.Palette.TextMuted, entry.Word);
+                }
+                x += wordWidth;
+                lineStarted = true;
+            }
+        }
+    }
+
+    private float _wrapLeft;
+
+    // Greyed text that wraps at the given width: the game's description under a skill's name.
+    private static void WrapMuted(UiDraw ui, string text, float width)
+    {
+        foreach (string paragraph in text.Replace("\r", "", StringComparison.Ordinal).Split('\n'))
+        {
+            string line = "";
+            foreach (string word in paragraph.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            {
+                string longer = line.Length == 0 ? word : line + " " + word;
+                if (line.Length > 0 && ui.MeasureText(longer).Width > width)
+                {
+                    ui.Text(ui.Palette.TextMuted, line);
+                    line = word;
+                }
+                else
+                {
+                    line = longer;
+                }
+            }
+            if (line.Length > 0)
+            {
+                ui.Text(ui.Palette.TextMuted, line);
+            }
+            else
+            {
+                ui.Spacing();
+            }
+        }
     }
 
     // The room the screen's contents need, in pixels at scale 1, logged when it changes: the screen has a fixed size, and this is
@@ -649,13 +961,17 @@ public sealed class BetterSpellsMod : Mod
     {
         string id = "##spell" + spellIndex.ToString(CultureInfo.InvariantCulture);
         UiImage? icon = iconItem != 0 ? Ui.ItemImage(new ItemId(iconItem)) : null;
-        string text = spell.IconItem == null ? SpellCatalog.GeneralButtonText : Initials(spell.Spell);
+        string text = spell.Spell == SpellCatalog.GeneralSpell || spell.Spell == SpellCatalog.GemGeneralSpell ? SpellCatalog.GeneralButtonText : Initials(spell.Spell);
         bool clicked = icon != null ? ui.ImageButtonTrimmed(id, icon, size, size) : ui.Button(text + id, size, size);
         if (clicked)
         {
-            if (_gemsTab)
+            if (_tab == GemsTab)
             {
                 _selectedGem = spellIndex;
+            }
+            else if (_tab == SkillsTab)
+            {
+                _selectedSkill = spellIndex;
             }
             else
             {
@@ -694,7 +1010,13 @@ public sealed class BetterSpellsMod : Mod
     private static string Initials(string name)
     {
         var initials = new System.Text.StringBuilder();
-        foreach (string word in name.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        string[] words = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 1)
+        {
+            // One word: its first two letters, so "Mason" and "Mage Apprentice" differ.
+            return words[0].Length > 1 ? char.ToUpperInvariant(words[0][0]) + words[0].Substring(1, 1) : words[0].ToUpperInvariant();
+        }
+        foreach (string word in words)
         {
             initials.Append(char.ToUpperInvariant(word[0]));
         }
@@ -721,6 +1043,11 @@ public sealed class BetterSpellsMod : Mod
         if (key == SpellCatalog.GeneralAtLeastKey || key == SpellCatalog.GemGeneralAtLeastKey)
         {
             DrawModeSwitch(ui, setting, shown != 0);
+            return;
+        }
+        if (SpellCatalog.SkillGroups.Any(group => group.ModeKey == key))
+        {
+            DrawModeSwitch(ui, setting, shown != 0, "At Least", "Override");
             return;
         }
         // The same labels repeat on every card, so each setting's widgets get the setting's key as their id.
@@ -782,7 +1109,7 @@ public sealed class BetterSpellsMod : Mod
                 Ask(setting, setting.Default);
             }
             // What a gem multiplier or chance gives, right after +.
-            string? result = GemResult(key, shown);
+            string? result = GemResult(key, shown) ?? SkillResult(key, shown);
             if (result != null)
             {
                 ui.SameLine(0f, _controlGap);
@@ -829,13 +1156,13 @@ public sealed class BetterSpellsMod : Mod
     }
 
     // The General card's mode as two buttons side by side, the chosen one in the accent color: Kiln has no segmented control.
-    private void DrawModeSwitch(UiDraw ui, SettingInfo setting, bool atLeast)
+    private void DrawModeSwitch(UiDraw ui, SettingInfo setting, bool atLeast, string offLabel = "Multiply", string onLabel = "At Least")
     {
         // As wide as the longer label plus the button's own margin, so neither is cut.
-        float width = (float)Math.Ceiling(Math.Max(ui.MeasureText("Multiply").Width, ui.MeasureText("At Least").Width) + 1.2f * _textHeight);
+        float width = (float)Math.Ceiling(Math.Max(ui.MeasureText(offLabel).Width, ui.MeasureText(onLabel).Width) + 1.2f * _textHeight);
         using (ui.Id(setting.Key))
         {
-            if (ModeButton(ui, "Multiply", !atLeast, width))
+            if (ModeButton(ui, offLabel, !atLeast, width))
             {
                 Ask(setting, 0);
             }
@@ -845,7 +1172,7 @@ public sealed class BetterSpellsMod : Mod
             }
             Describe(ui, setting);
             ui.SameLine(0f, _controlGap);
-            if (ModeButton(ui, "At Least", atLeast, width))
+            if (ModeButton(ui, onLabel, atLeast, width))
             {
                 Ask(setting, 1);
             }
@@ -970,6 +1297,7 @@ public sealed class BetterSpellsMod : Mod
         ApplyHealth();
         ApplyGems();
         ApplyGemStats();
+        ApplySkillStats();
         Log.Info($"{_valuesInPlace} values in place ({_valuesWritten} written), {_valuesRefused} refused, in {watch.ElapsedMilliseconds} ms");
     }
 
@@ -1518,6 +1846,315 @@ public sealed class BetterSpellsMod : Mod
             End();
         }
         _gemOriginals = originals;
+    }
+
+    // The Skills tab (1.2.2): writes the skill-tree node configs. The game copies a node's configs into the skill's effect when the
+    // effect starts, at world load: Content.OnReady runs this before that, so a change applies after loading the world again. A world
+    // load also puts the game's node data back, which is why this runs at every load.
+    private void ApplySkillStats()
+    {
+        var originals = new Dictionary<string, (double Value, double Scale)>(StringComparer.Ordinal);
+        var nodes = new Dictionary<string, GameDataEntry?>(StringComparer.Ordinal);
+        GameDataEntry? Node(string id)
+        {
+            if (!nodes.TryGetValue(id, out GameDataEntry? entry))
+            {
+                try
+                {
+                    entry = Content.Skills.Get(id);
+                }
+                catch (Exception error) when (IsRefusal(error) || error is KeyNotFoundException or ArgumentException)
+                {
+                    entry = null;
+                }
+                nodes[id] = entry;
+            }
+            return entry;
+        }
+        foreach (SkillStat stat in SpellCatalog.SkillStats)
+        {
+            SettingInfo setting = SpellCatalog.Setting(stat.Key);
+            double value = SkillValue(stat.Key, Value(stat.Key), Value);
+            double perLevel = stat.Kind == SkillStatKind.BaseAndLevel ? Value(stat.PerLevelKey) : 1;
+            Begin(stat.Kind == SkillStatKind.BaseAndLevel ? $"{setting.Label} {setting.Format(value)}, per level {setting.Format(perLevel)}" : $"{setting.Label} {setting.Format(value)}");
+            foreach (string nodeId in stat.Nodes)
+            {
+                GameDataEntry? node = Node(nodeId);
+                if (node == null)
+                {
+                    Note($"skill node {nodeId} ({stat.Skill}) is not in this world's data");
+                    continue;
+                }
+                foreach (uint config in stat.Configs)
+                {
+                    string path = SkillStat.ConfigPath(config);
+                    if (!Has(node, path))
+                    {
+                        Note($"skill node {nodeId} ({stat.Skill}) has no config {path}");
+                        continue;
+                    }
+                    string scalePath = path + ".scaleFactor";
+                    bool scaled = Has(node, scalePath);
+                    if (!originals.ContainsKey(stat.Key))
+                    {
+                        originals[stat.Key] = (Original(node, path), scaled ? Original(node, scalePath) : double.NaN);
+                    }
+                    bool whole = stat.Unit == SkillUnit.Whole;
+                    Func<double, double> wanted = game => stat.Kind switch
+                    {
+                        SkillStatKind.Multiply => SpellRules.Multiplied(game, value),
+                        SkillStatKind.BaseAndLevel => SpellRules.Multiplied(game, value),
+                        SkillStatKind.FlatAdd => game + Math.Round(value),
+                        _ => game,
+                    };
+                    Func<double, double> wantedScale = scale => stat.Kind switch
+                    {
+                        SkillStatKind.Multiply => SpellRules.Multiplied(scale, value),
+                        SkillStatKind.BaseAndLevel => SpellRules.Multiplied(scale, perLevel),
+                        // At its default the game's own per-level amount stays, whatever a later game build makes it.
+                        SkillStatKind.SetPerLevel => SpellRules.Same(value, setting.Default) ? scale : Math.Round(value),
+                        _ => scale,
+                    };
+                    if (stat.Unit == SkillUnit.Seconds)
+                    {
+                        PutTime(node, path, wanted);
+                    }
+                    else
+                    {
+                        PutNumber(node, path, wanted, whole);
+                    }
+                    if (scaled)
+                    {
+                        PutNumber(node, scalePath, wantedScale);
+                    }
+                }
+            }
+            End();
+        }
+        _skillOriginals = originals;
+        _skillTextValues = SkillTextValues(Node);
+    }
+
+    // A skill stat's value with its group's: Override takes the group's, At Least the higher of the two.
+    private static double SkillValue(string key, double own, Func<string, double> value)
+    {
+        SkillGroup? group = SpellCatalog.GroupOf(key);
+        if (group == null)
+        {
+            return own;
+        }
+        double groupValue = value(group.Key);
+        return value(group.ModeKey) != 0 ? groupValue : Math.Max(own, groupValue);
+    }
+
+    // The numbers of each skill's game description, as the node has them now (with the settings): a level-scaled config at the
+    // skill's max level, an attribute-scaled one as its factor.
+    private Dictionary<string, double[]> SkillTextValues(Func<string, GameDataEntry?> node)
+    {
+        var values = new Dictionary<string, double[]>(StringComparer.Ordinal);
+        foreach (SkillInfo info in SpellCatalog.SkillInfos)
+        {
+            GameDataEntry? entry = node(info.Node);
+            if (entry == null)
+            {
+                continue;
+            }
+            try
+            {
+                double factor = 1;
+                if (info.TextScaleBy != 0)
+                {
+                    // The description's damage is Damage Per Scale times Base Damage at the skill's level (seen in game: 30 at
+                    // level 3 with Base Damage x10).
+                    string scaleBy = SkillStat.ConfigPath(info.TextScaleBy);
+                    factor = entry.Get(scaleBy).AsDouble + entry.Get(scaleBy + ".scaleFactor").AsDouble * Math.Max(1, info.MaxLevel);
+                }
+                var numbers = new double[info.TextConfigs.Length];
+                for (int index = 0; index < numbers.Length; index++)
+                {
+                    SkillTextConfig config = info.TextConfigs[index];
+                    string path = SkillStat.ConfigPath(config.Config);
+                    if (!Has(entry, path))
+                    {
+                        numbers[index] = double.NaN;
+                        continue;
+                    }
+                    double scale = Has(entry, path + ".scaleFactor") ? entry.Get(path + ".scaleFactor").AsDouble : 0;
+                    numbers[index] = config.Source switch
+                    {
+                        SkillTextSource.Level => entry.Get(path).AsDouble + scale * Math.Max(1, info.MaxLevel),
+                        SkillTextSource.Attribute => scale * factor,
+                        _ => entry.Get(path).AsDouble,
+                    };
+                }
+                values[info.Skill] = numbers;
+            }
+            catch (Exception error) when (IsRefusal(error) || error is KeyNotFoundException or ArgumentException or InvalidOperationException)
+            {
+                Note($"{info.Skill}: description numbers not readable ({error.Message})");
+            }
+        }
+        return values;
+    }
+
+    // The skills' game names and descriptions, and the active skills' icons: on the game client's main thread, after a world load
+    // and when the game's language changes.
+    private void QueueSkillTexts()
+    {
+        if (Interlocked.Exchange(ref _skillTextsQueued, 1) == 1)
+        {
+            return;
+        }
+        try
+        {
+            Client.Post(LoadSkillTexts);
+        }
+        catch (Exception error)
+        {
+            Interlocked.Exchange(ref _skillTextsQueued, 0);
+            Log.Info($"skill descriptions are not available here: {error.Message}");
+        }
+    }
+
+    private void LoadSkillTexts()
+    {
+        Interlocked.Exchange(ref _skillTextsQueued, 0);
+        try
+        {
+            if (!Content.TextAvailable)
+            {
+                return;
+            }
+            var texts = new Dictionary<string, (string Name, string Description)>(StringComparer.Ordinal);
+            foreach (SkillInfo info in SpellCatalog.SkillInfos)
+            {
+                texts[info.Skill] = (Content.Text(info.NameLoca) ?? info.Skill, Content.Text(info.DescriptionLoca) ?? "");
+            }
+            _skillTexts = texts;
+            _skillTextLanguage = Content.TextLanguage;
+        }
+        catch (Exception error)
+        {
+            Log.Info($"skill descriptions could not be read: {error.Message}");
+        }
+        if (_skillIconsTried)
+        {
+            return;
+        }
+        _skillIconsTried = true;
+        var icons = new Dictionary<string, UiImage>(StringComparer.Ordinal);
+        int failed = 0;
+        foreach (SkillInfo info in SpellCatalog.SkillInfos.Where(info => info.Icon != null))
+        {
+            try
+            {
+                UiImage? image = SkillIcons.Load(info.Icon!);
+                if (image != null)
+                {
+                    icons[info.Skill] = image;
+                }
+            }
+            catch (Exception error)
+            {
+                if (failed++ == 0)
+                {
+                    Log.Info($"skill icon of {info.Skill} could not be read: {error.GetType().Name}: {error.Message}");
+                }
+            }
+        }
+        _skillIcons = icons;
+        Log.Info($"skill icons: {icons.Count} loaded, {failed} failed");
+    }
+
+    private const char NumberStart = '\u0001';
+    private const char NumberEnd = '\u0002';
+
+    // A skill's game description with its numbers: %k filled in order (between NumberStart and NumberEnd), the game's markup left out.
+    private string SkillDescription(SkillInfo info, string text)
+    {
+        double[] numbers = _skillTextValues.TryGetValue(info.Skill, out double[]? found) ? found : Array.Empty<double>();
+        int next = 0;
+        var output = new System.Text.StringBuilder();
+        for (int index = 0; index < text.Length; index++)
+        {
+            if (text[index] == '%' && index + 1 < text.Length && text[index + 1] == 'k')
+            {
+                SkillTextFormat format = next < info.TextConfigs.Length ? info.TextConfigs[next].Format : SkillTextFormat.Number;
+                double number = next < numbers.Length ? numbers[next] : double.NaN;
+                next++;
+                // Marked, so the card draws it bold and green: the parts of the description that follow the settings.
+                output.Append(NumberStart).Append(double.IsNaN(number) ? "?" : format switch
+                {
+                    SkillTextFormat.Percent => string.Create(CultureInfo.InvariantCulture, $"{Math.Abs(number) * 100.0:0.#}%"),
+                    SkillTextFormat.Seconds => string.Create(CultureInfo.InvariantCulture, $"{number:0.#}"),
+                    _ => string.Create(CultureInfo.InvariantCulture, $"{Math.Abs(number):0.##}"),
+                }).Append(NumberEnd);
+                index++;
+            }
+            else if (text[index] == '%' && index + 1 < text.Length && text[index + 1] == '%')
+            {
+                output.Append('%');
+                index++;
+            }
+            else if (text[index] == '<')
+            {
+                int close = text.IndexOf('>', index);
+                if (close < 0)
+                {
+                    output.Append(text[index]);
+                    continue;
+                }
+                index = close;
+            }
+            else
+            {
+                output.Append(text[index]);
+            }
+        }
+        return output.ToString().Trim();
+    }
+
+    // What a skill multiplier, per-level amount or node bonus gives: "= 15% Per Level", "= 0.1 + 5 Per Level", "= 3 Per Node". None
+    // before a world has loaded.
+    private string? SkillResult(string key, double shown)
+    {
+        SkillStat? stat = SpellCatalog.SkillStats.FirstOrDefault(skill => skill.Key == key || (skill.Kind == SkillStatKind.BaseAndLevel && skill.PerLevelKey == key));
+        if (stat == null || !_skillOriginals.TryGetValue(stat.Key, out var game))
+        {
+            return null;
+        }
+        if (key == stat.Key)
+        {
+            shown = SkillValue(key, shown, other => ShownValue(SpellCatalog.Setting(other)));
+        }
+        bool scaled = !double.IsNaN(game.Scale);
+        switch (stat.Kind)
+        {
+            case SkillStatKind.Multiply:
+                if (!scaled)
+                {
+                    return "= " + SkillText(stat.Unit, game.Value * shown);
+                }
+                return SpellRules.Same(game.Value, 0)
+                    ? "= " + SkillText(stat.Unit, game.Scale * shown) + " Per Level"
+                    : "= " + SkillText(stat.Unit, game.Value * shown) + " + " + SkillText(stat.Unit, game.Scale * shown) + " Per Level";
+            case SkillStatKind.BaseAndLevel:
+                return key == stat.Key ? "= " + SkillText(stat.Unit, game.Value * shown) : scaled ? "= " + SkillText(stat.Unit, game.Scale * shown) + " Per Level" : null;
+            case SkillStatKind.FlatAdd:
+                return "= " + SkillText(SkillUnit.Whole, game.Value + Math.Round(shown)) + " Per Node";
+            default:
+                return null;
+        }
+    }
+
+    private static string SkillText(SkillUnit unit, double value)
+    {
+        return unit switch
+        {
+            SkillUnit.Share => string.Create(CultureInfo.InvariantCulture, $"{value * 100.0:0.#}%"),
+            SkillUnit.Seconds => string.Create(CultureInfo.InvariantCulture, $"{value:0.##} s"),
+            _ => string.Create(CultureInfo.InvariantCulture, $"{value:0.##}"),
+        };
     }
 
     // A gem stat's value from the game's (in the config's own unit: seconds, milliseconds, a share) and its setting.

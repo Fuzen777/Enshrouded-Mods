@@ -155,6 +155,121 @@ public sealed record GemStat(string Gem, string Label, uint Config, GemStatKind 
     }
 }
 
+/// <summary>How a skill stat's setting changes its node configs (1.2.2, the user's picks from the Skill Stat Picker).</summary>
+public enum SkillStatKind
+{
+    /// <summary>One multiplier for the value at every skill level (base and scaleFactor).</summary>
+    Multiply,
+    /// <summary>Two multipliers: one for the base value, one for what each level adds (the scaleFactor).</summary>
+    BaseAndLevel,
+    /// <summary>A whole number of its own for what each level adds (the scaleFactor).</summary>
+    SetPerLevel,
+    /// <summary>A whole number added to an attribute node's value.</summary>
+    FlatAdd,
+}
+
+/// <summary>What a skill stat's config holds.</summary>
+public enum SkillUnit
+{
+    Number,
+    /// <summary>A whole number (Sint32, Uint32).</summary>
+    Whole,
+    /// <summary>A share: 0.1 is 10%.</summary>
+    Share,
+    /// <summary>A time, which Kiln reads and writes in seconds.</summary>
+    Seconds,
+}
+
+/// <summary>
+/// One setting of the Skills tab: the card's section (the skill tree's class), the skill, the line's label, the SkillTreeResource
+/// nodes it changes (one, or every attribute node of an attribute), the configs of each node's `configValues` it changes (one
+/// knob may drive several), how and in what unit. The game copies a node's configs into the skill's effect when the effect
+/// starts (at world load), so a change applies after returning to the main menu and loading the world again.
+/// </summary>
+public sealed record SkillStat(string Section, string Skill, string Label, string[] Nodes, uint[] Configs, SkillStatKind Kind, SkillUnit Unit)
+{
+    /// <summary>"Radiant Aura", "Range" is radiantAuraSkillRange.</summary>
+    public string BaseKey => SpellCatalog.CamelCase(Skill) + "Skill" + SpellCatalog.PascalCase(Label);
+    public string Key => Kind switch
+    {
+        SkillStatKind.Multiply or SkillStatKind.BaseAndLevel => BaseKey + "Multiplier",
+        SkillStatKind.FlatAdd => BaseKey + "Bonus",
+        _ => BaseKey,
+    };
+    /// <summary>BaseAndLevel's second multiplier.</summary>
+    public string PerLevelKey => BaseKey + "PerLevelMultiplier";
+    public string DisplayName => Skill + " " + Label;
+
+    public static string ConfigPath(uint config) => "configValues.0x" + config.ToString("x8", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>This stat's settings, in the order of its card's lines.</summary>
+    public IEnumerable<SettingInfo> Settings()
+    {
+        string group = SpellCatalog.GroupSkills;
+        switch (Kind)
+        {
+            case SkillStatKind.Multiply:
+                yield return new SettingInfo(Key, DisplayName, group, SettingKind.Multiplier, SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep, 1);
+                break;
+            case SkillStatKind.BaseAndLevel:
+                yield return new SettingInfo(Key, DisplayName, group, SettingKind.Multiplier, SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep, 1);
+                yield return new SettingInfo(PerLevelKey, DisplayName + " Per Level", group, SettingKind.Multiplier, SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep, 1);
+                break;
+            case SkillStatKind.SetPerLevel:
+                yield return new SettingInfo(Key, DisplayName, group, SettingKind.Count, SpellRules.MinSkillPerLevel, SpellRules.MaxSkillPerLevel, 1, 1);
+                break;
+            case SkillStatKind.FlatAdd:
+                yield return new SettingInfo(Key, DisplayName, group, SettingKind.Levels, SpellRules.MinSkillNodeBonus, SpellRules.MaxSkillNodeBonus, 1, 0);
+                break;
+        }
+    }
+
+    /// <summary>This stat's lines on its skill's card.</summary>
+    public IEnumerable<CardLine> Lines()
+    {
+        yield return new CardLine(Label, Key);
+        if (Kind == SkillStatKind.BaseAndLevel)
+        {
+            yield return new CardLine(Label + " Per Level", PerLevelKey);
+        }
+    }
+}
+
+/// <summary>How a number of a skill's game description reads: 0.1 as 10%, a time in seconds, a plain number.</summary>
+public enum SkillTextFormat { Number, Percent, Seconds }
+
+/// <summary>What a skill config scales with: the skill's level (shown at max level), an attribute (shown as its factor), or nothing.</summary>
+public enum SkillTextSource { Simple, Level, Attribute }
+
+/// <summary>One %k of a skill's game description: the node config it shows and how.</summary>
+public sealed record SkillTextConfig(uint Config, SkillTextFormat Format, SkillTextSource Source);
+
+/// <summary>
+/// A skill card's game data for the Skills tab's description (1.2.2): the node, the loca ids of its name and description, its
+/// icon (a keen::UiTextureResource; only active skills have one), its max level, the configs its description's %k show (the
+/// node's numeric configs in reverse order, as the game fills them), and for Radiant Aura the Base Damage config whose change
+/// multiplies the damage the description shows (the description reads Damage Per Scale).
+/// </summary>
+public sealed record SkillInfo(string Skill, string Node, uint NameLoca, uint DescriptionLoca, string? Icon, int MaxLevel, SkillTextConfig[] TextConfigs, uint TextScaleBy);
+
+/// <summary>
+/// A group card of the Skills tab (1.2.2): one value for several skill stats of the same kind, and its mode. At Least: each
+/// member takes the higher of its own value and the group's. Override: each member takes the group's, and its own is greyed.
+/// </summary>
+public sealed record SkillGroup(string Name, string[] Members, bool IsBonus)
+{
+    public string Key => "skillGroup" + SpellCatalog.PascalCase(Name.Replace("and ", "")) + (IsBonus ? "Bonus" : "Multiplier");
+    public string ModeKey => "skillGroup" + SpellCatalog.PascalCase(Name.Replace("and ", "")) + "Override";
+
+    public IEnumerable<SettingInfo> Settings()
+    {
+        yield return IsBonus
+            ? new SettingInfo(Key, Name + " Group", SpellCatalog.GroupSkills, SettingKind.Levels, SpellRules.MinSkillNodeBonus, SpellRules.MaxSkillNodeBonus, 1, 0)
+            : new SettingInfo(Key, Name + " Group", SpellCatalog.GroupSkills, SettingKind.Multiplier, SpellRules.MinSkillMultiplier, SpellRules.MaxSkillMultiplier, SpellRules.SkillMultiplierStep, 1);
+        yield return new SettingInfo(ModeKey, Name + " Group Mode", SpellCatalog.GroupSkills, SettingKind.Toggle, 0, 1, 1, 0);
+    }
+}
+
 /// <summary>A line of a spell's card in the settings window: the name it has there and the setting's key.</summary>
 public sealed record CardLine(string Label, string Key);
 
@@ -180,6 +295,7 @@ public static class SpellCatalog
     public const string GroupGemDamage = "Gem Damage";
     public const string GroupGemGeneral = "Gem General";
     public const string GroupGemStats = "Gem Stats";
+    public const string GroupSkills = "Skills";
 
     // The General card: one multiplier per kind of setting for every spell, and whether it multiplies with the spells' own or is a
     // floor under them.
@@ -387,6 +503,228 @@ public static class SpellCatalog
         new GemStat("Hyperspecialization", "Buff Duration", 0xbee6d4a9u, GemStatKind.Multiply, GemUnit.Seconds, TooltipLocaId: 164611558u),
     };
 
+    /// <summary>
+    /// The Skills tab (1.2.2): the skill-tree node configs the user picked in the Skill Stat Picker. Arsonist, Dark Arts, Iceman and
+    /// Thunder have one knob for their three configs (Value, Value2, Value3). Ranger's Value is Endurance, Value1 Dexterity (its
+    /// program's attribute references). Attribute nodes (program 937e39f4) hold a whole number (Sint32): Per Node adds to it.
+    /// </summary>
+    public static readonly IReadOnlyList<SkillStat> SkillStats = new[]
+    {
+        new SkillStat("Attributes", "Constitution", "Per Node", new[] { "0x07fdab40", "0x23d90cb2", "0xd95cba03", "0xe525ca0e", "0xb7fa7d01", "0xa73bb3fe", "0x1f76cc0c", "0x436c3ca1", "0x265b7080", "0xe16a0bd5", "0x276188b0" }, new[] { 0x0a0c87e7u }, SkillStatKind.FlatAdd, SkillUnit.Whole),
+        new SkillStat("Attributes", "Dexterity", "Per Node", new[] { "0xd9a99abb", "0x8805b7a5", "0x4e497f8b", "0x9ea706a6", "0xa10a2c87", "0x561378d0", "0x85268cfa" }, new[] { 0x0a0c87e7u }, SkillStatKind.FlatAdd, SkillUnit.Whole),
+        new SkillStat("Attributes", "Endurance", "Per Node", new[] { "0x8d353fe4", "0x98556d99", "0x63801a62", "0xaec55c06", "0x3f89db33", "0xa8d21e53", "0x0e27a5d2", "0x404f1b30" }, new[] { 0x0a0c87e7u }, SkillStatKind.FlatAdd, SkillUnit.Whole),
+        new SkillStat("Attributes", "Intelligence", "Per Node", new[] { "0x81d8b64f", "0x37fbee8b", "0x9a35d01f", "0x1c3a25dc", "0x8dcc1e4a", "0xe62d5a59", "0x24631f02", "0x29216e93", "0xcfa5985b", "0x8569bab7", "0x6c76b64d" }, new[] { 0x0a0c87e7u }, SkillStatKind.FlatAdd, SkillUnit.Whole),
+        new SkillStat("Attributes", "Spirit", "Per Node", new[] { "0x01e263aa", "0xfbcb2152", "0x65c9d96e", "0xebfdb593", "0x578ecb1d", "0x92dea854", "0xf85cd58a", "0x2399545c", "0x92f1b848", "0x5ea31612", "0x2867deaa" }, new[] { 0x0a0c87e7u }, SkillStatKind.FlatAdd, SkillUnit.Whole),
+        new SkillStat("Attributes", "Strength", "Per Node", new[] { "0x6f199127", "0xa199a688", "0xed47da97", "0x51668697", "0x447ef6da", "0xd1c108c5", "0xbcbaceaf", "0xe8b6b8f3", "0xfcab03b3", "0x0b61f08f", "0x359f2550" }, new[] { 0x0a0c87e7u }, SkillStatKind.FlatAdd, SkillUnit.Whole),
+        new SkillStat("Warrior", "Warrior's Path", "Damage", new[] { "0x994d15dc" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Warrior", "Shiny Plates", "Magical Armor", new[] { "0xc9ca4e4c" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Warrior", "Heavy Plates", "Physical Armor", new[] { "0x3d027d83" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Warrior", "Slasher", "Damage", new[] { "0xbb3cba58" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Warrior", "Brute", "Damage", new[] { "0xa3ffbe6e" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Warrior", "Heavy Handed", "Effect", new[] { "0xfdfb1f82" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Warrior", "Veteran", "Critical Chance", new[] { "0xd9c5f716" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Warrior", "Absorb", "Chance", new[] { "0xd5264acf" }, new[] { 0xde1695c2u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Warrior", "Blood Rage", "Range", new[] { "0x68bb7cc0" }, new[] { 0x6c2fad6du }, SkillStatKind.Multiply, SkillUnit.Number),
+        new SkillStat("Warrior", "Soul Leech", "Mana", new[] { "0x0d201c4f" }, new[] { 0xec54a581u }, SkillStatKind.Multiply, SkillUnit.Whole),
+        new SkillStat("Warrior", "Soul Leech", "Range", new[] { "0x0d201c4f" }, new[] { 0x6c2fad6du }, SkillStatKind.Multiply, SkillUnit.Number),
+        new SkillStat("Warrior", "Battle Heal", "Healing", new[] { "0xe96e8844" }, new[] { 0x2904adf8u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Warrior", "Purification", "Shroud Time", new[] { "0x8404ad58" }, new[] { 0xf99ee229u }, SkillStatKind.Multiply, SkillUnit.Whole),
+        new SkillStat("Warrior", "Vigorous Deflection", "Stamina", new[] { "0x7cb04215" }, new[] { 0xdda61333u }, SkillStatKind.Multiply, SkillUnit.Whole),
+        new SkillStat("Warrior", "Nemesis", "Attention", new[] { "0x8bd59975" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Warrior", "Bash", "Damage", new[] { "0xc6e89f3d" }, new[] { 0x963ebe20u }, SkillStatKind.Multiply, SkillUnit.Whole),
+        new SkillStat("Warrior", "Finesse", "Chance", new[] { "0x35ef19a8" }, new[] { 0xde1695c2u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Warrior", "Steadfast", "Durability", new[] { "0xec8552a9" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Whole),
+        new SkillStat("Warrior", "Titan Edge", "Damage", new[] { "0x9461f8cf" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Warrior", "Athlete", "Count", new[] { "0xf2a8b9be" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Number),
+        new SkillStat("Warrior", "Barbarian's Path", "Damage", new[] { "0x45f50e0d" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Ranger", "Airborne", "Cost Reduction", new[] { "0x1d7d4631" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Ranger", "Marksman", "Damage", new[] { "0x33139a82" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Ranger", "Snake Eater", "Resistance", new[] { "0x0ddc8e5f" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Ranger", "Counter Battery", "Damage", new[] { "0x0d790efd" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Ranger", "Ranger", "Endurance", new[] { "0x1f12273a" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Whole),
+        new SkillStat("Ranger", "Ranger", "Stamina Regeneration", new[] { "0x1f12273a" }, new[] { 0x41f97f36u }, SkillStatKind.Multiply, SkillUnit.Whole),
+        new SkillStat("Ranger", "Ranger", "Dexterity", new[] { "0x1f12273a" }, new[] { 0x1c307d25u }, SkillStatKind.Multiply, SkillUnit.Whole),
+        new SkillStat("Ranger", "Sniper", "Critical Chance", new[] { "0x55fe49d1" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Ranger", "Blessed Arrows", "Mana", new[] { "0x20657dd6" }, new[] { 0xec54a581u }, SkillStatKind.Multiply, SkillUnit.Whole),
+        new SkillStat("Ranger", "Thrust", "Damage", new[] { "0x956650b0" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Ranger", "Backstab Mastery", "Damage", new[] { "0x4e2ddcf1" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Ranger", "Vitality Surge", "Stamina", new[] { "0x0837bcd1" }, new[] { 0x8ebd4150u }, SkillStatKind.Multiply, SkillUnit.Whole),
+        new SkillStat("Ranger", "Eagle's Bane", "Damage", new[] { "0x7a7c0ac5" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Ranger", "Skill Shot", "Damage", new[] { "0x5beee72c" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Ranger", "Swiftshot Sustenance", "Chance", new[] { "0x48d94229" }, new[] { 0xde1695c2u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Ranger", "Arachnoid", "Cost Reduction", new[] { "0xf6d40426" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Ranger", "Dagger Mastery", "Damage", new[] { "0x2de81b98" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Ranger", "Cutthroat", "Damage", new[] { "0x5e97f26e" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Ranger", "Rebound", "Stamina Regeneration", new[] { "0x81224094" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Ranger", "Cull the Herd", "Damage", new[] { "0x9a052e49" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Ranger", "Primal Force", "Damage", new[] { "0x1880773e" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Ranger", "Vile Concoction", "Damage", new[] { "0x4105f234" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Ranger", "Fatal Precision", "Critical Damage", new[] { "0xb3256800" }, new[] { 0xcc845864u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Ranger", "Fatal Precision", "Critical Chance", new[] { "0xb3256800" }, new[] { 0x9fa40585u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Ranger", "Veiled Vigor", "Count", new[] { "0x407f0db5" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Number),
+        new SkillStat("Ranger", "Puncture", "Damage", new[] { "0xd28c86aa" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Ranger", "Barrage", "Chance", new[] { "0x148d951c" }, new[] { 0xde1695c2u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Ranger", "Survival Instinct", "Shroud Time", new[] { "0x516969f0" }, new[] { 0xf99ee229u }, SkillStatKind.Multiply, SkillUnit.Whole),
+        new SkillStat("Mage", "Healing Revive", "Health", new[] { "0xab7e8921" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Mage Apprentice", "Damage", new[] { "0xbcc2af54" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Arsonist", "Damage", new[] { "0x6a03aac2" }, new[] { 0x0a0c87e7u, 0x41f97f36u, 0x9fa40585u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Dark Arts", "Damage", new[] { "0xfde08d1a" }, new[] { 0x0a0c87e7u, 0x41f97f36u, 0x9fa40585u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Iceman", "Damage", new[] { "0xdb0d0cdf" }, new[] { 0x0a0c87e7u, 0x41f97f36u, 0x9fa40585u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Frost", "Primer Duration", new[] { "0x2a7d8c19" }, new[] { 0xbee6d4a9u }, SkillStatKind.Multiply, SkillUnit.Seconds),
+        new SkillStat("Mage", "Quick Charge", "Charge Time", new[] { "0x8029ba35" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Counterstrike", "Reflected Damage", new[] { "0xc1409035" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Counterstrike", "Chance", new[] { "0xc1409035" }, new[] { 0xde1695c2u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Wizard", "Critical Chance", new[] { "0x3c5488aa" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Necromancer", "Chance", new[] { "0x9504fb59" }, new[] { 0xde1695c2u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Terror", "Chance", new[] { "0xace4072f" }, new[] { 0xde1695c2u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Bloodletting", "Chance", new[] { "0xb63acd97" }, new[] { 0xde1695c2u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Shroud Mitigation", "Chance", new[] { "0x5d8ab511" }, new[] { 0xde1695c2u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Healer", "Healing", new[] { "0xab7d6537" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Arcane Deflection", "Mana", new[] { "0x41dcedaa" }, new[] { 0xec54a581u }, SkillStatKind.Multiply, SkillUnit.Whole),
+        new SkillStat("Mage", "Thunder", "Damage", new[] { "0xe2b07e6b" }, new[] { 0x0a0c87e7u, 0x41f97f36u, 0x9fa40585u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Water Aura", "Range", new[] { "0x5482295c" }, new[] { 0x6c2fad6du }, SkillStatKind.BaseAndLevel, SkillUnit.Number),
+        new SkillStat("Mage", "Radiant Aura", "Damage", new[] { "0x6c18dc03" }, new[] { 0xf62f45c7u }, SkillStatKind.Multiply, SkillUnit.Whole),
+        new SkillStat("Mage", "Radiant Aura", "Range", new[] { "0x6c18dc03" }, new[] { 0x6c2fad6du }, SkillStatKind.BaseAndLevel, SkillUnit.Number),
+        new SkillStat("Mage", "Unity", "Mana Share", new[] { "0xe887d6dc" }, new[] { 0x550cd550u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Unity", "Chance", new[] { "0xe887d6dc" }, new[] { 0xde1695c2u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Eternal Spark", "Chance", new[] { "0x20ea4235" }, new[] { 0xde1695c2u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Life Essences", "Count", new[] { "0x760ea7fa" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Number),
+        new SkillStat("Mage", "Shroud Resistance", "Resistance", new[] { "0xc11e36cd" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Fire Resistance", "Resistance", new[] { "0xc5ae2214" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Ice Resistance", "Resistance", new[] { "0x832e8d41" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Shock Resistance", "Resistance", new[] { "0x4b50fa5c" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Righteous Fire", "Fire Damage", new[] { "0x41a127b8" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Bone to Ash", "Damage", new[] { "0x53e61fff" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Sleight of Hand", "Damage", new[] { "0x0a67d349" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Mana Currents", "Mana Regeneration", new[] { "0xa878bc4e" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Number),
+        new SkillStat("Mage", "Spellslinger", "Damage", new[] { "0x1853a39b" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Wand Mastery", "Damage", new[] { "0x35f3fd54" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Mage", "Totem Mastery", "Totems Per Level", new[] { "0x1e0d8327" }, new[] { 0x0a0c87e7u }, SkillStatKind.SetPerLevel, SkillUnit.Whole),
+        new SkillStat("Mage", "Advanced Necromancy", "Allies Per Level", new[] { "0x6a343bfa" }, new[] { 0x0a0c87e7u }, SkillStatKind.SetPerLevel, SkillUnit.Whole),
+        new SkillStat("Neutral", "Well Rested", "Rested Duration", new[] { "0xa598792e" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Number),
+        new SkillStat("Neutral", "Mason", "Damage", new[] { "0x2fdadb3d" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Neutral", "Lumberjack", "Damage", new[] { "0x7e2a4e3c" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Neutral", "Power Parry", "Parry Power", new[] { "0x82bcfd39" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Neutral", "Inner Fires", "Amount", new[] { "0x11653829" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Whole),
+        new SkillStat("Neutral", "Opportunity", "Damage", new[] { "0x47536d86" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+        new SkillStat("Neutral", "Fisherman's Resolve", "Fishing Endurance", new[] { "0xba5bb0e5" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Number),
+        new SkillStat("Neutral", "Prospector", "Damage", new[] { "0x113d826c" }, new[] { 0x0a0c87e7u }, SkillStatKind.Multiply, SkillUnit.Share),
+    };
+
+    /// <summary>Each skill card's game data (generated from the dump's SkillTreeResource, build 26430625).</summary>
+    public static readonly IReadOnlyList<SkillInfo> SkillInfos = new[]
+    {
+        new SkillInfo("Constitution", "0x07fdab40", 2141966844u, 3464267517u, null, 0, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Number, SkillTextSource.Simple) }, 0u),
+        new SkillInfo("Dexterity", "0xd9a99abb", 2225266883u, 4187597224u, null, 0, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Number, SkillTextSource.Simple) }, 0u),
+        new SkillInfo("Endurance", "0x8d353fe4", 2317575873u, 3868743912u, null, 0, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Number, SkillTextSource.Simple) }, 0u),
+        new SkillInfo("Intelligence", "0x81d8b64f", 672616651u, 498847806u, null, 0, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Number, SkillTextSource.Simple) }, 0u),
+        new SkillInfo("Spirit", "0x01e263aa", 1392960737u, 2444765464u, null, 0, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Number, SkillTextSource.Simple) }, 0u),
+        new SkillInfo("Strength", "0x6f199127", 1301436537u, 1742376863u, null, 0, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Number, SkillTextSource.Simple) }, 0u),
+        new SkillInfo("Warrior's Path", "0x994d15dc", 817490139u, 2994914437u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Shiny Plates", "0xc9ca4e4c", 2715838441u, 699413234u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Heavy Plates", "0x3d027d83", 2434523546u, 882830393u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Slasher", "0xbb3cba58", 3886000562u, 1825557606u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Brute", "0xa3ffbe6e", 4031743929u, 3886792070u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Heavy Handed", "0xfdfb1f82", 2709237677u, 1521677849u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Veteran", "0xd9c5f716", 4043280988u, 67356638u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Absorb", "0xd5264acf", 1186917209u, 1010386680u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0xde1695c2u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Blood Rage", "0x68bb7cc0", 3435131839u, 4200247319u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x6c2fad6du, SkillTextFormat.Number, SkillTextSource.Level), new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Simple) }, 0u),
+        new SkillInfo("Soul Leech", "0x0d201c4f", 428350649u, 3579633382u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x6c2fad6du, SkillTextFormat.Number, SkillTextSource.Level), new SkillTextConfig(0xec54a581u, SkillTextFormat.Number, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Battle Heal", "0xe96e8844", 1325549243u, 642723681u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x2904adf8u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Purification", "0x8404ad58", 1073228234u, 3856847524u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0xf99ee229u, SkillTextFormat.Number, SkillTextSource.Level), new SkillTextConfig(0xde1695c2u, SkillTextFormat.Number, SkillTextSource.Simple) }, 0u),
+        new SkillInfo("Vigorous Deflection", "0x7cb04215", 2268148329u, 3802766420u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0xdda61333u, SkillTextFormat.Number, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Nemesis", "0x8bd59975", 2642464801u, 2796781201u, "6598821c-1a56-45f2-a9bd-221d0f1e7258", 3, new SkillTextConfig[] { new SkillTextConfig(0x41f97f36u, SkillTextFormat.Percent, SkillTextSource.Level), new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Bash", "0xc6e89f3d", 1619380793u, 1952884755u, "1e0c85be-9543-4c82-83d5-2984244cfc8b", 3, new SkillTextConfig[] { new SkillTextConfig(0x963ebe20u, SkillTextFormat.Number, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Finesse", "0x35ef19a8", 400095027u, 821932357u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0xde1695c2u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Steadfast", "0xec8552a9", 1522126428u, 3135298843u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Number, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Titan Edge", "0x9461f8cf", 3606836841u, 1635067720u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Athlete", "0xf2a8b9be", 826107874u, 3271636889u, "f35c9761-331c-44d9-a2a6-c887432dd8a4", 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Number, SkillTextSource.Level), new SkillTextConfig(0x951389d2u, SkillTextFormat.Number, SkillTextSource.Attribute) }, 0u),
+        new SkillInfo("Barbarian's Path", "0x45f50e0d", 2483035066u, 1820127822u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Airborne", "0x1d7d4631", 1640832255u, 2568927126u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Marksman", "0x33139a82", 882243161u, 1062440003u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Snake Eater", "0x0ddc8e5f", 3697526057u, 951220202u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Counter Battery", "0x0d790efd", 2976540223u, 1410738479u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Ranger", "0x1f12273a", 290727359u, 2989031414u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x1c307d25u, SkillTextFormat.Number, SkillTextSource.Level), new SkillTextConfig(0x41f97f36u, SkillTextFormat.Number, SkillTextSource.Level), new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Number, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Sniper", "0x55fe49d1", 2756714769u, 3946863399u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Blessed Arrows", "0x20657dd6", 1424864512u, 522948230u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0xec54a581u, SkillTextFormat.Number, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Thrust", "0x956650b0", 3104720071u, 3370155513u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Backstab Mastery", "0x4e2ddcf1", 3630532219u, 4169978088u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Vitality Surge", "0x0837bcd1", 3571001085u, 3674679466u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x8ebd4150u, SkillTextFormat.Number, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Eagle's Bane", "0x7a7c0ac5", 4220795372u, 583932783u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Skill Shot", "0x5beee72c", 3225554412u, 2852613187u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Swiftshot Sustenance", "0x48d94229", 1805093420u, 704533554u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0xde1695c2u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Arachnoid", "0xf6d40426", 4249277756u, 75197992u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Dagger Mastery", "0x2de81b98", 524055565u, 679425180u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Cutthroat", "0x5e97f26e", 3581243624u, 3329142594u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Rebound", "0x81224094", 2599520900u, 3847631289u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Cull the Herd", "0x9a052e49", 3440867845u, 465674172u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Primal Force", "0x1880773e", 1349963745u, 2157727274u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Vile Concoction", "0x4105f234", 367843691u, 3243607103u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Fatal Precision", "0xb3256800", 1911489856u, 302340431u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x9fa40585u, SkillTextFormat.Percent, SkillTextSource.Level), new SkillTextConfig(0xcc845864u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Veiled Vigor", "0x407f0db5", 3029678559u, 4119206275u, "40619970-0adc-4d2b-8298-d74bc8b75724", 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Number, SkillTextSource.Level), new SkillTextConfig(0x12221574u, SkillTextFormat.Number, SkillTextSource.Attribute) }, 0u),
+        new SkillInfo("Puncture", "0xd28c86aa", 1291472205u, 1863810094u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Barrage", "0x148d951c", 3261187468u, 1925626990u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0xde1695c2u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Survival Instinct", "0x516969f0", 164154762u, 3714143992u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0xf99ee229u, SkillTextFormat.Number, SkillTextSource.Level), new SkillTextConfig(0xde1695c2u, SkillTextFormat.Number, SkillTextSource.Simple) }, 0u),
+        new SkillInfo("Healing Revive", "0xab7e8921", 2876134097u, 3724069235u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Mage Apprentice", "0xbcc2af54", 3392377264u, 3216922990u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Arsonist", "0x6a03aac2", 3713637442u, 1264519439u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x41f97f36u, SkillTextFormat.Percent, SkillTextSource.Level), new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level), new SkillTextConfig(0x9fa40585u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Dark Arts", "0xfde08d1a", 1042465877u, 4142140054u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x41f97f36u, SkillTextFormat.Percent, SkillTextSource.Level), new SkillTextConfig(0x9fa40585u, SkillTextFormat.Percent, SkillTextSource.Level), new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Iceman", "0xdb0d0cdf", 1895275492u, 420841242u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x41f97f36u, SkillTextFormat.Percent, SkillTextSource.Level), new SkillTextConfig(0x9fa40585u, SkillTextFormat.Percent, SkillTextSource.Level), new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Frost", "0x2a7d8c19", 3296657060u, 2051907950u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0xbee6d4a9u, SkillTextFormat.Seconds, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Quick Charge", "0x8029ba35", 550150265u, 4086383655u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Counterstrike", "0xc1409035", 1493279624u, 2040625352u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0xde1695c2u, SkillTextFormat.Percent, SkillTextSource.Level), new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Wizard", "0x3c5488aa", 1492387235u, 274759538u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Necromancer", "0x9504fb59", 3424057087u, 490098776u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0xde1695c2u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Terror", "0xace4072f", 3240035900u, 2815296646u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0xde1695c2u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Bloodletting", "0xb63acd97", 171591903u, 3912417426u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0xde1695c2u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Shroud Mitigation", "0x5d8ab511", 4078679501u, 3252117447u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0xde1695c2u, SkillTextFormat.Percent, SkillTextSource.Level), new SkillTextConfig(0xf99ee229u, SkillTextFormat.Number, SkillTextSource.Simple), new SkillTextConfig(0x6c2fad6du, SkillTextFormat.Number, SkillTextSource.Simple) }, 0u),
+        new SkillInfo("Healer", "0xab7d6537", 728416469u, 1905595684u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Arcane Deflection", "0x41dcedaa", 3352137116u, 947223904u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0xec54a581u, SkillTextFormat.Number, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Thunder", "0xe2b07e6b", 3989693657u, 2289039412u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x9fa40585u, SkillTextFormat.Percent, SkillTextSource.Level), new SkillTextConfig(0x41f97f36u, SkillTextFormat.Percent, SkillTextSource.Level), new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Water Aura", "0x5482295c", 3199096055u, 1641307815u, "cdd9d291-28f7-42f0-9df8-538689348547", 3, new SkillTextConfig[] { new SkillTextConfig(0x6c2fad6du, SkillTextFormat.Number, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Radiant Aura", "0x6c18dc03", 1301280840u, 154857609u, "1faafc57-22d8-427f-a1cc-05e0516fb7dd", 3, new SkillTextConfig[] { new SkillTextConfig(0x6c2fad6du, SkillTextFormat.Number, SkillTextSource.Level), new SkillTextConfig(0xebb0bfd0u, SkillTextFormat.Number, SkillTextSource.Attribute), new SkillTextConfig(0xf62f45c7u, SkillTextFormat.Number, SkillTextSource.Level) }, 0xf62f45c7u),
+        new SkillInfo("Unity", "0xe887d6dc", 3570859605u, 2841884903u, "579125e0-a0e5-40cf-8690-60a9ffe33be6", 3, new SkillTextConfig[] { new SkillTextConfig(0xde1695c2u, SkillTextFormat.Percent, SkillTextSource.Level), new SkillTextConfig(0x550cd550u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Eternal Spark", "0x20ea4235", 1466091116u, 2418135834u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0xde1695c2u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Life Essences", "0x760ea7fa", 779584848u, 2582904188u, "02383fe8-82fd-4ef0-9deb-eb6f69b11a3f", 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Number, SkillTextSource.Level), new SkillTextConfig(0xebb0bfd0u, SkillTextFormat.Number, SkillTextSource.Attribute) }, 0u),
+        new SkillInfo("Shroud Resistance", "0xc11e36cd", 1418846804u, 3141512281u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Fire Resistance", "0xc5ae2214", 218758u, 1485730355u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Ice Resistance", "0x832e8d41", 2248837897u, 539007688u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Shock Resistance", "0x4b50fa5c", 603523182u, 2594474861u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Righteous Fire", "0x41a127b8", 3613380126u, 3280605850u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Bone to Ash", "0x53e61fff", 3491745907u, 2113495151u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Sleight of Hand", "0x0a67d349", 1442517471u, 3950266716u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Mana Currents", "0xa878bc4e", 3875541120u, 3623491717u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Number, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Spellslinger", "0x1853a39b", 1694738467u, 1149828903u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Wand Mastery", "0x35f3fd54", 3479465379u, 605842036u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Totem Mastery", "0x1e0d8327", 443587329u, 3682829485u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Number, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Advanced Necromancy", "0x6a343bfa", 3050064543u, 4263908308u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Number, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Well Rested", "0xa598792e", 2708389714u, 514772092u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Number, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Mason", "0x2fdadb3d", 4089884376u, 4089064218u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Lumberjack", "0x7e2a4e3c", 3253680604u, 3118258031u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Power Parry", "0x82bcfd39", 3417692650u, 3266756074u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Inner Fires", "0x11653829", 2508354976u, 3128461742u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Seconds, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Opportunity", "0x47536d86", 3489782624u, 188848285u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Fisherman's Resolve", "0xba5bb0e5", 3208111312u, 3851977745u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Number, SkillTextSource.Level) }, 0u),
+        new SkillInfo("Prospector", "0x113d826c", 3814769682u, 2987254257u, null, 3, new SkillTextConfig[] { new SkillTextConfig(0x0a0c87e7u, SkillTextFormat.Percent, SkillTextSource.Level) }, 0u),
+    };
+
+    // A skill stat's key, for the groups below.
+    private static string SkillKey(string skill, string label) => SkillStats.Single(stat => stat.Skill == skill && stat.Label == label).Key;
+
+    /// <summary>The Skills tab's groups (1.2.2, the user's choice): Damage Bonuses are the "% damage per level" skills (not Bash and
+    /// Radiant Aura, which add flat damage, nor the terrain ones).</summary>
+    public static readonly IReadOnlyList<SkillGroup> SkillGroups = new[]
+    {
+        new SkillGroup("Stats", SkillStats.Where(stat => stat.Kind == SkillStatKind.FlatAdd).Select(stat => stat.Key).ToArray(), true),
+        new SkillGroup("Damage Bonuses", SkillStats.Where(stat => stat.Label == "Damage" && stat.Skill is not ("Bash" or "Radiant Aura" or "Mason" or "Lumberjack" or "Prospector")).Select(stat => stat.Key).ToArray(), false),
+        new SkillGroup("Terrain Damage", new[] { SkillKey("Mason", "Damage"), SkillKey("Lumberjack", "Damage"), SkillKey("Prospector", "Damage") }, false),
+        new SkillGroup("Critical Chance", new[] { SkillKey("Wizard", "Critical Chance"), SkillKey("Sniper", "Critical Chance"), SkillKey("Veteran", "Critical Chance"), SkillKey("Fatal Precision", "Critical Chance") }, false),
+        new SkillGroup("Resistances", SkillStats.Where(stat => stat.Label == "Resistance").Select(stat => stat.Key).ToArray(), false),
+        new SkillGroup("Armor", new[] { SkillKey("Shiny Plates", "Magical Armor"), SkillKey("Heavy Plates", "Physical Armor") }, false),
+        new SkillGroup("Mana and Stamina Gains", new[] { SkillKey("Blessed Arrows", "Mana"), SkillKey("Soul Leech", "Mana"), SkillKey("Arcane Deflection", "Mana"), SkillKey("Vitality Surge", "Stamina"), SkillKey("Vigorous Deflection", "Stamina") }, false),
+        new SkillGroup("Healing", new[] { SkillKey("Healer", "Healing"), SkillKey("Battle Heal", "Healing"), SkillKey("Healing Revive", "Health") }, false),
+    };
+
     public const string SkeletonsPerCastKey = "skeletonsPerCast";
     public const string TotemsPerCastKey = "totemsPerCast";
     public const string SummonSpreadKey = "summonSpread";
@@ -505,7 +843,7 @@ public static class SpellCatalog
     });
 
     /// <summary>The groups of the settings page, in its order.</summary>
-    public static readonly IReadOnlyList<string> Groups = new[] { GroupSummons, GroupDuration, GroupDamage, GroupRadius, GroupCasting, GroupHealth, GroupPerception, GroupCost, GroupCastTime, GroupGeneral, GroupGemDamage, GroupGemGeneral, GroupGemStats };
+    public static readonly IReadOnlyList<string> Groups = new[] { GroupSummons, GroupDuration, GroupDamage, GroupRadius, GroupCasting, GroupHealth, GroupPerception, GroupCost, GroupCastTime, GroupGeneral, GroupGemDamage, GroupGemGeneral, GroupGemStats, GroupSkills };
 
     // Root's and Blizzard's zones hold enemies and slow them for the spell's main duration (their DebuffDuration config), so it follows the setting.
     public static readonly IReadOnlyList<DurationSpell> DurationSpells = new[]
@@ -679,6 +1017,37 @@ public static class SpellCatalog
         }),
     };
 
+    /// <summary>The Skills tab's list: the groups, then each skill-tree class with its skills' cards.</summary>
+    public static readonly IReadOnlyList<WindowSection> SkillSections = MakeSkillSections();
+
+    /// <summary>Every card of the Skills tab, section after section: the index the window keeps for the chosen one.</summary>
+    public static readonly IReadOnlyList<WindowSpell> SkillWindowSpells = Flatten(SkillSections);
+
+    public const string SkillGroupsSection = "Groups";
+
+    private static WindowSection[] MakeSkillSections()
+    {
+        var sections = new List<WindowSection>
+        {
+            new WindowSection(SkillGroupsSection, SkillGroups.Select(group => new WindowSpell(group.Name, null,
+                new[] { Line(group.IsBonus ? "Bonus Per Node" : "Multiplier", group.Key), Line("Mode", group.ModeKey) })).ToArray()),
+        };
+        foreach (string section in SkillStats.Select(stat => stat.Section).Distinct())
+        {
+            WindowSpell[] skills = SkillStats.Where(stat => stat.Section == section).Select(stat => stat.Skill).Distinct()
+                .Select(skill => new WindowSpell(skill, null, SkillStats.Where(stat => stat.Section == section && stat.Skill == skill).SelectMany(stat => stat.Lines()).ToArray()))
+                .ToArray();
+            sections.Add(new WindowSection(section, skills));
+        }
+        return sections.ToArray();
+    }
+
+    /// <summary>The group a skill stat's setting is in, or null.</summary>
+    public static SkillGroup? GroupOf(string key)
+    {
+        return SkillGroups.FirstOrDefault(group => group.Members.Contains(key));
+    }
+
     /// <summary>Every spell of the settings window, section after section: the index the window keeps for the chosen spell.</summary>
     public static readonly IReadOnlyList<WindowSpell> WindowSpells = Flatten(WindowSections);
 
@@ -828,6 +1197,8 @@ public static class SpellCatalog
         settings.Add(new SettingInfo(GemGeneralDamageKey, "Gem General Damage", GroupGemGeneral, SettingKind.Multiplier, SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep, 1));
         settings.Add(new SettingInfo(GemGeneralAtLeastKey, "Gem General Mode", GroupGemGeneral, SettingKind.Toggle, 0, 1, 1, 0));
         settings.AddRange(GemStats.SelectMany(stat => stat.Settings()));
+        settings.AddRange(SkillStats.SelectMany(stat => stat.Settings()));
+        settings.AddRange(SkillGroups.SelectMany(group => group.Settings()));
         return settings;
     }
 

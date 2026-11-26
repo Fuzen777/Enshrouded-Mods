@@ -123,6 +123,14 @@ public static class SpellRules
     public const double MinGemSeconds = 0.1;
     public const double MinChancePoints = -100;
     public const double MaxChancePoints = 100;
+    // Skills tab (1.2.2): skill-tree node configs.
+    public const double MinSkillMultiplier = 0.1;
+    public const double MaxSkillMultiplier = 100.0;
+    public const double SkillMultiplierStep = 0.05;
+    public const double MinSkillPerLevel = 0;
+    public const double MaxSkillPerLevel = 10;
+    public const double MinSkillNodeBonus = 0;
+    public const double MaxSkillNodeBonus = 20;
     public const double MinLevelBonus = 0;
     public const double MaxLevelBonus = 100;
 
