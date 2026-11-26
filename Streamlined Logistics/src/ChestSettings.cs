@@ -54,7 +54,7 @@ public sealed class ChestSettings
     public bool DepositReportInChat { get; set; } = true;
 
     [ConfigKey("autoSalvage")]
-    [Comment("Auto Salvage. On: gear you loot that a salvage rule takes (the rules are in the Settings tab of the mod's screen) is salvaged into runes right after it lands in your backpack, with the game's own Trash yield. Favorites, worn gear, gear with a gem and gear in the hotbars are never salvaged.")]
+    [Comment("Auto Salvage. On: gear you loot that a salvage rule takes (the rules are in the Settings tab of the mod's screen) is salvaged into runes once it has settled in your backpack (about 1.5 s, so loot-level mods can set its level first), with the game's own Trash yield. Favorites, worn gear, gear with a gem and gear in the hotbars are never salvaged.")]
     public bool AutoSalvage { get; set; }
 
     [ConfigKey("autoQuickDeposit")]

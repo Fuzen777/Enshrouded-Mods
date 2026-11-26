@@ -7,6 +7,13 @@ How it works: the screen is a Kiln screen (`Ui.Screen`) drawn in the player's ga
 `Scripts\Build.ps1` runs the tests (`tests\ChestRulesTests`), builds against Kiln's assemblies in `<game>\kiln\host` and puts the mod in `dist\streamlined-logistics`; `-Install` copies it to `<game>\kiln\mods\streamlined-logistics`, where Kiln loads it as a drop-in (game closed).
 
 
+## 1.1.1
+
+- **Auto Salvage waits for loot to settle** (the user: the runes from Auto Salvage seemed abnormally low; Kiln Auto Loot had added a similar wait for loot leveling): a looted piece is salvaged only once its level and rarity have read the same for 1.5 s (rechecked every 0.25 s), and never while its level reads 0. Up to 1.1.0 it was salvaged as soon as it was in its slot; kiln.log of 26 Nov 2026 shows both pieces that were found a step late (loot from a container) read as level 0 Common, for 36 and 9 runes, while Kiln Auto Loot read the same Battering Ram Hammer as level 35 Epic. It also stops a piece a rule would not take (here Epic) from being salvaged on a wrong Common read, and leaves time for loot-level mods (Kiln's loot-leveler, Unified Tweaks' loot sync) to set the level. After 15 s a piece whose level still reads 0 is kept, and one whose reads keep changing is judged as it reads then. kiln.log names each change ("now reads level ..."). The backpack check of Auto Quick Deposit waits for the queue as before, so it now comes about 1.5 s after loot that Auto Salvage looks at.
+
+> [!warning]
+> Not yet seen in game.
+
 ## 1.1.0
 
 - **Nexus upload of 1.0.3** (asked 26 Nov 2026): no code change, the DLL is 1.0.3's (2e8d405); only kiln.mod.json's version changes. `Changelog.mdbbcode` covers 1.0.1 to 1.0.3. The Nexus page no longer mentions Cross-Base Storage as a way to craft (its section is now Craft From Linked Chests, and Compatibility says it isn't needed), and says Build From Linked Chests waits on a Kiln fix (report 32: the Construction Hammer and build menu show and pay nothing from linked chests on Kiln 0.2.0-dev.31.13), and that Kiln 0.2.0-dev.31.15 turns a lock's Required: Lockpick line green when the pick is in a linked chest (#147 follow-up, report 31b; before, the lock opened but the line stayed red).

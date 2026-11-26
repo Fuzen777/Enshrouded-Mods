@@ -294,10 +294,17 @@ public sealed class StreamlinedLogisticsMod : Mod
     private List<GearRule>? _depositRulesEdit;
     private List<GearRule>? _salvageRulesEdit;
     private long _rulesSaveAtTick;
-    // Auto Salvage (since 0.10.26): the loot to look at at the next step (the slot it landed in and its item), and the balancing.
-    private readonly List<(ulong Slot, uint Item, int Tries)> _salvageQueue = new();
+    // Auto Salvage (since 0.10.26): the loot waiting to be salvaged (the slot it landed in and its item), and the balancing.
+    private readonly List<SalvageCandidate> _salvageQueue = new();
     // Loot from a container can be reported a step or more before it is in its slot: it is looked for again, this many times.
     private const int SalvageTries = 40;
+    // A piece found in its slot is salvaged only once its level and rarity have read the same for this long (1.1.1): loot from a
+    // container first reads level 0 and Common for a moment, and loot-level mods (Kiln's loot-leveler, Unified Tweaks' loot sync)
+    // can set them after it lands. Up to 1.1.0 it was salvaged at once, so such pieces gave a level 0 Common piece's few runes.
+    private const long SalvageSettleMilliseconds = 1500;
+    private const long SalvageRecheckMilliseconds = 250;
+    // After this long since the pickup a piece whose level still reads 0 is kept; one whose reads still change is judged as it reads.
+    private const long SalvageGiveUpMilliseconds = 15000;
     private SalvageBalancing? _salvageBalancing;
     // The names a chest can be given from the Chests tab's list (the tree's groups and sub-categories), read while drawing.
     private volatile IReadOnlyList<string> _chestNameChoices = Array.Empty<string>();
@@ -2822,7 +2829,7 @@ public sealed class StreamlinedLogisticsMod : Mod
         DrawRules(ui, salvage: false);
         ui.Separator("Salvage");
         SettingToggle(ui, "autoSalvage", "Auto Salvage", settings.AutoSalvage,
-            "Gear you loot that a salvage rule takes is salvaged into runes right after it lands in your backpack (the game's own Trash yield).\nFavorites, worn gear, gear with a gem and gear in the hotbars are never salvaged.");
+            "Gear you loot that a salvage rule takes is salvaged into runes with the game's own Trash yield, about 1.5 s after it lands in your backpack (so loot-level mods can set its level first).\nFavorites, worn gear, gear with a gem and gear in the hotbars are never salvaged.");
         DrawRules(ui, salvage: true);
         ui.Separator("Highlight");
         SettingToggle(ui, "highlightDepositedChests", "Highlight Chests After A Deposit", settings.HighlightDepositedChests,
@@ -3581,7 +3588,7 @@ public sealed class StreamlinedLogisticsMod : Mod
         _pickupCheckPending = _settings?.Value.AutoQuickDeposit ?? false;
         if ((_settings?.Value.AutoSalvage ?? false) && !pickup.SlotInventory.IsNone && _salvageQueue.Count < 64)
         {
-            _salvageQueue.Add((SlotId.Of(pickup.SlotInventory, pickup.SlotIndex).Value, pickup.ItemId, 0));
+            _salvageQueue.Add(new SalvageCandidate(SlotId.Of(pickup.SlotInventory, pickup.SlotIndex).Value, pickup.ItemId, Environment.TickCount64));
         }
     }
 
@@ -3601,20 +3608,39 @@ public sealed class StreamlinedLogisticsMod : Mod
         return ChestRules.FindLink(_state.Links, ToChestPosition(position)) >= 0 || (Bases.Available && Bases.At(position) != null);
     }
 
-    // The world's thread, at the step after loot arrived: the looted gear a salvage rule takes is salvaged (one task for all of
-    // it); the backpack check of Auto Quick Deposit waits until that is done.
+    // A looted piece waiting for Auto Salvage: where it landed, when it was picked up, the steps it was not yet found, and the
+    // level and rarity it last read (and since when), so it is salvaged only once they have settled.
+    private sealed class SalvageCandidate(ulong slot, uint item, long pickedUpTick)
+    {
+        public ulong Slot { get; } = slot;
+        public uint Item { get; } = item;
+        public long PickedUpTick { get; } = pickedUpTick;
+        public int Tries { get; set; }
+        public int Level { get; set; } = -1;
+        public int Rarity { get; set; } = -1;
+        public long StableSinceTick { get; set; }
+        public long NextCheckTick { get; set; }
+    }
+
+    // The world's thread, at each step while loot waits: the looted gear that is due is looked at (one task for all of it); the
+    // backpack check of Auto Quick Deposit waits until the queue is empty.
     private void SalvageLootSoon()
     {
         if (_salvageQueue.Count == 0 || _busy)
         {
             return;
         }
-        var looted = new List<(ulong Slot, uint Item, int Tries)>(_salvageQueue);
-        _salvageQueue.Clear();
-        Post(() => SalvageLoot(looted));
+        long now = Environment.TickCount64;
+        var due = _salvageQueue.FindAll(candidate => candidate.NextCheckTick <= now);
+        if (due.Count == 0)
+        {
+            return;
+        }
+        _salvageQueue.RemoveAll(candidate => candidate.NextCheckTick <= now);
+        Post(() => SalvageLoot(due));
     }
 
-    private async Task SalvageLoot(List<(ulong Slot, uint Item, int Tries)> looted)
+    private async Task SalvageLoot(List<SalvageCandidate> looted)
     {
         EntityId player = Client.LocalPlayer;
         if (player.IsNone || !Items.Available)
@@ -3640,8 +3666,11 @@ public sealed class StreamlinedLogisticsMod : Mod
         float recyclingFactor = GameSetting("perkUpgradeRecyclingFactor", 0.5f);
         var salvaged = new List<string>();
         long runes = 0;
-        foreach ((ulong slotValue, uint item, int tries) in looted)
+        foreach (SalvageCandidate candidateLoot in looted)
         {
+            ulong slotValue = candidateLoot.Slot;
+            uint item = candidateLoot.Item;
+            int tries = candidateLoot.Tries;
             InventorySlot? slot = null;
             foreach (InventorySlot candidate in playerRead.Contents.Slots)
             {
@@ -3659,7 +3688,9 @@ public sealed class StreamlinedLogisticsMod : Mod
                 {
                     if (tries + 1 < SalvageTries)
                     {
-                        _salvageQueue.Add((slotValue, item, tries + 1));
+                        candidateLoot.Tries = tries + 1;
+                        candidateLoot.NextCheckTick = 0;
+                        _salvageQueue.Add(candidateLoot);
                     }
                     else
                     {
@@ -3668,13 +3699,40 @@ public sealed class StreamlinedLogisticsMod : Mod
                 }
                 continue;
             }
-            if (tries > 0)
+            if (tries > 0 && candidateLoot.Level < 0)
             {
                 Log.Info($"auto salvage: {NameOfItem(item)} found in its slot after {tries} more step(s)");
             }
             if (!slot.IsGear || GearKindOf(item) is not { } kind)
             {
                 continue;
+            }
+            // Wait until the level and rarity have settled (see SalvageSettleMilliseconds).
+            {
+                long now = Environment.TickCount64;
+                int readRarity = RarityOf(slot);
+                if (slot.Level != candidateLoot.Level || readRarity != candidateLoot.Rarity)
+                {
+                    if (candidateLoot.Level >= 0)
+                    {
+                        Log.Info($"auto salvage: {NameOfItem(item)} now reads level {slot.Level}, rarity {readRarity} (was level {candidateLoot.Level}, rarity {candidateLoot.Rarity}): waiting until it settles");
+                    }
+                    candidateLoot.Level = slot.Level;
+                    candidateLoot.Rarity = readRarity;
+                    candidateLoot.StableSinceTick = now;
+                }
+                bool givenUp = now - candidateLoot.PickedUpTick >= SalvageGiveUpMilliseconds;
+                if (!givenUp && (slot.Level <= 0 || now - candidateLoot.StableSinceTick < SalvageSettleMilliseconds))
+                {
+                    candidateLoot.NextCheckTick = now + SalvageRecheckMilliseconds;
+                    _salvageQueue.Add(candidateLoot);
+                    continue;
+                }
+                if (slot.Level <= 0)
+                {
+                    Log.Info($"auto salvage: {NameOfItem(item)} kept: its level still reads 0 after {SalvageGiveUpMilliseconds / 1000} s");
+                    continue;
+                }
             }
             string skipped = slot.IsEquipped || slot.ItemEntity.IsNone ? "worn"
                 : !playerRead.Layout.IsBackpackPage(slot.Slot.Inventory.Value) ? "not in the backpack"
