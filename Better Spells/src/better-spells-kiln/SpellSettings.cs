@@ -323,6 +323,10 @@ public sealed class SpellSettings
     [Range(SpellRules.MinBallHitRate, SpellRules.MaxBallHitRate, SpellRules.CastingStep)]
     public double BallLightningHitRateMultiplier { get; set; } = 1;
 
+    [ConfigKey("ballLightningThroughWalls")]
+    [Comment("Ball Lightning Through Walls. The ball flies through terrain, walls and water instead of stopping on them, and still hits enemies. Applies to balls cast afterwards. Experimental.")]
+    public bool BallLightningThroughWalls { get; set; } = false;
+
     [ConfigKey("fireBoltCostMultiplier")]
     [Comment("Fire Bolt Mana Cost. The spell costs this share of its mana (x0.5 is half, x2 twice). Step 0.05.")]
     [Range(SpellRules.MinCost, SpellRules.MaxCost, SpellRules.CostStep)]

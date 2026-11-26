@@ -1291,8 +1291,9 @@ public sealed class BetterSpellsMod : Mod
         double speed = Value(SpellCatalog.BallSpeedKey);
         double radius = Value(SpellCatalog.BallRadiusKey);
         double hitRate = Value(SpellCatalog.BallHitRateKey);
+        bool throughWalls = Value(SpellCatalog.BallThroughWallsKey) != 0;
         List<GameDataEntry> balls = Templates(SpellCatalog.BallTemplate);
-        Begin($"Ball Lightning speed x{speed:0.##}, radius x{radius:0.##}, hit rate x{hitRate:0.##}: {balls.Count} templates");
+        Begin($"Ball Lightning speed x{speed:0.##}, radius x{radius:0.##}, hit rate x{hitRate:0.##}{(throughWalls ? ", through walls" : "")}: {balls.Count} templates");
         GameDataEntry? cast = Content.Sequences.Get(SpellCatalog.BallCastSequence);
         if (cast == null)
         {
@@ -1304,6 +1305,7 @@ public sealed class BetterSpellsMod : Mod
         }
         foreach (GameDataEntry ball in balls)
         {
+            PutThroughWalls(ball, throughWalls);
             string? areaPath = null;
             double areaRadius = 0;
             foreach (string radiusPath in ColliderRadiusPaths(ball))

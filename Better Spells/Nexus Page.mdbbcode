@@ -64,7 +64,7 @@ Every setting starts at the game's own value, so nothing changes until you decid
 - **Keep Older Wisps** (experimental): a new Lightning Wisp cast no longer removes your earlier wisps, so they add up while they last.
 - **Perception** for Totems, Skeleton, Lightning Wisp, Skull Vessel and Fire Wisp Scroll: how far the summon notices enemies and goes for them. Wisps' and totems' shots fly longer to match.
 - **Shot Lifetime** for Lightning Wisp and Fire Wisp Scroll (5 s by default, the game's is 2 s), so their shots reach enemies at the edge of their range.
-- **Shots Through Walls** for Totems, Lightning Wisp and Fire Wisp Scroll (experimental): their shots fly through terrain, walls and water and still hit enemies.
+- **Shots Through Walls** for Totems, Lightning Wisp and Fire Wisp Scroll (experimental): their shots fly through terrain, walls and water and still hit enemies. Ball Lightning has the same toggle.
 
 ### Lightning
 

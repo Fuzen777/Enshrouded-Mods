@@ -420,6 +420,7 @@ public static class SpellCatalog
     public const string BallRadiusKey = "ballLightningRadiusMultiplier";
     public const string ChainRadiusKey = "chainLightningRadiusMultiplier";
     public const string BallHitRateKey = "ballLightningHitRateMultiplier";
+    public const string BallThroughWallsKey = "ballLightningThroughWalls";
     public const string ShroudMeteorVisualKey = "shroudMeteorVisual";
     public const string LightBurstVisualKey = "lightBurstVisual";
 
@@ -500,6 +501,7 @@ public static class SpellCatalog
         new SettingInfo(ChainLockOnKey, "Chain Lightning Lock-On Range", GroupCasting, SettingKind.Multiplier, SpellRules.MinLockOn, SpellRules.MaxLockOn, SpellRules.CastingStep, 1),
         new SettingInfo(BallSpeedKey, "Ball Lightning Speed", GroupCasting, SettingKind.Multiplier, SpellRules.MinBallSpeed, SpellRules.MaxBallSpeed, SpellRules.CastingStep, 1),
         new SettingInfo(BallHitRateKey, "Ball Lightning Hit Rate", GroupCasting, SettingKind.Multiplier, SpellRules.MinBallHitRate, SpellRules.MaxBallHitRate, SpellRules.CastingStep, 1),
+        new SettingInfo(BallThroughWallsKey, "Ball Lightning Through Walls", GroupCasting, SettingKind.Toggle, 0, 1, 1, 0),
     });
 
     /// <summary>The groups of the settings page, in its order.</summary>
@@ -639,7 +641,8 @@ public static class SpellCatalog
             Spell("Chain Lightning", ChainLightningItem, Line("Damage", "chainLightningDamageMultiplier"), Line("Radius", ChainRadiusKey),
                 Line("Lock-On Range", ChainLockOnKey)),
             Spell("Ball Lightning", Item("Lightning_Ball"), Line("Duration", "lightningBallDurationMultiplier"), Line("Damage", "lightningBallDamageMultiplier"),
-                Line("Radius", BallRadiusKey), Line("Speed", BallSpeedKey), Line("Hit Rate", BallHitRateKey)),
+                Line("Radius", BallRadiusKey), Line("Speed", BallSpeedKey), Line("Hit Rate", BallHitRateKey),
+                Line("Through Walls", BallThroughWallsKey)),
             Spell("Lightning Channel", Item("Lightning_Channel"), Line("Damage", "lightningChannelDamageMultiplier")),
         }),
         new WindowSection("Shroud", new[]
