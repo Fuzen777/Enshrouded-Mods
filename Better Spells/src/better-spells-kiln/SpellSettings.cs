@@ -866,7 +866,7 @@ public sealed class SpellSettings
     public double OverpoweringGemStaminaDamageMultiplier { get; set; } = 1;
 
     [ConfigKey("corruptionGemExplosionDelayMultiplier")]
-    [Comment("Gem of Corruption Explosion Delay. How long a mark waits before it explodes (the marks' own 3.2 s). Multiplies the game's value. Never below 0.1 s. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Comment("Gem of Corruption Explosion Delay. How long after the last hit a marked enemy explodes (3 s in the game). The marks follow, so they last until it explodes. Multiplies the game's value. Never below 0.1 s. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
     [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
     public double CorruptionGemExplosionDelayMultiplier { get; set; } = 1;
 

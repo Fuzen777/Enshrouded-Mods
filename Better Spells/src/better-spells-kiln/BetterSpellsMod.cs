@@ -1457,6 +1457,7 @@ public sealed class BetterSpellsMod : Mod
             {
                 PutGemStatTooltip(item, stat, wanted, wantedScale);
             }
+            double timerGame = double.NaN;
             foreach (uint buffId in stat.Buffs ?? Array.Empty<uint>())
             {
                 GameDataEntry? buff = Content.Buffs.Get(buffId);
@@ -1465,7 +1466,23 @@ public sealed class BetterSpellsMod : Mod
                     Note(string.Create(CultureInfo.InvariantCulture, $"no buff 0x{buffId:x8} with a {BuffLifetimePath}"));
                     continue;
                 }
+                if (double.IsNaN(timerGame))
+                {
+                    timerGame = Original(buff, BuffLifetimePath);
+                }
                 PutTime(buff, BuffLifetimePath, game => SpellRules.GemSeconds(game, value));
+            }
+            // Buffs whose program waits for the timer buff to end: the timer's new time plus their own margin over it.
+            foreach (uint buffId in stat.HostBuffs ?? Array.Empty<uint>())
+            {
+                GameDataEntry? buff = Content.Buffs.Get(buffId);
+                if (buff == null || !Has(buff, BuffLifetimePath) || double.IsNaN(timerGame))
+                {
+                    Note(string.Create(CultureInfo.InvariantCulture, $"no buff 0x{buffId:x8} with a {BuffLifetimePath}, or no timer buff"));
+                    continue;
+                }
+                double timer = timerGame;
+                PutTime(buff, BuffLifetimePath, game => SpellRules.GemSeconds(timer, value) + Math.Max(0.0, game - timer));
             }
             End();
         }

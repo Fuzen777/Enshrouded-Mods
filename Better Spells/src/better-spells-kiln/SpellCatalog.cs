@@ -87,11 +87,12 @@ public enum GemUnit
 /// One setting of a gem other than its damage (1.1.6, the user's picks from the Gem Stat Picker): the gem, the line's label, the
 /// config of the gem item's `impactValues`, how the setting changes it, what it holds, the loca id of the tooltip row that shows it
 /// (0 for none), the range of a SetValue (in seconds or percent), the buffs whose own lifetime is the same time (multiplied with
-/// it), and for a summon's level the gem's program and the template it spawns (for Sync With Player).
+/// it), the buffs whose program waits for the first of those to end (they keep the game's margin over it: Corruption's marks run
+/// the explosion when its 3 s timer buff 0x9216226a ends, and a mark that ends first never explodes), and for a summon's level the gem's program and the template it spawns (for Sync With Player).
 /// </summary>
 public sealed record GemStat(string Gem, string Label, uint Config, GemStatKind Kind, GemUnit Unit, uint TooltipLocaId = 0,
     double Minimum = double.NaN, double Maximum = double.NaN, double Step = double.NaN, double Default = double.NaN, uint[]? Buffs = null,
-    string? Program = null, string? SpawnTemplate = null)
+    string? Program = null, string? SpawnTemplate = null, uint[]? HostBuffs = null)
 {
     /// <summary>"Storm's Eye", "Mark Duration" is stormsEyeGemMarkDuration.</summary>
     public string BaseKey => SpellCatalog.CamelCase(Gem) + "Gem" + SpellCatalog.PascalCase(Label);
@@ -344,7 +345,7 @@ public static class SpellCatalog
         new GemStat("Lesser Necromancy", "Trigger Chance", 0xe6ddff32u, GemStatKind.ChancePoints, GemUnit.Share, TooltipLocaId: 3117278103u),
         new GemStat("Lesser Necromancy", "Wretch Level", 0x1ef169b2u, GemStatKind.LevelBonus, GemUnit.Whole, TooltipLocaId: 382595869u, Program: "4694bf1e-feda-4064-9843-8880ac74e10f", SpawnTemplate: "c9c957ad-78bf-44fe-a891-b0771577a3b3"),
         new GemStat("Overpowering", "Stamina Damage", 0x8c622a97u, GemStatKind.Multiply, GemUnit.Whole, TooltipLocaId: 3550824552u),
-        new GemStat("Corruption", "Explosion Delay", 0xbee6d4a9u, GemStatKind.Multiply, GemUnit.Seconds, Buffs: new[] { 0x26bfda91u, 0xc0a941f0u, 0xfcfb5ec6u, 0x32734118u, 0x504d285eu }),
+        new GemStat("Corruption", "Explosion Delay", 0xbee6d4a9u, GemStatKind.Multiply, GemUnit.Seconds, Buffs: new[] { 0x9216226au }, HostBuffs: new[] { 0x26bfda91u, 0xc0a941f0u, 0xfcfb5ec6u, 0x32734118u, 0x504d285eu }),
         new GemStat("Focused Light", "Damage At 1 Stack", 0x6f307db7u, GemStatKind.Multiply, GemUnit.Share, TooltipLocaId: 3826727585u),
         new GemStat("Focused Light", "Damage At 2 Stacks", 0xb8f00949u, GemStatKind.Multiply, GemUnit.Share, TooltipLocaId: 2490680837u),
         new GemStat("Focused Light", "Damage At 3 Stacks", 0x0dd9e684u, GemStatKind.Multiply, GemUnit.Share, TooltipLocaId: 3477297884u),
