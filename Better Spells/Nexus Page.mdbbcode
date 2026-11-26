@@ -1,3 +1,6 @@
+---
+bbcodeFormat: nexus
+---
 <div style="text-align: center">
 
 # <span style="color: #e6a050">Better Spells</span>
@@ -19,7 +22,7 @@
 
 ---
 
-Better Spells is a **Kiln** mod that gives every spell in Enshrouded its own settings : mana cost, cast time, damage, duration, radius, summon health, summons per cast and more. 
+Better Spells is a **Kiln** mod that gives every spell in Enshrouded its own settings : mana cost, cast time, damage, duration, radius, summon health, summons per cast and more. Your weapon gems and skill tree get their own settings too.
 
 Press **F3** in game, click a spell, and change it. Every change applies right away to what you cast next, with no restart.
 
@@ -32,8 +35,8 @@ Every setting starts at the game's own value, so nothing changes until you decid
 ### Setting Windows
 
 - Opens with **F3** (or the button on the mod's page in Kiln's menu), where you left it, at the same size.
-- Two tabs: **Spells** and **Gems**.
-- With **Grimoire** (1.1.1 or newer) installed, **F3** opens the settings window and the grimoire side by side, and they move together (Kiln **0.2.0-dev.31.16 or newer**). Hold **Shift** while dragging to move one alone, and drop it back beside the other to join them again.
+- Three tabs: **Spells**, **Gems** and **Skills**.
+- With **Grimoire** (1.2.0 or newer) installed, **F3** opens the settings window and the grimoire side by side, and they move together (Kiln **0.2.0-dev.31.16 or newer**). Hold **Shift** while dragging to move one alone, and drop it back beside the other to join them again.
 - Spells are laid out as **icon rows by element** : Fire, Ice, Lightning, Shroud, Summons, Others, and Items. Click a spell's icon to open its card.
 - Each setting is a simple **− value +** control. The mouse wheel works over any value; hold **Shift** for 10 steps, **Ctrl** for 100.
 - A **dot** marks every spell you have changed, so you can see your edits at a glance, and a right-click puts any value back to its default.
@@ -87,9 +90,16 @@ Every setting starts at the game's own value, so nothing changes until you decid
 - **Summon levels** for the Skull, Wretch and Reaper gems, and **Sync With Player** (experimental): the summon takes your level plus those levels.
 - A gem takes its new values when its weapon is next **equipped or switched to** on the hotbar.
 
+### Skills
+
+- The **Skills** tab changes your skill tree's effects: damage bonuses, attributes, auras, critical chance, resistances, armor, mana and stamina gains, healing and more (99 stats).
+- A searchable list of every skill by class, with the game's own icons for active skills. Each skill's card shows its in-game description with its numbers at max level after your settings, in **bold green**.
+- **Groups** set many skills at once: Stats, Damage Bonuses, Terrain Damage, Critical Chance, Resistances, Armor, Mana and Stamina Gains, and Healing. **At Least** lifts each skill to the group's value, **Override** sets them all to it.
+- A skill change applies after you **return to the main menu and load your world again**.
+
 ### Live, safe and reversible
 
-- Every change applies **while you play**, to what you cast afterwards. No restart, no world reload (except Max Totems and Max Skeletons, which apply when you next load a world).
+- Every change applies **while you play**, to what you cast afterwards. No restart, no world reload (except Max Totems, Max Skeletons and the Skills tab, which apply when you next load a world).
 - Set a value back to x1 and that spell is vanilla again.
 - Spells are found by name, not by a fixed list, so all tiers of a spell follow the same setting.
 
@@ -121,8 +131,7 @@ The settings themselves are kept in Kiln's profile, so updating the mod never re
 
 ## Requirements
 
-- [Kiln](https://github.com/frostdev-ops/kiln) mod loader, **0.2.0-dev.31 or newer**.
-- Opening side by side with Grimoire: Kiln **0.2.0-dev.31.16 or newer**. With an older Kiln, each window opens where you left it.
+- [Kiln](https://github.com/frostdev-ops/kiln) mod loader, **0.2.0-dev.31.16 or newer** (the version this release was tested with).
 
 ## Installation
 

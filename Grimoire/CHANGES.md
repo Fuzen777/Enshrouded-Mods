@@ -4,6 +4,10 @@ Kiln mod (C#, id `grimoire`) that keeps spells and arrows out of the backpack in
 
 It was the spellbook of Better Spells (3.3.0-dev.1 to dev.11, 23 and 24 Nov 2026); that history, with what was found in game, is in `..\Better Spells\CHANGES.md`.
 
+## 1.2.0
+
+- **Nexus upload of 1.1.1** (asked 26 Nov 2026): no code change, the DLL is 1.1.1's (ec159da); only kiln.mod.json's version changes. `Changelog.mdbbcode` covers 1.1.1. The Nexus page asks for Better Spells 1.3.0 (the upload of 1.2.1+) for docking.
+
 ## 1.1.1 (not uploaded)
 
 - **Kiln's window docking replaces WindowPair** (asked 26 Nov 2026; Kiln 0.2.0-dev.31.16, GitHub issue 149). When the grimoire opens, it docks on the right of Better Spells' settings window (`Ui.FindWindow("better-spells", "settings")`, `DockTo(…, DockSide.Right)`), and Kiln keeps the two together in the same frame: no lag, no flash when one key opens both (Kiln holds the docked window back until Better Spells' opens, at most 250 ms), **Shift** while dragging moves one alone, dropping it back within 16 px docks it again, and the pair stays on the screen (the grimoire goes on the left when there is no room on the right). Shift-dragged away, it stays alone until the game restarts (`DockChanged` with `ByPlayer`). A place the grimoire only got from the dock is never remembered: opened alone, it goes back where the player left it. Docking needs Better Spells 1.2.1 (its window accepts docks).

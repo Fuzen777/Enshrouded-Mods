@@ -1,3 +1,11 @@
+## 1.2.0
+
+```
+Docking - the grimoire now docks to Better Spells' settings window through Kiln. The two stay together with no lag, and nothing flashes when one key opens both. Hold Shift while dragging to move one alone, and drop it back beside the other to join them again. Needs Better Spells 1.3.0 and Kiln 0.2.0-dev.31.16 or newer.
+Window - Kiln now remembers where you left the grimoire, starting from the place you already had.
+Older Kiln - before Kiln 0.2.0-dev.31.16, the grimoire opens where you left it, without docking.
+```
+
 ## 1.1.0
 
 ```
