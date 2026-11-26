@@ -36,7 +36,7 @@ public sealed record ItemSpell(string Name, Regex Items, string DamageKey, strin
 /// with them by name (Lightning Wisp's shoot attachment), the shots they fire, whose lifetime Perception multiplies, and the Shot
 /// Lifetime setting that replaces the shots' own lifetime (null: the game's).
 /// </summary>
-public sealed record PerceptionSpell(string SettingKey, Regex ItemName, ItemSpell? ItemSpell, string[] ExtraTemplates, string[] Shots, string? ShotLifetimeKey = null);
+public sealed record PerceptionSpell(string SettingKey, Regex ItemName, ItemSpell? ItemSpell, string[] ExtraTemplates, string[] Shots, string? ShotLifetimeKey = null, string? ThroughWallsKey = null);
 
 /// <summary>
 /// A weapon gem of the Gems tab: its name in the game without "Gem of", its item, the damage configs of its item's `impactValues`
@@ -397,6 +397,10 @@ public static class SpellCatalog
     public const string WispCastSequence = "Attack_Player_Staff_Overlay_ShockWisp";
     public const int WispCastEvents = 4;
     public const string TotemPerceptionKey = "totemPerceptionMultiplier";
+    // Shots Through Walls (1.2.0): a summon's shots stop colliding with terrain and water and still hit enemies.
+    public const string TotemThroughWallsKey = "totemShotsThroughWalls";
+    public const string LightningWispThroughWallsKey = "lightningWispShotsThroughWalls";
+    public const string FireWispScrollThroughWallsKey = "fireWispScrollShotsThroughWalls";
     public const string SkeletonPerceptionKey = "skeletonPerceptionMultiplier";
     public const string LightningWispPerceptionKey = "lightningWispPerceptionMultiplier";
     public const string SkullVesselPerceptionKey = "skullVesselPerceptionMultiplier";
@@ -445,6 +449,9 @@ public static class SpellCatalog
         Perception(FireWispScrollPerceptionKey, "Fire Wisp Scroll Perception"),
         ShotLifetime(LightningWispShotLifetimeKey, "Lightning Wisp Shot Lifetime"),
         ShotLifetime(FireWispScrollShotLifetimeKey, "Fire Wisp Scroll Shot Lifetime"),
+        new SettingInfo(TotemThroughWallsKey, "Totem Shots Through Walls", GroupPerception, SettingKind.Toggle, 0, 1, 1, 0),
+        new SettingInfo(LightningWispThroughWallsKey, "Lightning Wisp Shots Through Walls", GroupPerception, SettingKind.Toggle, 0, 1, 1, 0),
+        new SettingInfo(FireWispScrollThroughWallsKey, "Fire Wisp Scroll Shots Through Walls", GroupPerception, SettingKind.Toggle, 0, 1, 1, 0),
         new SettingInfo(SummonSpreadKey, "Totem Spread", GroupSummons, SettingKind.Units, SpellRules.MinSpreadUnits, SpellRules.MaxSpreadUnits, SpellRules.SpreadStep, SpellRules.DefaultSpreadUnits),
 
         Duration("totemDurationMultiplier", "Totem Duration", 1),
@@ -575,12 +582,12 @@ public static class SpellCatalog
     public static readonly IReadOnlyList<PerceptionSpell> PerceptionSpells = new[]
     {
         new PerceptionSpell(TotemPerceptionKey, TotemItem, null, Array.Empty<string>(),
-            new[] { "Projectile_Companion_Totem_Fire", "Projectile_Companion_Totem_Ice", "Projectile_Companion_Totem_Lightning" }),
+            new[] { "Projectile_Companion_Totem_Fire", "Projectile_Companion_Totem_Ice", "Projectile_Companion_Totem_Lightning" }, null, TotemThroughWallsKey),
         new PerceptionSpell(SkeletonPerceptionKey, SkeletonItem, null, Array.Empty<string>(), Array.Empty<string>()),
         new PerceptionSpell(LightningWispPerceptionKey, Item("Lightning_Wisp"), null, new[] { "Attack_Companion_ShockWisp_Shoot_Attachment" },
-            new[] { "Projectile_Companion_ShockWisp" }, LightningWispShotLifetimeKey),
+            new[] { "Projectile_Companion_ShockWisp" }, LightningWispShotLifetimeKey, LightningWispThroughWallsKey),
         new PerceptionSpell(SkullVesselPerceptionKey, ItemSpells[0].Items, ItemSpells[0], Array.Empty<string>(), Array.Empty<string>()),
-        new PerceptionSpell(FireWispScrollPerceptionKey, ItemSpells[1].Items, ItemSpells[1], Array.Empty<string>(), new[] { "Projectile_Companion_FireWisp" }, FireWispScrollShotLifetimeKey),
+        new PerceptionSpell(FireWispScrollPerceptionKey, ItemSpells[1].Items, ItemSpells[1], Array.Empty<string>(), new[] { "Projectile_Companion_FireWisp" }, FireWispScrollShotLifetimeKey, FireWispScrollThroughWallsKey),
     };
 
     /// <summary>The player's templates, whose MaxTotemCount and MaxSkeletonSpellCount every player gets when it spawns.</summary>
@@ -643,12 +650,12 @@ public static class SpellCatalog
         new WindowSection("Summons", new[]
         {
             Spell("Totems", TotemItem, Line("Duration", "totemDurationMultiplier"), Line("Damage", "totemDamageMultiplier"), Line("Health", TotemHealthKey),
-                Line("Perception", TotemPerceptionKey), Line("Max Totems", MaxTotemsKey), Line("Per Cast", TotemsPerCastKey),
+                Line("Perception", TotemPerceptionKey), Line("Shots Through Walls", TotemThroughWallsKey), Line("Max Totems", MaxTotemsKey), Line("Per Cast", TotemsPerCastKey),
                 Line("Spread", SummonSpreadKey), Line("Invulnerable", InvulnerableTotemsKey), Line("Enemies Ignore Them", EnemiesIgnoreTotemsKey)),
             Spell("Skeleton", SkeletonItem, Line("Duration", "skeletonDurationMultiplier"), Line("Damage", "skeletonDamageMultiplier"),
                 Line("Health", SkeletonHealthKey), Line("Perception", SkeletonPerceptionKey), Line("Max Skeletons", MaxSkeletonsKey), Line("Per Cast", SkeletonsPerCastKey)),
             Spell("Lightning Wisp", Item("Lightning_Wisp"), Line("Duration", "lightningWispDurationMultiplier"), Line("Damage", "lightningWispDamageMultiplier"),
-                Line("Perception", LightningWispPerceptionKey), Line("Shot Lifetime", LightningWispShotLifetimeKey), Line("Per Cast", LightningWispsPerCastKey), Line("Keep Older Wisps", KeepOlderWispsKey)),
+                Line("Perception", LightningWispPerceptionKey), Line("Shot Lifetime", LightningWispShotLifetimeKey), Line("Shots Through Walls", LightningWispThroughWallsKey), Line("Per Cast", LightningWispsPerCastKey), Line("Keep Older Wisps", KeepOlderWispsKey)),
         }),
         new WindowSection("Others", new[]
         {
@@ -662,7 +669,7 @@ public static class SpellCatalog
             Spell("Skull Vessel", ItemSpells[0].Items, Line("Duration", "skullVesselDurationMultiplier"), Line("Damage", "skullVesselDamageMultiplier"), Line("Health", "skullVesselHealthMultiplier"),
                 Line("Perception", SkullVesselPerceptionKey), Line("Per Use", SkullVesselsPerCastKey)),
             Spell("Fire Wisp Scroll", ItemSpells[1].Items, Line("Duration", "fireWispScrollDurationMultiplier"), Line("Damage", "fireWispScrollDamageMultiplier"), Line("Health", "fireWispScrollHealthMultiplier"),
-                Line("Perception", FireWispScrollPerceptionKey), Line("Shot Lifetime", FireWispScrollShotLifetimeKey), Line("Per Use", FireWispsPerUseKey)),
+                Line("Perception", FireWispScrollPerceptionKey), Line("Shot Lifetime", FireWispScrollShotLifetimeKey), Line("Shots Through Walls", FireWispScrollThroughWallsKey), Line("Per Use", FireWispsPerUseKey)),
             Spell("Meteor Shower Scroll", ItemSpells[2].Items, Line("Damage", "meteorShowerScrollDamageMultiplier")),
             Spell("Crawler Bomb", ItemSpells[3].Items, Line("Duration", "crawlerBombDurationMultiplier"), Line("Damage", "crawlerBombDamageMultiplier"), Line("Health", "crawlerBombHealthMultiplier")),
         }),

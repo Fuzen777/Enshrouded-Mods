@@ -61,6 +61,7 @@ public sealed class BetterSpellsMod : Mod
         Faction.Fogger, Faction.Vukah, Faction.Scavenger, Faction.Wildlife, Faction.WildBeast, Faction.Skeleton, Faction.Cyclops, Faction.Drak, Faction.Ancients,
     };
     private const string ColliderComponent = "ColliderResourceComponent";
+    private static readonly Regex CheckAgainstPath = new Regex(@"^ColliderResourceComponent\.colliders\[[^\]]+\]\.(dataArray\[[^\]]+\]\.flags|combinedFlags|joltObjects\[[^\]]+\]\.flags)\.checkAgainst$", RegexOptions.CultureInvariant);
     private static readonly Regex ColliderRadiusPath = new Regex(@"^ColliderResourceComponent\.colliders\[[^\]]+\]\.dataArray\[[^\]]+\]\.shape\.radius$", RegexOptions.CultureInvariant);
     // How many colliders and shapes per collider are tried by index when Kiln's listing names no radius (the spells' templates have one collider with one or two shapes).
     private const int MaxCollidersTried = 2;
@@ -1806,6 +1807,10 @@ public sealed class BetterSpellsMod : Mod
                     continue;
                 }
                 PutTime(projectile, LifetimePath, game => SpellRules.Multiplied(shotSeconds ?? game, multiplier));
+                if (spell.ThroughWallsKey != null)
+                {
+                    PutThroughWalls(projectile, Value(spell.ThroughWallsKey) != 0);
+                }
             }
             End($"{templates.Count} templates, {spheres} detection spheres{(shotSeconds == null ? "" : $", shots {shotSeconds.Value.ToString("0.#", CultureInfo.InvariantCulture)} s at x1")}");
         }
@@ -2035,6 +2040,50 @@ public sealed class BetterSpellsMod : Mod
     }
 
     // The radius of every sphere and capsule of a template, in the template's own order.
+    // Shots Through Walls: a shot's colliders stop checking against World and Fluid (terrain, buildings, water) and keep Combat, so
+    // they fly through walls and still hit enemies. Each collider's shapes, its combined flags and its Jolt bodies carry the flags.
+    private void PutThroughWalls(GameDataEntry shot, bool on)
+    {
+        var paths = new List<string>();
+        try
+        {
+            foreach (GameDataField field in shot.Fields(ColliderComponent))
+            {
+                if (CheckAgainstPath.IsMatch(field.Path))
+                {
+                    paths.Add(field.Path);
+                }
+            }
+        }
+        catch (Exception error) when (IsRefusal(error))
+        {
+            Refuse(shot, ColliderComponent, error.Message);
+            return;
+        }
+        if (paths.Count == 0)
+        {
+            Note($"{shot.Name} has no collider flags");
+            return;
+        }
+        foreach (string path in paths)
+        {
+            Put(shot, path, () =>
+            {
+                bool changed = shot.Get(path).Integer != shot.Original(path).Integer;
+                if (on && !changed)
+                {
+                    _valuesWritten++;
+                    shot.SetJson(path, "[\"-World\", \"-Fluid\"]");
+                }
+                else if (!on && changed)
+                {
+                    _valuesWritten++;
+                    shot.Reset(path);
+                }
+            });
+        }
+    }
+
     private List<string> ColliderRadiusPaths(GameDataEntry template)
     {
         var paths = new List<string>();

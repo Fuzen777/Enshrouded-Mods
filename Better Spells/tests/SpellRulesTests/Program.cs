@@ -77,8 +77,8 @@ Check(SpellRules.ShapeKey(1744623269, 2) != 1744623269 && SpellRules.ShapeKey(17
 Check(SpellRules.ShapeKey(1744623269, 2) != SpellRules.ShapeKey(1744623269, 2.25), "two sizes get two keys");
 Check(SpellRules.Same(2.6, 2.5999999046325684) && !SpellRules.Same(2.6, 2.61), "a float32 and its double are the same value, 2.6 and 2.61 are not");
 
-// The settings: 216, each once, in a known group, and the settings file's entries agree with the list.
-Check(SpellCatalog.Settings.Count == 216, $"there are 216 settings (found {SpellCatalog.Settings.Count})");
+// The settings: 219, each once, in a known group, and the settings file's entries agree with the list.
+Check(SpellCatalog.Settings.Count == 219, $"there are 219 settings (found {SpellCatalog.Settings.Count})");
 Check(SpellCatalog.Settings.Select(setting => setting.Key).Distinct().Count() == SpellCatalog.Settings.Count, "no setting key is listed twice");
 Check(SpellCatalog.Settings.All(setting => SpellCatalog.Groups.Contains(setting.Group)), "every setting is in a group of the settings page");
 var fileDefaults = new SpellSettings();
@@ -117,7 +117,7 @@ foreach (string key in SpellCatalog.DurationSpells.Select(spell => spell.Setting
 
 // The settings window shows every setting on exactly one card, in the sections the user chose, and each card's labels are its own.
 List<string> windowKeys = SpellCatalog.WindowSpells.Concat(SpellCatalog.GemWindowSpells).SelectMany(spell => spell.Lines.Select(line => line.Key)).ToList();
-Check(windowKeys.Count == SpellCatalog.Settings.Count && windowKeys.Distinct().Count() == windowKeys.Count, $"the window's two tabs have each of the 216 settings once ({windowKeys.Count} lines, {windowKeys.Distinct().Count()} different)");
+Check(windowKeys.Count == SpellCatalog.Settings.Count && windowKeys.Distinct().Count() == windowKeys.Count, $"the window's two tabs have each of the 219 settings once ({windowKeys.Count} lines, {windowKeys.Distinct().Count()} different)");
 Check(SpellCatalog.Settings.All(setting => windowKeys.Contains(setting.Key)), "no setting is missing from the window");
 Check(string.Join(", ", SpellCatalog.WindowSections.Select(section => section.Name)) == "General, Fire, Ice, Lightning, Shroud, Summons, Others, Items", "the sections are General, Fire, Ice, Lightning, Shroud, Summons, Others, Items");
 Check(SpellCatalog.WindowSpells.Where(spell => spell.IconItem != null).All(spell => spell.Lines[0].Key == SpellCatalog.CostKey(spell.Spell)), "every spell's card starts with its Mana Cost");

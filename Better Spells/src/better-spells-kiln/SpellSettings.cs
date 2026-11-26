@@ -91,6 +91,18 @@ public sealed class SpellSettings
     [Range(SpellRules.MinPerception, SpellRules.MaxPerception, SpellRules.PerceptionStep)]
     public double FireWispScrollPerceptionMultiplier { get; set; } = 1;
 
+    [ConfigKey("totemShotsThroughWalls")]
+    [Comment("Totem Shots Through Walls. A totem's shots fly through terrain, walls and water and still hit enemies. Applies to shots fired afterwards. Experimental.")]
+    public bool TotemShotsThroughWalls { get; set; } = false;
+
+    [ConfigKey("lightningWispShotsThroughWalls")]
+    [Comment("Lightning Wisp Shots Through Walls. A Lightning Wisp's shots fly through terrain, walls and water and still hit enemies. Applies to shots fired afterwards. Experimental.")]
+    public bool LightningWispShotsThroughWalls { get; set; } = false;
+
+    [ConfigKey("fireWispScrollShotsThroughWalls")]
+    [Comment("Fire Wisp Scroll Shots Through Walls. A Fire Wisp's shots fly through terrain, walls and water and still hit enemies. Applies to shots fired afterwards. Experimental.")]
+    public bool FireWispScrollShotsThroughWalls { get; set; } = false;
+
     [ConfigKey("lightningWispShotLifetime")]
     [Comment("Lightning Wisp Shot Lifetime (s). How long a Lightning Wisp's shot flies before it fades, at Perception x1 (the game's is 2 s, too short to reach enemies at the edge of its range). Step 0.5.")]
     [Range(SpellRules.MinShotLifetime, SpellRules.MaxShotLifetime, SpellRules.ShotLifetimeStep)]
