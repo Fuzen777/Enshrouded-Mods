@@ -10,7 +10,7 @@ Since 3.0.0 Better Spells is one **Kiln mod** (`src\better-spells-kiln`, id `bet
 
 - **Kiln's window docking replaces WindowPair** (asked 26 Nov 2026; Kiln 0.2.0-dev.31.16, GitHub issue 149). The settings window accepts docks (`AcceptDock`, `PlacementId = "settings"`) and Grimoire 1.1.1 docks its window on its right; Kiln keeps the two together in the same frame: no lag, no flash when one key opens both, **Shift** while dragging moves one alone, dropping it back within 16 px docks it again, and the pair stays on the screen. A place a window only got from the dock is never remembered. The settings window itself never waits.
 - **Kiln remembers the window** (`RememberPlacement`, in Kiln's `ui-placement.json`). `window.json` only gives its first place and size, until Kiln has one of its own, so players keep the place they had. `WindowPair.cs` and `WindowPairRules.cs` are gone; `WindowPlacement` only reads `window.json`, and keeps its old tracking for an older Kiln.
-- **Older Kiln** (before 0.2.0-dev.31.16): the new members are used only in a `[MethodImpl(NoInlining)]` helper, whose `MissingMethodException` or `TypeLoadException` gives a plain window that opens where it was left (`window.json`, as before), with one line in kiln.log; Grimoire does not dock to it. Not tested in game yet.
+- **Older Kiln** (before 0.2.0-dev.31.16): the new members are used only in a `[MethodImpl(NoInlining)]` helper, whose `MissingMethodException` or `TypeLoadException` gives a plain window that opens where it was left (`window.json`, as before), with one line in kiln.log; Grimoire does not dock to it. Seen in game by the user on 26 Nov 2026 (Kiln 0.2.0-dev.31.16): fully working.
 
 ## 1.2.0
 
