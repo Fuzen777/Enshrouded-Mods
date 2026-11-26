@@ -698,4 +698,391 @@ public sealed class SpellSettings
     [ConfigKey("gemGeneralAtLeast")]
     [Comment("Gem General Mode. Off (Multiply): Gem General Damage multiplies each gem's own. On (At Least): it is a floor, so a gem keeps its own value only where it is higher.")]
     public bool GemGeneralAtLeast { get; set; } = false;
+
+    // Gem stats (1.1.6): the gems' other numbers, card by card (SpellCatalog.GemStats).
+    [ConfigKey("bleedingGemDebuffDurationMultiplier")]
+    [Comment("Gem of Bleeding Debuff Duration. How long the bleed lasts. Multiplies its value at gem level 1. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, SpellRules.MaxGemMultiplier, SpellRules.GemMultiplierStep)]
+    public double BleedingGemDebuffDurationMultiplier { get; set; } = 1;
+
+    [ConfigKey("bleedingGemDebuffDurationPerLevelMultiplier")]
+    [Comment("Gem of Bleeding Debuff Duration Per Level. Multiplies what each gem level adds to it. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, SpellRules.MaxGemMultiplier, SpellRules.GemMultiplierStep)]
+    public double BleedingGemDebuffDurationPerLevelMultiplier { get; set; } = 1;
+
+    [ConfigKey("bleedingGemTickDamageShareMultiplier")]
+    [Comment("Gem of Bleeding Tick Damage Share. The share of the gem's damage each bleed tick deals. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double BleedingGemTickDamageShareMultiplier { get; set; } = 1;
+
+    [ConfigKey("bleedingGemTickInterval")]
+    [Comment("Gem of Bleeding Tick Interval. The time between two bleed ticks: shorter means more ticks, so more damage in all. Replaces the game's value (0.5 s) in seconds. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(0.1, 1, 0.05)]
+    public double BleedingGemTickInterval { get; set; } = 0.5;
+
+    [ConfigKey("burningGemDebuffDurationMultiplier")]
+    [Comment("Gem of Burning Debuff Duration. How long the burn lasts. Multiplies its value at gem level 1. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, SpellRules.MaxGemMultiplier, SpellRules.GemMultiplierStep)]
+    public double BurningGemDebuffDurationMultiplier { get; set; } = 1;
+
+    [ConfigKey("burningGemDebuffDurationPerLevelMultiplier")]
+    [Comment("Gem of Burning Debuff Duration Per Level. Multiplies what each gem level adds to it. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, SpellRules.MaxGemMultiplier, SpellRules.GemMultiplierStep)]
+    public double BurningGemDebuffDurationPerLevelMultiplier { get; set; } = 1;
+
+    [ConfigKey("burningGemCooldownMultiplier")]
+    [Comment("Gem of Burning Cooldown. The time before the gem can burn again. Multiplies the game's value. Never below 0.1 s. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double BurningGemCooldownMultiplier { get; set; } = 1;
+
+    [ConfigKey("burningGemTickDamageShareMultiplier")]
+    [Comment("Gem of Burning Tick Damage Share. The share of the gem's damage each burn tick deals. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double BurningGemTickDamageShareMultiplier { get; set; } = 1;
+
+    [ConfigKey("burningGemTickInterval")]
+    [Comment("Gem of Burning Tick Interval. The time between two burn ticks: shorter means more ticks, so more damage in all. Replaces the game's value (0.333 s) in seconds. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(0.1, 1, 0.05)]
+    public double BurningGemTickInterval { get; set; } = 0.333;
+
+    [ConfigKey("puncturingGemDebuffDurationMultiplier")]
+    [Comment("Gem of Puncturing Debuff Duration. How long enemies stay Punctured. The Gem of Retaliation applies the same debuff, so it follows too. Multiplies the game's value. Never below 0.1 s. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double PuncturingGemDebuffDurationMultiplier { get; set; } = 1;
+
+    [ConfigKey("skullsGemTriggerChancePoints")]
+    [Comment("Gem of Skulls Trigger Chance. Adds to the chance that a sneak or merciless kill spawns a skull, capped at 100%. In percentage points, also below 0. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 1.")]
+    [Range(SpellRules.MinChancePoints, SpellRules.MaxChancePoints, 1)]
+    public double SkullsGemTriggerChancePoints { get; set; } = 0;
+
+    [ConfigKey("skullsGemSkullLevelBonus")]
+    [Comment("Gem of Skulls Skull Level. Levels added to the companion skull's. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 1.")]
+    [Range(SpellRules.MinLevelBonus, SpellRules.MaxLevelBonus, 1)]
+    public double SkullsGemSkullLevelBonus { get; set; } = 0;
+
+    [ConfigKey("skullsGemSyncWithPlayer")]
+    [Comment("Gem of Skulls Sync With Player. The summon takes your level, plus Skull Level, instead of the gem's. Read when the weapon is equipped or switched to: switch away and back after a level up. Experimental.")]
+    public bool SkullsGemSyncWithPlayer { get; set; } = false;
+
+    [ConfigKey("fracturingGemTriggerChancePoints")]
+    [Comment("Gem of Fracturing Trigger Chance. Adds to the chance that a blunt kill spawns shards, capped at 100%. In percentage points, also below 0. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 1.")]
+    [Range(SpellRules.MinChancePoints, SpellRules.MaxChancePoints, 1)]
+    public double FracturingGemTriggerChancePoints { get; set; } = 0;
+
+    [ConfigKey("fracturingGemExtraShardChance")]
+    [Comment("Gem of Fracturing Extra Shard Chance. The chance for each extra shard, up to 4. Replaces the game's value (50%) in percent. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 1.")]
+    [Range(1, 100, 1)]
+    public double FracturingGemExtraShardChance { get; set; } = 50;
+
+    [ConfigKey("hopefulEmbersGemShroudTimeGainedMultiplier")]
+    [Comment("Gem of Hopeful Embers Shroud Time Gained. The Shroud time each orb gives back. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double HopefulEmbersGemShroudTimeGainedMultiplier { get; set; } = 1;
+
+    [ConfigKey("hopefulEmbersGemShroudTimeThresholdMultiplier")]
+    [Comment("Gem of Hopeful Embers Shroud Time Threshold. Orbs drop only while your Shroud time is below this. Multiplies its value at gem level 1. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, SpellRules.MaxGemMultiplier, SpellRules.GemMultiplierStep)]
+    public double HopefulEmbersGemShroudTimeThresholdMultiplier { get; set; } = 1;
+
+    [ConfigKey("hopefulEmbersGemShroudTimeThresholdPerLevelMultiplier")]
+    [Comment("Gem of Hopeful Embers Shroud Time Threshold Per Level. Multiplies what each gem level adds to it. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, SpellRules.MaxGemMultiplier, SpellRules.GemMultiplierStep)]
+    public double HopefulEmbersGemShroudTimeThresholdPerLevelMultiplier { get; set; } = 1;
+
+    [ConfigKey("retaliationGemTriggerChancePoints")]
+    [Comment("Gem of Retaliation Trigger Chance. Adds to the chance that a block arms the bonus, capped at 100%. In percentage points, also below 0. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 1.")]
+    [Range(SpellRules.MinChancePoints, SpellRules.MaxChancePoints, 1)]
+    public double RetaliationGemTriggerChancePoints { get; set; } = 0;
+
+    [ConfigKey("retaliationGemBuffDurationMultiplier")]
+    [Comment("Gem of Retaliation Buff Duration. How long the armed bonus waits for your next attack. Multiplies the game's value. Never below 0.1 s. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double RetaliationGemBuffDurationMultiplier { get; set; } = 1;
+
+    [ConfigKey("swiftnessGemBuffDurationMultiplier")]
+    [Comment("Gem of Swiftness Buff Duration. How long the bonus lasts after sprinting (each hit refreshes it). Multiplies the game's value. Never below 0.1 s. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double SwiftnessGemBuffDurationMultiplier { get; set; } = 1;
+
+    [ConfigKey("toxicBetrayalGemPoisonDurationMultiplier")]
+    [Comment("Gem of Toxic Betrayal Poison Duration. How long the poison lasts. Multiplies its value at gem level 1. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, SpellRules.MaxGemMultiplier, SpellRules.GemMultiplierStep)]
+    public double ToxicBetrayalGemPoisonDurationMultiplier { get; set; } = 1;
+
+    [ConfigKey("toxicBetrayalGemPoisonDurationPerLevelMultiplier")]
+    [Comment("Gem of Toxic Betrayal Poison Duration Per Level. Multiplies what each gem level adds to it. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, SpellRules.MaxGemMultiplier, SpellRules.GemMultiplierStep)]
+    public double ToxicBetrayalGemPoisonDurationPerLevelMultiplier { get; set; } = 1;
+
+    [ConfigKey("agilityGemStaminaOnHitMultiplier")]
+    [Comment("Gem of Agility Stamina On Hit. The stamina the hit after an evade gives back. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double AgilityGemStaminaOnHitMultiplier { get; set; } = 1;
+
+    [ConfigKey("agilityGemBuffDurationMultiplier")]
+    [Comment("Gem of Agility Buff Duration. How long after an evade the bonus waits for a hit. Multiplies the game's value. Never below 0.1 s. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double AgilityGemBuffDurationMultiplier { get; set; } = 1;
+
+    [ConfigKey("stormsEyeGemMarkDurationMultiplier")]
+    [Comment("Gem of Storm's Eye Mark Duration. How long an enemy stays marked. Multiplies the game's value. Never below 0.1 s. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double StormsEyeGemMarkDurationMultiplier { get; set; } = 1;
+
+    [ConfigKey("stormsEyeGemCooldownMultiplier")]
+    [Comment("Gem of Storm's Eye Cooldown. The time before the same enemy can trigger it again. Multiplies the game's value. Never below 0.1 s. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double StormsEyeGemCooldownMultiplier { get; set; } = 1;
+
+    [ConfigKey("lesserNecromancyGemTriggerChancePoints")]
+    [Comment("Gem of Lesser Necromancy Trigger Chance. Adds to the chance that a kill spawns a Hollow Wretch, capped at 100%. In percentage points, also below 0. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 1.")]
+    [Range(SpellRules.MinChancePoints, SpellRules.MaxChancePoints, 1)]
+    public double LesserNecromancyGemTriggerChancePoints { get; set; } = 0;
+
+    [ConfigKey("lesserNecromancyGemWretchLevelBonus")]
+    [Comment("Gem of Lesser Necromancy Wretch Level. Levels added to the Wretch's. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 1.")]
+    [Range(SpellRules.MinLevelBonus, SpellRules.MaxLevelBonus, 1)]
+    public double LesserNecromancyGemWretchLevelBonus { get; set; } = 0;
+
+    [ConfigKey("lesserNecromancyGemSyncWithPlayer")]
+    [Comment("Gem of Lesser Necromancy Sync With Player. The summon takes your level, plus Wretch Level, instead of the gem's. Read when the weapon is equipped or switched to: switch away and back after a level up. Experimental.")]
+    public bool LesserNecromancyGemSyncWithPlayer { get; set; } = false;
+
+    [ConfigKey("overpoweringGemStaminaDamageMultiplier")]
+    [Comment("Gem of Overpowering Stamina Damage. The stamina taken from a blocking enemy. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double OverpoweringGemStaminaDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("corruptionGemExplosionDelayMultiplier")]
+    [Comment("Gem of Corruption Explosion Delay. How long a mark waits before it explodes (the marks' own 3.2 s). Multiplies the game's value. Never below 0.1 s. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double CorruptionGemExplosionDelayMultiplier { get; set; } = 1;
+
+    [ConfigKey("focusedLightGemDamageAt1StackMultiplier")]
+    [Comment("Gem of Focused Light Damage At 1 Stack. The bonus's attack modifier at 1 stack. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double FocusedLightGemDamageAt1StackMultiplier { get; set; } = 1;
+
+    [ConfigKey("focusedLightGemDamageAt2StacksMultiplier")]
+    [Comment("Gem of Focused Light Damage At 2 Stacks. The bonus's attack modifier at 2 stacks. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double FocusedLightGemDamageAt2StacksMultiplier { get; set; } = 1;
+
+    [ConfigKey("focusedLightGemDamageAt3StacksMultiplier")]
+    [Comment("Gem of Focused Light Damage At 3 Stacks. The bonus's attack modifier at 3 stacks. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double FocusedLightGemDamageAt3StacksMultiplier { get; set; } = 1;
+
+    [ConfigKey("battleManiaGemHealthRegenerationMultiplier")]
+    [Comment("Gem of Battle Mania Health Regeneration. Health regeneration while Satisfied. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double BattleManiaGemHealthRegenerationMultiplier { get; set; } = 1;
+
+    [ConfigKey("battleManiaGemManaRegenerationMultiplier")]
+    [Comment("Gem of Battle Mania Mana Regeneration. Mana regeneration while Satisfied. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double BattleManiaGemManaRegenerationMultiplier { get; set; } = 1;
+
+    [ConfigKey("battleManiaGemStaminaRegenerationMultiplier")]
+    [Comment("Gem of Battle Mania Stamina Regeneration. Stamina regeneration while Satisfied. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double BattleManiaGemStaminaRegenerationMultiplier { get; set; } = 1;
+
+    [ConfigKey("battleManiaGemBuffDurationMultiplier")]
+    [Comment("Gem of Battle Mania Buff Duration. How long Satisfied lasts after a hit. Multiplies the game's value. Never below 0.1 s. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double BattleManiaGemBuffDurationMultiplier { get; set; } = 1;
+
+    [ConfigKey("battleManiaGemRegenerationPauseMultiplier")]
+    [Comment("Gem of Battle Mania Regeneration Pause. How long Unsatisfied stops regeneration. Multiplies the game's value. Never below 0.1 s. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 60, SpellRules.GemMultiplierStep)]
+    public double BattleManiaGemRegenerationPauseMultiplier { get; set; } = 1;
+
+    [ConfigKey("soulReapingGemHealingMultiplier")]
+    [Comment("Gem of Soul Reaping Healing. The health a soul phial gives. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double SoulReapingGemHealingMultiplier { get; set; } = 1;
+
+    [ConfigKey("soulReapingGemDebuffDurationMultiplier")]
+    [Comment("Gem of Soul Reaping Debuff Duration. How long an enemy stays marked. Multiplies the game's value. Never below 0.1 s. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double SoulReapingGemDebuffDurationMultiplier { get; set; } = 1;
+
+    [ConfigKey("bloodlustGemOrbChancePoints")]
+    [Comment("Gem of Bloodlust Orb Chance. Adds to the chance that a kill drops a health orb, capped at 100%. In percentage points, also below 0. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 1.")]
+    [Range(SpellRules.MinChancePoints, SpellRules.MaxChancePoints, 1)]
+    public double BloodlustGemOrbChancePoints { get; set; } = 0;
+
+    [ConfigKey("bloodlustGemOrbChanceWhileBuffedPoints")]
+    [Comment("Gem of Bloodlust Orb Chance While Buffed. Adds to the orb chance while the buff is on, capped at 100%. In percentage points, also below 0. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 1.")]
+    [Range(SpellRules.MinChancePoints, SpellRules.MaxChancePoints, 1)]
+    public double BloodlustGemOrbChanceWhileBuffedPoints { get; set; } = 0;
+
+    [ConfigKey("coldComposureGemPhysicalArmorMultiplier")]
+    [Comment("Gem of Cold Composure Physical Armor. Physical armor while the buff is on. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double ColdComposureGemPhysicalArmorMultiplier { get; set; } = 1;
+
+    [ConfigKey("coldComposureGemMagicalArmorMultiplier")]
+    [Comment("Gem of Cold Composure Magical Armor. Magical armor while the buff is on. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double ColdComposureGemMagicalArmorMultiplier { get; set; } = 1;
+
+    [ConfigKey("coldComposureGemMovementSpeed")]
+    [Comment("Gem of Cold Composure Movement Speed. Your movement speed while the buff is on (the game slows you by 30%). Replaces the game's value (-29.99%) in percent. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 5.")]
+    [Range(-90, 50, 5)]
+    public double ColdComposureGemMovementSpeed { get; set; } = -29.99;
+
+    [ConfigKey("coldComposureGemChargeTimeMultiplier")]
+    [Comment("Gem of Cold Composure Charge Time. How long you block or aim before the buff starts. Multiplies the game's value. Never below 0.1 s. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double ColdComposureGemChargeTimeMultiplier { get; set; } = 1;
+
+    [ConfigKey("meteoricImpactGemBuffDurationMultiplier")]
+    [Comment("Gem of Meteoric Impact Buff Duration. How long attacks keep the bonus fire damage. Multiplies its value at gem level 1. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, SpellRules.MaxGemMultiplier, SpellRules.GemMultiplierStep)]
+    public double MeteoricImpactGemBuffDurationMultiplier { get; set; } = 1;
+
+    [ConfigKey("meteoricImpactGemBuffDurationPerLevelMultiplier")]
+    [Comment("Gem of Meteoric Impact Buff Duration Per Level. Multiplies what each gem level adds to it. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, SpellRules.MaxGemMultiplier, SpellRules.GemMultiplierStep)]
+    public double MeteoricImpactGemBuffDurationPerLevelMultiplier { get; set; } = 1;
+
+    [ConfigKey("necromancyGemTriggerChancePoints")]
+    [Comment("Gem of Necromancy Trigger Chance. Adds to the chance that a kill spawns a Hollow Damned, capped at 100%. In percentage points, also below 0. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 1.")]
+    [Range(SpellRules.MinChancePoints, SpellRules.MaxChancePoints, 1)]
+    public double NecromancyGemTriggerChancePoints { get; set; } = 0;
+
+    [ConfigKey("necromancyGemDamnedLevelBonus")]
+    [Comment("Gem of Necromancy Damned Level. Levels added to the Damned's. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 1.")]
+    [Range(SpellRules.MinLevelBonus, SpellRules.MaxLevelBonus, 1)]
+    public double NecromancyGemDamnedLevelBonus { get; set; } = 0;
+
+    [ConfigKey("necromancyGemSyncWithPlayer")]
+    [Comment("Gem of Necromancy Sync With Player. The summon takes your level, plus Damned Level, instead of the gem's. Read when the weapon is equipped or switched to: switch away and back after a level up. Experimental.")]
+    public bool NecromancyGemSyncWithPlayer { get; set; } = false;
+
+    [ConfigKey("aerobaticsGemVolleyWait")]
+    [Comment("Gem of Aerobatics Volley Wait. The wait between two volleys. Replaces the game's value (1 s) in seconds. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.1.")]
+    [Range(0.1, 10, 0.1)]
+    public double AerobaticsGemVolleyWait { get; set; } = 1;
+
+    [ConfigKey("currentsGemTriggerChancePoints")]
+    [Comment("Gem of Currents Trigger Chance. Adds to the chance that a hit on a soaked enemy adds the shock, capped at 100%. In percentage points, also below 0. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 1.")]
+    [Range(SpellRules.MinChancePoints, SpellRules.MaxChancePoints, 1)]
+    public double CurrentsGemTriggerChancePoints { get; set; } = 0;
+
+    [ConfigKey("currentsGemDebuffDurationMultiplier")]
+    [Comment("Gem of Currents Debuff Duration. How long enemies stay Soaked. Multiplies its value at gem level 1. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, SpellRules.MaxGemMultiplier, SpellRules.GemMultiplierStep)]
+    public double CurrentsGemDebuffDurationMultiplier { get; set; } = 1;
+
+    [ConfigKey("currentsGemDebuffDurationPerLevelMultiplier")]
+    [Comment("Gem of Currents Debuff Duration Per Level. Multiplies what each gem level adds to it. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, SpellRules.MaxGemMultiplier, SpellRules.GemMultiplierStep)]
+    public double CurrentsGemDebuffDurationPerLevelMultiplier { get; set; } = 1;
+
+    [ConfigKey("greaterNecromancyGemTriggerChancePoints")]
+    [Comment("Gem of Greater Necromancy Trigger Chance. Adds to the chance that a kill spawns a Hollow Reaper, capped at 100%. In percentage points, also below 0. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 1.")]
+    [Range(SpellRules.MinChancePoints, SpellRules.MaxChancePoints, 1)]
+    public double GreaterNecromancyGemTriggerChancePoints { get; set; } = 0;
+
+    [ConfigKey("greaterNecromancyGemReaperLevelBonus")]
+    [Comment("Gem of Greater Necromancy Reaper Level. Levels added to the Reaper's. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 1.")]
+    [Range(SpellRules.MinLevelBonus, SpellRules.MaxLevelBonus, 1)]
+    public double GreaterNecromancyGemReaperLevelBonus { get; set; } = 0;
+
+    [ConfigKey("greaterNecromancyGemSyncWithPlayer")]
+    [Comment("Gem of Greater Necromancy Sync With Player. The summon takes your level, plus Reaper Level, instead of the gem's. Read when the weapon is equipped or switched to: switch away and back after a level up. Experimental.")]
+    public bool GreaterNecromancyGemSyncWithPlayer { get; set; } = false;
+
+    [ConfigKey("lycanthropyGemTriggerChancePoints")]
+    [Comment("Gem of Lycanthropy Trigger Chance. Adds to the chance that a night kill drops a Lunar Orb, capped at 100%. In percentage points, also below 0. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 1.")]
+    [Range(SpellRules.MinChancePoints, SpellRules.MaxChancePoints, 1)]
+    public double LycanthropyGemTriggerChancePoints { get; set; } = 0;
+
+    [ConfigKey("lycanthropyGemHealthOnOrbMultiplier")]
+    [Comment("Gem of Lycanthropy Health On Orb. The health a Lunar Orb gives. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double LycanthropyGemHealthOnOrbMultiplier { get; set; } = 1;
+
+    [ConfigKey("lycanthropyGemManaOnOrbMultiplier")]
+    [Comment("Gem of Lycanthropy Mana On Orb. The mana a Lunar Orb gives. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double LycanthropyGemManaOnOrbMultiplier { get; set; } = 1;
+
+    [ConfigKey("lycanthropyGemMaxHealthMultiplier")]
+    [Comment("Gem of Lycanthropy Max Health. Max health while Lunar Howl is on. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double LycanthropyGemMaxHealthMultiplier { get; set; } = 1;
+
+    [ConfigKey("lycanthropyGemMaxManaMultiplier")]
+    [Comment("Gem of Lycanthropy Max Mana. Max mana while Lunar Howl is on. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double LycanthropyGemMaxManaMultiplier { get; set; } = 1;
+
+    [ConfigKey("lycanthropyGemMaxStaminaMultiplier")]
+    [Comment("Gem of Lycanthropy Max Stamina. Max stamina while Lunar Howl is on. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double LycanthropyGemMaxStaminaMultiplier { get; set; } = 1;
+
+    [ConfigKey("lycanthropyGemMeleeDamageMultiplier")]
+    [Comment("Gem of Lycanthropy Melee Damage. The melee damage bonus while Lunar Howl is on. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double LycanthropyGemMeleeDamageMultiplier { get; set; } = 1;
+
+    [ConfigKey("lycanthropyGemBuffDurationMultiplier")]
+    [Comment("Gem of Lycanthropy Buff Duration. How long Lunar Howl lasts. Multiplies its value at gem level 1. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, SpellRules.MaxGemMultiplier, SpellRules.GemMultiplierStep)]
+    public double LycanthropyGemBuffDurationMultiplier { get; set; } = 1;
+
+    [ConfigKey("lycanthropyGemBuffDurationPerLevelMultiplier")]
+    [Comment("Gem of Lycanthropy Buff Duration Per Level. Multiplies what each gem level adds to it. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, SpellRules.MaxGemMultiplier, SpellRules.GemMultiplierStep)]
+    public double LycanthropyGemBuffDurationPerLevelMultiplier { get; set; } = 1;
+
+    [ConfigKey("armoringGemBuffDurationMultiplier")]
+    [Comment("Gem of Armoring Buff Duration. How long you resist all damage after taking the orb. Multiplies its value at gem level 1. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, SpellRules.MaxGemMultiplier, SpellRules.GemMultiplierStep)]
+    public double ArmoringGemBuffDurationMultiplier { get; set; } = 1;
+
+    [ConfigKey("armoringGemBuffDurationPerLevelMultiplier")]
+    [Comment("Gem of Armoring Buff Duration Per Level. Multiplies what each gem level adds to it. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, SpellRules.MaxGemMultiplier, SpellRules.GemMultiplierStep)]
+    public double ArmoringGemBuffDurationPerLevelMultiplier { get; set; } = 1;
+
+    [ConfigKey("cleansingGemDebuffDurationMultiplier")]
+    [Comment("Gem of Cleansing Debuff Duration. How long an enemy loses its Shroud damage resistance. Multiplies its value at gem level 1. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, SpellRules.MaxGemMultiplier, SpellRules.GemMultiplierStep)]
+    public double CleansingGemDebuffDurationMultiplier { get; set; } = 1;
+
+    [ConfigKey("cleansingGemDebuffDurationPerLevelMultiplier")]
+    [Comment("Gem of Cleansing Debuff Duration Per Level. Multiplies what each gem level adds to it. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, SpellRules.MaxGemMultiplier, SpellRules.GemMultiplierStep)]
+    public double CleansingGemDebuffDurationPerLevelMultiplier { get; set; } = 1;
+
+    [ConfigKey("destinyGemHealthOnOrbMultiplier")]
+    [Comment("Gem of Destiny Health On Orb. The health the orb gives. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double DestinyGemHealthOnOrbMultiplier { get; set; } = 1;
+
+    [ConfigKey("destinyGemManaOnOrbMultiplier")]
+    [Comment("Gem of Destiny Mana On Orb. The mana the orb gives. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double DestinyGemManaOnOrbMultiplier { get; set; } = 1;
+
+    [ConfigKey("destinyGemStaminaOnOrbMultiplier")]
+    [Comment("Gem of Destiny Stamina On Orb. The stamina the orb gives. Multiplies the game's value at every gem level. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double DestinyGemStaminaOnOrbMultiplier { get; set; } = 1;
+
+    [ConfigKey("destinyGemMarkDurationMultiplier")]
+    [Comment("Gem of Destiny Mark Duration. How long an enemy stays Marked by Destiny. Multiplies the game's value. Never below 0.1 s. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double DestinyGemMarkDurationMultiplier { get; set; } = 1;
+
+    [ConfigKey("hyperspecializationGemBuffDurationMultiplier")]
+    [Comment("Gem of Hyperspecialization Buff Duration. How long after the special ability kills give focus back. Multiplies the game's value. Never below 0.1 s. A running gem takes it when its weapon is next equipped or switched to on the hotbar. Step 0.05.")]
+    [Range(SpellRules.MinGemMultiplier, 10, SpellRules.GemMultiplierStep)]
+    public double HyperspecializationGemBuffDurationMultiplier { get; set; } = 1;
 }

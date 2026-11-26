@@ -13,10 +13,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Reference Include="Kiln.Abilities" HintPath="$(KilnHost)\Kiln.Abilities.dll" Private="false" />
     <Reference Include="Kiln.Api" HintPath="$(KilnHost)\Kiln.Api.dll" Private="false" />
     <Reference Include="Kiln.Blocks" HintPath="$(KilnHost)\Kiln.Blocks.dll" Private="false" />
     <Reference Include="Kiln.Content" HintPath="$(KilnHost)\Kiln.Content.dll" Private="false" />
     <Reference Include="Kiln.Creatures" HintPath="$(KilnHost)\Kiln.Creatures.dll" Private="false" />
+    <Reference Include="Kiln.Players" HintPath="$(KilnHost)\Kiln.Players.dll" Private="false" />
     <Reference Include="Kiln.Ui" HintPath="$(KilnHost)\Kiln.Ui.dll" Private="false" />
   </ItemGroup>
 

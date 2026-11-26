@@ -13,6 +13,12 @@ public enum SettingKind
     /// <summary>A time in seconds.</summary>
     Seconds,
     Toggle,
+    /// <summary>A share in percent: -30%.</summary>
+    Percent,
+    /// <summary>Percentage points added to a chance: +10%.</summary>
+    Points,
+    /// <summary>Levels added: +3.</summary>
+    Levels,
 }
 
 /// <summary>One setting: its key in the settings file, its name and group on the settings page, and its range, step and default. A toggle's default is 1 for on.</summary>
@@ -27,8 +33,11 @@ public sealed record SettingInfo(string Key, string Label, string Group, Setting
         {
             SettingKind.Multiplier => string.Create(CultureInfo.InvariantCulture, $"x{value:0.##}"),
             SettingKind.Units => string.Create(CultureInfo.InvariantCulture, $"{value:0.##} {(value == 1 ? "unit" : "units")}"),
-            SettingKind.Seconds => string.Create(CultureInfo.InvariantCulture, $"{value:0.#} s"),
+            SettingKind.Seconds => string.Create(CultureInfo.InvariantCulture, $"{value:0.###} s"),
             SettingKind.Toggle => value != 0 ? "on" : "off",
+            SettingKind.Percent => string.Create(CultureInfo.InvariantCulture, $"{value:0.##}%"),
+            SettingKind.Points => string.Create(CultureInfo.InvariantCulture, $"{value:+0;-0;0}%"),
+            SettingKind.Levels => string.Create(CultureInfo.InvariantCulture, $"{value:+0;-0;0}"),
             _ => string.Create(CultureInfo.InvariantCulture, $"{value:0}"),
         };
     }
@@ -106,14 +115,26 @@ public static class SpellRules
     // Skeletons walk off by themselves, so they only need to land apart: a fixed spread while a cast places more than one.
     public const double SkeletonSpreadUnits = 1.0;
 
+    // Gem stats (1.1.6): multipliers from x0.1 to x10; a time never goes below 0.1 s. Chances take percentage points (capped at 0
+    // and 100%), summon levels whole levels.
+    public const double MinGemMultiplier = 0.1;
+    public const double MaxGemMultiplier = 10.0;
+    public const double GemMultiplierStep = 0.05;
+    public const double MinGemSeconds = 0.1;
+    public const double MinChancePoints = -100;
+    public const double MaxChancePoints = 100;
+    public const double MinLevelBonus = 0;
+    public const double MaxLevelBonus = 100;
+
     // Two values this close, as a share of their size, are the same value as the game holds it (a float32).
     private const double SameValueTolerance = 0.000001;
 
     /// <summary>A setting's value inside its range and on its step, counted from the minimum. A value that is not a number becomes the default.</summary>
     public static double Snap(SettingInfo setting, double value)
     {
-        if (double.IsNaN(value))
+        if (double.IsNaN(value) || Same(value, setting.Default))
         {
+            // The default is kept as it is, also off the steps (Burning's tick interval: 0.333 s).
             return setting.Default;
         }
         double clamped = Math.Clamp(value, setting.Minimum, setting.Maximum);
@@ -126,10 +147,22 @@ public static class SpellRules
         return Math.Clamp(Math.Round(setting.Minimum + steps * setting.Step, 6), setting.Minimum, setting.Maximum);
     }
 
-    /// <summary>The value one step up (direction 1) or down (direction -1), inside the range.</summary>
+    /// <summary>
+    /// The value some steps up (direction above 0) or down, inside the range. From a value between two steps the first step goes to
+    /// the next step in that direction: 0.333 goes to 0.35 up and to 0.3 down.
+    /// </summary>
     public static double Stepped(SettingInfo setting, double value, int direction)
     {
-        return Snap(setting, Snap(setting, value) + direction * setting.Step);
+        if (double.IsNaN(value) || setting.Step <= 0 || direction == 0)
+        {
+            return Snap(setting, value);
+        }
+        double clamped = Math.Clamp(value, setting.Minimum, setting.Maximum);
+        double steps = (clamped - setting.Minimum) / setting.Step;
+        double nearest = Math.Round(steps);
+        double from = Math.Abs(steps - nearest) < 0.000001 ? nearest : direction > 0 ? Math.Floor(steps) : Math.Ceiling(steps);
+        double next = Math.Round(setting.Minimum + (from + direction) * setting.Step, 6);
+        return Math.Clamp(next, setting.Minimum, setting.Maximum);
     }
 
     public static bool Same(double first, double second)
@@ -161,6 +194,35 @@ public static class SpellRules
     public static long GemDamage(double gameValue, double multiplier)
     {
         return gameValue <= 0 ? (long)gameValue : Math.Max(1L, (long)Math.Round(gameValue * multiplier, MidpointRounding.AwayFromZero));
+    }
+
+    /// <summary>A gem's time in seconds times the setting, never below 0.1 s (a time already shorter stays). 0 or less stays.</summary>
+    public static double GemSeconds(double gameSeconds, double multiplier)
+    {
+        return gameSeconds <= 0 ? gameSeconds : Math.Max(gameSeconds * multiplier, Math.Min(gameSeconds, MinGemSeconds));
+    }
+
+    /// <summary>A gem's time kept as whole milliseconds (Battle Mania's Regeneration Pause) times the setting, never below 100 ms.</summary>
+    public static long GemMilliseconds(double gameMilliseconds, double multiplier)
+    {
+        if (gameMilliseconds <= 0)
+        {
+            return (long)gameMilliseconds;
+        }
+        double floor = Math.Min(gameMilliseconds, MinGemSeconds * 1000.0);
+        return (long)Math.Round(Math.Max(gameMilliseconds * multiplier, floor), MidpointRounding.AwayFromZero);
+    }
+
+    /// <summary>A gem's chance (a share, 0.25 is 25%) with percentage points added, inside 0 and 100%.</summary>
+    public static double GemChance(double gameShare, double points)
+    {
+        return points == 0 ? gameShare : Math.Clamp(gameShare + points / 100.0, 0.0, 1.0);
+    }
+
+    /// <summary>A summon's level with levels added.</summary>
+    public static long GemLevel(double gameLevel, double bonus)
+    {
+        return (long)Math.Round(gameLevel + bonus, MidpointRounding.AwayFromZero);
     }
 
     /// <summary>The game's value times the setting. A value of 0 or less is the game's "none" and stays.</summary>

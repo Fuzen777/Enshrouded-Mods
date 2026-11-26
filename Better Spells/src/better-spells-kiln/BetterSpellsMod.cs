@@ -23,6 +23,13 @@ public sealed class BetterSpellsMod : Mod
     private const string DamageModifierPath = "damageSetup.dmgMod";
     private const string LockOnRangePath = "itemTargetingSetup.targetingRange";
     private const string TooltipList = "uiValues";
+    // A buff type's own lifetime, in seconds.
+    private const string BuffLifetimePath = "defaultLifeTime";
+    // The SpawnTemplate config of the necromancy and skull gems' programs: which summon a gem spawns.
+    private const string SpawnTemplateConfig = "0xf6a785cd";
+    // The gem programs that spawn a summon (Gem of Skulls, the three Necromancy gems): only these wait for OnImpactStarting.
+    private static readonly uint[] SyncPrograms = SpellCatalog.GemStats.Where(stat => stat.Program != null)
+        .Select(stat => Abilities.IdOf(Guid.Parse(stat.Program!))).Distinct().ToArray();
     // Config values an item carries, by config id. Charge Time is the game's own name for the first (its tooltip line); the second keeps
     // the caster locked in the cast (seen in game); the third is RangeTerraforming in the game's scripts, the radius of the ground cursor.
     private const string CursorRangePath = "impactValues.0x5258131e";
@@ -153,12 +160,17 @@ public sealed class BetterSpellsMod : Mod
     private volatile uint[] _gemIconItems = new uint[SpellCatalog.GemWindowSpells.Count];
     private volatile int _selectedGem;
     private volatile bool _gemsTab;
+    // Each gem stat's game value and scaleFactor (NaN for none), by setting key, found by Apply for the window's results.
+    private volatile Dictionary<string, (double Value, double Scale)> _gemOriginals = new Dictionary<string, (double Value, double Scale)>();
+    private IDisposable? _heldPrograms;
     // Measured once per frame: a row's height on screen, a line of text's height, the room a control's value gets between its - and +
     // buttons, and the gap beside each button.
     private float _rowHeight;
     private float _textHeight;
     private float _valueWidth;
     private float _controlGap;
+    // The Default button's width.
+    private float _defaultWidth;
     // A checkbox's size as last drawn, to center the next ones in their cells; 0 until one was drawn.
     private float _checkboxWidth;
     private float _checkboxHeight;
@@ -190,6 +202,14 @@ public sealed class BetterSpellsMod : Mod
         }
         _settings.Changed += OnSettingsChanged;
         _subscribed = true;
+        try
+        {
+            _heldPrograms = Abilities.HoldPrograms(SyncPrograms);
+        }
+        catch (Exception error)
+        {
+            Log.Info($"Sync With Player is not available here: {error.Message}");
+        }
         // Runs at every world load, after Kiln has put the game's data in place.
         Content.OnReady(_ => Apply("world loaded"));
         if (Ui.Available)
@@ -217,6 +237,8 @@ public sealed class BetterSpellsMod : Mod
             _settings.Changed -= OnSettingsChanged;
             _subscribed = false;
         }
+        _heldPrograms?.Dispose();
+        _heldPrograms = null;
         _settingsPage?.Dispose();
         _settingsPage = null;
         _windowKey?.Dispose();
@@ -440,8 +462,9 @@ public sealed class BetterSpellsMod : Mod
         _rowHeight = RowHeight * ui.Scale;
         _textHeight = ui.MeasureText("X").Height;
         // Every value gets the room of the widest one, so the + buttons of a card line up.
-        _valueWidth = Math.Max(ui.MeasureText("x00.00").Width, ui.MeasureText("00 units").Width);
+        _valueWidth = Math.Max(Math.Max(ui.MeasureText("x00.00").Width, ui.MeasureText("00 units").Width), Math.Max(ui.MeasureText("-29.99%").Width, ui.MeasureText("0.333 s").Width));
         _controlGap = _textHeight * 0.35f;
+        _defaultWidth = (float)Math.Ceiling(ui.MeasureText("Default").Width + 1.2f * _textHeight);
         float iconSize = IconButtonSize * ui.Scale;
         float sectionWidth = 0f;
         float labelWidth = 0f;
@@ -482,7 +505,7 @@ public sealed class BetterSpellsMod : Mod
         {
             _gemsTab = true;
         }
-        ui.Tooltip("Weapon gems' damage. A gem takes a new value when its weapon is next equipped or switched to on the hotbar.");
+        ui.Tooltip("Weapon gems: damage, durations, chances and more. A gem takes a new value when its weapon is next equipped or switched to on the hotbar.");
         _contentRight = Math.Max(_contentRight, ui.LastItem.MaxX);
         ui.TextWrapped(gemsTab
             ? "Click a gem to see its settings, scroll over a value to change it; hold Shift for 10 steps, Ctrl for 100. Switch away from the weapon and back to apply a change."
@@ -729,7 +752,64 @@ public sealed class BetterSpellsMod : Mod
             {
                 _hoveredThisFrame = key;
             }
+            // Back to the default; its room is kept while the value is the default, so the lines stay lined up.
+            ui.SameLine(0f, _controlGap);
+            if (SpellRules.Same(shown, setting.Default))
+            {
+                ui.Space(_defaultWidth, _rowHeight);
+            }
+            else
+            {
+                if (ui.Button("Default", _defaultWidth, _rowHeight))
+                {
+                    Ask(setting, setting.Default);
+                }
+                ui.Tooltip($"Back to {setting.Format(setting.Default)}.");
+            }
+            string? result = GemResult(key, shown);
+            if (result != null)
+            {
+                ui.SameLine(0f, _controlGap);
+                DrawRowText(ui, result, ui.MeasureText(result).Width, _rowHeight, false, ui.Palette.TextMuted);
+            }
         }
+    }
+
+    // Each gem stat by the keys of its multipliers and chance, for the results the window shows.
+    private static readonly Dictionary<string, GemStat> GemStatsByKey = SpellCatalog.GemStats
+        .SelectMany(stat => stat.Kind == GemStatKind.BaseAndLevel ? new[] { (stat.Key, stat), (stat.PerLevelKey, stat) } : new[] { (stat.Key, stat) })
+        .ToDictionary(pair => pair.Item1, pair => pair.stat, StringComparer.Ordinal);
+
+    // What a gem multiplier or chance gives, as the gem's tooltip would show it: "= 6 s", "= +0.5 s" per level, "= 35%". None for a
+    // multiplier of a value that grows with the gem's level (it differs at every level), or before a world has loaded.
+    private string? GemResult(string key, double shown)
+    {
+        if (!GemStatsByKey.TryGetValue(key, out GemStat? stat) || !stat.ShowsResult || !_gemOriginals.TryGetValue(stat.Key, out var game))
+        {
+            return null;
+        }
+        bool scaled = !double.IsNaN(game.Scale);
+        if (key == stat.PerLevelKey)
+        {
+            return scaled ? "= +" + GemText(stat.Unit, SpellRules.Multiplied(game.Scale, shown)) + " Per Level" : null;
+        }
+        if (stat.Kind == GemStatKind.Multiply && scaled)
+        {
+            return null;
+        }
+        return "= " + GemText(stat.Unit, GemValue(stat, SpellCatalog.Setting(stat.Key), game.Value, shown));
+    }
+
+    private static string GemText(GemUnit unit, double value)
+    {
+        return unit switch
+        {
+            GemUnit.Seconds => string.Create(CultureInfo.InvariantCulture, $"{value:0.##} s"),
+            GemUnit.Milliseconds => string.Create(CultureInfo.InvariantCulture, $"{value / 1000.0:0.##} s"),
+            GemUnit.Share => string.Create(CultureInfo.InvariantCulture, $"{value * 100.0:0.#}%"),
+            GemUnit.Whole => string.Create(CultureInfo.InvariantCulture, $"{value:0}"),
+            _ => string.Create(CultureInfo.InvariantCulture, $"{value:0.##}"),
+        };
     }
 
     // The General card's mode as two buttons side by side, the chosen one in the accent color: Kiln has no segmented control.
@@ -865,6 +945,7 @@ public sealed class BetterSpellsMod : Mod
         ApplyPerception();
         ApplyHealth();
         ApplyGems();
+        ApplyGemStats();
         Log.Info($"{_valuesInPlace} values in place ({_valuesWritten} written), {_valuesRefused} refused, in {watch.ElapsedMilliseconds} ms");
     }
 
@@ -1203,7 +1284,7 @@ public sealed class BetterSpellsMod : Mod
     // its weapon is next equipped or switched to.
     private void ApplyGems()
     {
-        foreach (GemSpell gem in SpellCatalog.GemSpells)
+        foreach (GemSpell gem in SpellCatalog.GemSpells.Where(gem => gem.HasDamage))
         {
             SettingInfo setting = SpellCatalog.Setting(gem.DamageKey);
             double multiplier = Value(gem.DamageKey);
@@ -1268,6 +1349,189 @@ public sealed class BetterSpellsMod : Mod
         catch (Exception error) when (IsRefusal(error))
         {
             Refuse(item, TooltipList, error.Message);
+        }
+    }
+
+    // Gem stats (1.1.6): each stat's config of the gem item, its tooltip row (found by its loca id) and the buffs whose lifetime is the
+    // same time. The game's own values are kept for the settings window, which shows what a multiplier gives.
+    private void ApplyGemStats()
+    {
+        var originals = new Dictionary<string, (double Value, double Scale)>(StringComparer.Ordinal);
+        foreach (GemStat stat in SpellCatalog.GemStats)
+        {
+            SettingInfo setting = SpellCatalog.Setting(stat.Key);
+            double value = Value(stat.Key);
+            double perLevel = stat.Kind == GemStatKind.BaseAndLevel ? Value(stat.PerLevelKey) : 1;
+            Begin(stat.Kind == GemStatKind.BaseAndLevel ? $"{setting.Label} {setting.Format(value)}, per level {setting.Format(perLevel)}" : $"{setting.Label} {setting.Format(value)}");
+            GemSpell gem = SpellCatalog.GemSpells.First(spell => spell.Name == stat.Gem);
+            GameDataEntry? item = _gemItems.Find(entry => entry.Name == gem.ItemName);
+            if (item == null)
+            {
+                Note($"{gem.ItemName} is not in this world's data");
+                End();
+                continue;
+            }
+            string path = stat.ConfigPath;
+            if (!Has(item, path))
+            {
+                Note($"{gem.ItemName} has no config {path}");
+                End();
+                continue;
+            }
+            string scalePath = path + ".scaleFactor";
+            bool scaled = Has(item, scalePath);
+            double gameValue = Original(item, path);
+            double gameScale = scaled ? Original(item, scalePath) : double.NaN;
+            originals[stat.Key] = (gameValue, gameScale);
+            Func<double, double> wanted = game => GemValue(stat, setting, game, value);
+            Func<double, double> wantedScale = scale => stat.Kind switch
+            {
+                GemStatKind.Multiply => SpellRules.Multiplied(scale, value),
+                GemStatKind.BaseAndLevel => SpellRules.Multiplied(scale, perLevel),
+                _ => scale,
+            };
+            if (stat.Unit == GemUnit.Seconds)
+            {
+                PutTime(item, path, wanted);
+            }
+            else
+            {
+                PutNumber(item, path, wanted, whole: stat.Unit is GemUnit.Whole or GemUnit.Milliseconds);
+            }
+            if (scaled)
+            {
+                PutNumber(item, scalePath, wantedScale);
+            }
+            if (stat.TooltipLocaId != 0)
+            {
+                PutGemStatTooltip(item, stat, wanted, wantedScale);
+            }
+            foreach (uint buffId in stat.Buffs ?? Array.Empty<uint>())
+            {
+                GameDataEntry? buff = Content.Buffs.Get(buffId);
+                if (buff == null || !Has(buff, BuffLifetimePath))
+                {
+                    Note(string.Create(CultureInfo.InvariantCulture, $"no buff 0x{buffId:x8} with a {BuffLifetimePath}"));
+                    continue;
+                }
+                PutTime(buff, BuffLifetimePath, game => SpellRules.GemSeconds(game, value));
+            }
+            End();
+        }
+        _gemOriginals = originals;
+    }
+
+    // A gem stat's value from the game's (in the config's own unit: seconds, milliseconds, a share) and its setting.
+    private static double GemValue(GemStat stat, SettingInfo setting, double game, double value)
+    {
+        switch (stat.Kind)
+        {
+            case GemStatKind.Multiply:
+            case GemStatKind.BaseAndLevel:
+                return stat.Unit switch
+                {
+                    GemUnit.Seconds => SpellRules.GemSeconds(game, value),
+                    GemUnit.Milliseconds => SpellRules.GemMilliseconds(game, value),
+                    GemUnit.Whole => SpellRules.GemDamage(game, value),
+                    _ => SpellRules.Multiplied(game, value),
+                };
+            case GemStatKind.SetValue:
+                // At its default the game's own value stays, whatever a later game build makes it.
+                if (SpellRules.Same(value, setting.Default))
+                {
+                    return game;
+                }
+                return stat.Unit == GemUnit.Share ? value / 100.0 : value;
+            case GemStatKind.ChancePoints:
+                return SpellRules.GemChance(game, value);
+            case GemStatKind.LevelBonus:
+                return SpellRules.GemLevel(game, value);
+            default:
+                return game;
+        }
+    }
+
+    // A tooltip row keeps a time in milliseconds and a share in percent, as whole numbers.
+    private static double TooltipFactor(GemUnit unit)
+    {
+        return unit switch
+        {
+            GemUnit.Seconds => 1000.0,
+            GemUnit.Share => 100.0,
+            _ => 1.0,
+        };
+    }
+
+    // The tooltip rows of a gem stat: its value and, on a scaled row, its scaleFactor, in the row's own unit.
+    private void PutGemStatTooltip(GameDataEntry item, GemStat stat, Func<double, double> wanted, Func<double, double> wantedScale)
+    {
+        double factor = TooltipFactor(stat.Unit);
+        try
+        {
+            IReadOnlyList<TooltipValue> rows = item.TooltipValues(TooltipList);
+            bool found = false;
+            for (int rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+            {
+                if (rows[rowIndex].LocaId != stat.TooltipLocaId)
+                {
+                    continue;
+                }
+                found = true;
+                string rowPath = string.Create(CultureInfo.InvariantCulture, $"{TooltipList}[{rowIndex}]");
+                PutNumber(item, rowPath + ".value", game => wanted(game / factor) * factor, whole: true);
+                string scalePath = rowPath + ".scaleData.scaleFactor";
+                if (rows[rowIndex].IsScaled && Has(item, scalePath))
+                {
+                    PutNumber(item, scalePath, wantedScale);
+                }
+            }
+            if (!found)
+            {
+                Note(string.Create(CultureInfo.InvariantCulture, $"{item.Name} has no tooltip row {stat.TooltipLocaId}"));
+            }
+        }
+        catch (Exception error) when (IsRefusal(error))
+        {
+            Refuse(item, TooltipList, error.Message);
+        }
+    }
+
+    // Sync With Player: a gem's summon takes the player's level (plus the stat's bonus) instead of the gem's. The gem's program copies
+    // its configs when the weapon is equipped or switched to; this sets its level config before the program's first step.
+    [Subscribe]
+    private void OnImpactStarting(ImpactStartingEvent impact)
+    {
+        try
+        {
+            foreach (GemStat stat in SpellCatalog.GemStats)
+            {
+                if (stat.Program == null || stat.SpawnTemplate == null || impact.Impact.ProgramId != Abilities.IdOf(Guid.Parse(stat.Program))
+                    || Value(stat.SyncKey) == 0)
+                {
+                    continue;
+                }
+                Guid? template = impact.Instance.GetGuid(SpawnTemplateConfig);
+                if (template != Guid.Parse(stat.SpawnTemplate))
+                {
+                    continue;
+                }
+                EntityId player = impact.Impact.Root;
+                int level = Progression.Get(player)?.Level ?? 0;
+                if (level <= 0)
+                {
+                    return;
+                }
+                long wanted = SpellRules.GemLevel(level, Value(stat.Key));
+                if (!impact.Set(stat.ConfigPath.Substring("impactValues.".Length), (int)wanted))
+                {
+                    Log.Warn($"{stat.DisplayName}: the summon's level could not be set");
+                }
+                return;
+            }
+        }
+        catch (Exception error)
+        {
+            Log.Warn($"Sync With Player: {error.GetType().Name}: {error.Message}");
         }
     }
 

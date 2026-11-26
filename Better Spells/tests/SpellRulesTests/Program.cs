@@ -77,8 +77,8 @@ Check(SpellRules.ShapeKey(1744623269, 2) != 1744623269 && SpellRules.ShapeKey(17
 Check(SpellRules.ShapeKey(1744623269, 2) != SpellRules.ShapeKey(1744623269, 2.25), "two sizes get two keys");
 Check(SpellRules.Same(2.6, 2.5999999046325684) && !SpellRules.Same(2.6, 2.61), "a float32 and its double are the same value, 2.6 and 2.61 are not");
 
-// The settings: 138, each once, in a known group, and the settings file's entries agree with the list.
-Check(SpellCatalog.Settings.Count == 138, $"there are 138 settings (found {SpellCatalog.Settings.Count})");
+// The settings: 216, each once, in a known group, and the settings file's entries agree with the list.
+Check(SpellCatalog.Settings.Count == 216, $"there are 216 settings (found {SpellCatalog.Settings.Count})");
 Check(SpellCatalog.Settings.Select(setting => setting.Key).Distinct().Count() == SpellCatalog.Settings.Count, "no setting key is listed twice");
 Check(SpellCatalog.Settings.All(setting => SpellCatalog.Groups.Contains(setting.Group)), "every setting is in a group of the settings page");
 var fileDefaults = new SpellSettings();
@@ -117,7 +117,7 @@ foreach (string key in SpellCatalog.DurationSpells.Select(spell => spell.Setting
 
 // The settings window shows every setting on exactly one card, in the sections the user chose, and each card's labels are its own.
 List<string> windowKeys = SpellCatalog.WindowSpells.Concat(SpellCatalog.GemWindowSpells).SelectMany(spell => spell.Lines.Select(line => line.Key)).ToList();
-Check(windowKeys.Count == SpellCatalog.Settings.Count && windowKeys.Distinct().Count() == windowKeys.Count, $"the window's two tabs have each of the 138 settings once ({windowKeys.Count} lines, {windowKeys.Distinct().Count()} different)");
+Check(windowKeys.Count == SpellCatalog.Settings.Count && windowKeys.Distinct().Count() == windowKeys.Count, $"the window's two tabs have each of the 216 settings once ({windowKeys.Count} lines, {windowKeys.Distinct().Count()} different)");
 Check(SpellCatalog.Settings.All(setting => windowKeys.Contains(setting.Key)), "no setting is missing from the window");
 Check(string.Join(", ", SpellCatalog.WindowSections.Select(section => section.Name)) == "General, Fire, Ice, Lightning, Shroud, Summons, Others, Items", "the sections are General, Fire, Ice, Lightning, Shroud, Summons, Others, Items");
 Check(SpellCatalog.WindowSpells.Where(spell => spell.IconItem != null).All(spell => spell.Lines[0].Key == SpellCatalog.CostKey(spell.Spell)), "every spell's card starts with its Mana Cost");
@@ -139,13 +139,41 @@ foreach (SettingInfo setting in SpellCatalog.Settings)
 }
 Check(SpellCatalog.WindowSpells.Count == SpellCatalog.WindowSections.Sum(section => section.Spells.Length), "the flat list of spells is the sections' spells");
 
-// Gems: a tab of their own, General first, a Damage line per gem, the Gems tab's own General and mode.
-Check(SpellCatalog.GemSpells.Count == 16 && SpellCatalog.GemSpells.Select(gem => gem.ItemName).Distinct().Count() == 16, "16 damage gems, each once");
+// Gems: a tab of their own, General first, a card per gem (its Damage when it deals any, then its stats), the Gems tab's own General and mode.
+Check(SpellCatalog.GemSpells.Count == 29 && SpellCatalog.GemSpells.Select(gem => gem.ItemName).Distinct().Count() == 29, "29 gems, each once");
+Check(SpellCatalog.GemSpells.Count(gem => gem.HasDamage) == 16, "16 gems deal damage");
 Check(SpellCatalog.GemSpells.Single(gem => gem.Name == "Storm's Eye").DamageKey == "stormsEyeGemDamageMultiplier", "a gem's key drops its apostrophe: stormsEyeGemDamageMultiplier");
 Check(SpellCatalog.GemSpells.Single(gem => gem.Name == "Meteoric Impact").DamageConfigs.Length == 3, "Meteoric Impact scales its hits, its meteor and its trail");
-Check(string.Join(", ", SpellCatalog.GemSections.Select(section => section.Name)) == "General, Tier 1, Tier 2, Tier 3, Tier 4, Tier 5, Tier 6", "the Gems tab's rows are General and Tier 1 to 6");
-Check(SpellCatalog.GemWindowSpells[0].Spell == SpellCatalog.GemGeneralSpell && SpellCatalog.GemWindowSpells.Skip(1).All(spell => spell.IconItem != null && spell.Lines.Length == 1 && spell.Lines[0].Label == "Damage"), "the Gems tab: All Gems, then a Damage card per gem");
+Check(string.Join(", ", SpellCatalog.GemSections.Select(section => section.Name)) == "General, Tier 1, Tier 2, Tier 3, Tier 4, Tier 5, Tier 6, Tier 7", "the Gems tab's rows are General and Tier 1 to 7");
+Check(SpellCatalog.GemWindowSpells[0].Spell == SpellCatalog.GemGeneralSpell && SpellCatalog.GemWindowSpells.Count == 30, "the Gems tab: All Gems, then a card per gem");
 foreach (GemSpell gem in SpellCatalog.GemSpells)
+{
+    WindowSpell card = SpellCatalog.GemWindowSpells.Single(spell => spell.Spell == gem.DisplayName);
+    Check(card.IconItem != null && card.Lines.Length > 0, $"{gem.Name} has a card with an icon and settings");
+    Check((card.Lines[0].Label == "Damage") == gem.HasDamage && card.Lines.Count(line => line.Label == "Damage") == (gem.HasDamage ? 1 : 0), $"{gem.Name}'s card has a Damage line only when it deals damage");
+    Check(card.Lines.Select(line => line.Label).Distinct().Count() == card.Lines.Length, $"{gem.Name}'s card has no label twice");
+}
+Check(SpellCatalog.GemStats.Count == 65 && SpellCatalog.GemStats.All(stat => SpellCatalog.GemSpells.Any(gem => gem.Name == stat.Gem)), "65 gem stats, each of a known gem");
+Check(SpellCatalog.GemStats.Select(stat => stat.Key).Distinct().Count() == 65, "no gem stat twice");
+Check(SpellCatalog.GemStats.Single(stat => stat.Gem == "Storm's Eye" && stat.Label == "Mark Duration").Key == "stormsEyeGemMarkDurationMultiplier", "a gem stat's key: stormsEyeGemMarkDurationMultiplier");
+Check(SpellCatalog.GemStats.Single(stat => stat.Gem == "Toxic Betrayal").PerLevelKey == "toxicBetrayalGemPoisonDurationPerLevelMultiplier", "Base + Per Level has a second multiplier");
+Check(SpellCatalog.GemStats.Where(stat => stat.Kind == GemStatKind.LevelBonus).All(stat => stat.Program != null && stat.SpawnTemplate != null && SpellCatalog.Settings.Any(setting => setting.Key == stat.SyncKey && setting.IsToggle)), "each summon level has its program, template and Sync With Player toggle");
+Check(SpellCatalog.GemStats.Where(stat => stat.Kind == GemStatKind.SetValue).All(stat => !double.IsNaN(stat.Minimum) && !double.IsNaN(stat.Maximum) && !double.IsNaN(stat.Step) && !double.IsNaN(stat.Default)), "each Set Value stat has its range and default");
+Check(SpellCatalog.Settings.Where(setting => setting.Group == SpellCatalog.GroupGemStats).All(setting => SpellCatalog.GeneralKeyFor(setting) == null), "gem stats have no General multiplier");
+SettingInfo burnTick = SpellCatalog.Setting("burningGemTickInterval");
+Check(SpellRules.Snap(burnTick, 0.333) == 0.333 && burnTick.Format(0.333) == "0.333 s", "Burning's 0.333 s tick interval is its default, kept off the steps");
+Check(SpellRules.Stepped(burnTick, 0.333, 1) == 0.35 && SpellRules.Stepped(burnTick, 0.333, -1) == 0.3, "from 0.333 s a click goes to 0.35 s up, 0.3 s down");
+Check(SpellRules.Stepped(burnTick, 0.35, -1) == 0.3 && SpellRules.Stepped(burnTick, 0.35, 2) == 0.45 && SpellRules.Stepped(burnTick, 1, 1) == 1, "from a step a click moves one step, stopping at the end");
+Check(SpellRules.Snap(burnTick, 0.34) == 0.35 && SpellRules.Snap(burnTick, 0.3331) == 0.35, "a value near but not at the default lands on a step");
+SettingInfo coldSpeed = SpellCatalog.Setting("coldComposureGemMovementSpeed");
+Check(coldSpeed.Format(-29.99) == "-29.99%" && SpellRules.Stepped(coldSpeed, -29.99, 1) == -25 && SpellRules.Stepped(coldSpeed, -29.99, -1) == -30, "Cold Composure's -29.99% steps to -25% and -30%");
+Check(SpellRules.GemSeconds(6, 0.01) == 0.1 && SpellRules.GemSeconds(6, 2) == 12 && SpellRules.GemSeconds(0.05, 2) == 0.1 && SpellRules.GemSeconds(0.05, 0.5) == 0.05, "a gem time never goes below 0.1 s (one already shorter stays)");
+Check(SpellRules.GemMilliseconds(10000, 0.1) == 1000 && SpellRules.GemMilliseconds(10000, 60) == 600000 && SpellRules.GemMilliseconds(500, 0.1) == 100, "Regeneration Pause: 10 s goes from 1 s to 600 s, never below 0.1 s");
+Check(SpellRules.GemChance(0.25, 10) > 0.3499 && SpellRules.GemChance(0.25, 10) < 0.3501 && SpellRules.GemChance(0.95, 10) == 1 && SpellRules.GemChance(0.05, -10) == 0 && SpellRules.GemChance(0.25, 0) == 0.25, "a chance takes percentage points, inside 0 and 100%");
+Check(SpellRules.GemLevel(5, 3) == 8 && SpellRules.GemLevel(5, 0) == 5, "a summon level takes added levels");
+Check(SpellCatalog.Setting("skullsGemTriggerChancePoints").Format(10) == "+10%" && SpellCatalog.Setting("skullsGemTriggerChancePoints").Format(-5) == "-5%" && SpellCatalog.Setting("skullsGemSkullLevelBonus").Format(3) == "+3", "points read +10%, levels +3");
+Check(SpellCatalog.Setting("battleManiaGemRegenerationPauseMultiplier").Maximum == 60, "Regeneration Pause goes up to x60 (600 s)");
+foreach (GemSpell gem in SpellCatalog.GemSpells.Where(gem => gem.HasDamage))
 {
     SettingInfo gemSetting = SpellCatalog.Setting(gem.DamageKey);
     Check(SpellCatalog.GeneralKeyFor(gemSetting) == SpellCatalog.GemGeneralDamageKey && SpellCatalog.AtLeastKeyFor(gemSetting) == SpellCatalog.GemGeneralAtLeastKey, $"{gem.Name} goes with the Gems tab's General Damage and mode");
@@ -257,6 +285,11 @@ if (args.Length > 0)
         {
             bool found = scaledAt >= 0 && Regex.IsMatch(text.Substring(scaledAt), "ScaledSint32ImpactConfig\"[^$]*?\"configId\":\\s*\\{\\s*\"value\":\\s*" + config + "\\s*\\}");
             Check(found, $"{gem.ItemName} has the scaled whole-number config 0x{config:x8}");
+        }
+        foreach (GemStat stat in SpellCatalog.GemStats.Where(stat => stat.Gem == gem.Name))
+        {
+            bool found = Regex.IsMatch(text, "\"configId\":\\s*\\{\\s*\"value\":\\s*" + stat.Config + "\\s*\\}");
+            Check(found, $"{gem.ItemName} has the config of {stat.DisplayName}, 0x{stat.Config:x8}");
         }
     }
     Console.WriteLine($"Checked against the game's data: {items.Length} spell items, {templates.Length} templates, {casts.Length} casts.");

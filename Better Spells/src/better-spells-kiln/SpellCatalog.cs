@@ -39,8 +39,8 @@ public sealed record ItemSpell(string Name, Regex Items, string DamageKey, strin
 public sealed record PerceptionSpell(string SettingKey, Regex ItemName, ItemSpell? ItemSpell, string[] ExtraTemplates, string[] Shots, string? ShotLifetimeKey = null);
 
 /// <summary>
-/// A weapon gem with a Damage setting: its name in the game without "Gem of", its item, the damage configs of its item's
-/// `impactValues` (scaled by the gem's level: a base value and a scaleFactor), and the tier its row is under in the Gems tab.
+/// A weapon gem of the Gems tab: its name in the game without "Gem of", its item, the damage configs of its item's `impactValues`
+/// (scaled by the gem's level: a base value and a scaleFactor; none for a gem that deals no damage), and the tier its row is under.
 /// Configs its own program or what it spawns pass to createDamageSetup as damage (not healing); the spawned explosions and zones
 /// read them from the gem, so the gem item holds every one.
 /// </summary>
@@ -48,8 +48,110 @@ public sealed record GemSpell(string Name, string ItemName, uint[] DamageConfigs
 {
     /// <summary>"Meteoric Impact" is meteoricImpactGemDamageMultiplier.</summary>
     public string DamageKey => SpellCatalog.CamelCase(Name) + "GemDamageMultiplier";
+    public bool HasDamage => DamageConfigs.Length > 0;
     public string DisplayName => "Gem of " + Name;
     public Regex Item => new Regex("^" + Regex.Escape(ItemName) + "$", RegexOptions.CultureInvariant);
+}
+
+/// <summary>How a gem stat's setting changes it.</summary>
+public enum GemStatKind
+{
+    /// <summary>One multiplier for the value at every gem level (base and scaleFactor).</summary>
+    Multiply,
+    /// <summary>Two multipliers: one for the base value (gem level 1), one for what each level adds (the scaleFactor).</summary>
+    BaseAndLevel,
+    /// <summary>A value of its own in place of the game's (seconds, or a share in percent).</summary>
+    SetValue,
+    /// <summary>Percentage points added to a chance, which stays inside 0 and 100%.</summary>
+    ChancePoints,
+    /// <summary>Levels added to a summon's, and a Sync With Player toggle.</summary>
+    LevelBonus,
+}
+
+/// <summary>What a gem stat's config holds.</summary>
+public enum GemUnit
+{
+    /// <summary>A plain number (a share of damage).</summary>
+    Number,
+    /// <summary>A whole number: health, armor, stamina, a level.</summary>
+    Whole,
+    /// <summary>A time, which Kiln reads and writes in seconds.</summary>
+    Seconds,
+    /// <summary>A time kept as whole milliseconds.</summary>
+    Milliseconds,
+    /// <summary>A share: 0.25 is 25%.</summary>
+    Share,
+}
+
+/// <summary>
+/// One setting of a gem other than its damage (1.1.6, the user's picks from the Gem Stat Picker): the gem, the line's label, the
+/// config of the gem item's `impactValues`, how the setting changes it, what it holds, the loca id of the tooltip row that shows it
+/// (0 for none), the range of a SetValue (in seconds or percent), the buffs whose own lifetime is the same time (multiplied with
+/// it), and for a summon's level the gem's program and the template it spawns (for Sync With Player).
+/// </summary>
+public sealed record GemStat(string Gem, string Label, uint Config, GemStatKind Kind, GemUnit Unit, uint TooltipLocaId = 0,
+    double Minimum = double.NaN, double Maximum = double.NaN, double Step = double.NaN, double Default = double.NaN, uint[]? Buffs = null,
+    string? Program = null, string? SpawnTemplate = null)
+{
+    /// <summary>"Storm's Eye", "Mark Duration" is stormsEyeGemMarkDuration.</summary>
+    public string BaseKey => SpellCatalog.CamelCase(Gem) + "Gem" + SpellCatalog.PascalCase(Label);
+    public string Key => Kind switch
+    {
+        GemStatKind.Multiply or GemStatKind.BaseAndLevel => BaseKey + "Multiplier",
+        GemStatKind.ChancePoints => BaseKey + "Points",
+        GemStatKind.LevelBonus => BaseKey + "Bonus",
+        _ => BaseKey,
+    };
+    /// <summary>BaseAndLevel's second multiplier.</summary>
+    public string PerLevelKey => BaseKey + "PerLevelMultiplier";
+    /// <summary>LevelBonus's toggle.</summary>
+    public string SyncKey => SpellCatalog.CamelCase(Gem) + "GemSyncWithPlayer";
+    public string DisplayName => "Gem of " + Gem + " " + Label;
+    public string ConfigPath => "impactValues.0x" + Config.ToString("x8", System.Globalization.CultureInfo.InvariantCulture);
+    public bool IsTime => Unit is GemUnit.Seconds or GemUnit.Milliseconds;
+    /// <summary>The settings window shows what a multiplier or chance gives (the value itself reads in seconds or percent).</summary>
+    public bool ShowsResult => Kind is GemStatKind.Multiply or GemStatKind.BaseAndLevel or GemStatKind.ChancePoints;
+
+    /// <summary>This stat's settings, in the order of its card's lines.</summary>
+    public IEnumerable<SettingInfo> Settings()
+    {
+        string group = SpellCatalog.GroupGemStats;
+        switch (Kind)
+        {
+            case GemStatKind.Multiply:
+                yield return new SettingInfo(Key, DisplayName, group, SettingKind.Multiplier, SpellRules.MinGemMultiplier,
+                    double.IsNaN(Maximum) ? SpellRules.MaxGemMultiplier : Maximum, SpellRules.GemMultiplierStep, 1);
+                break;
+            case GemStatKind.BaseAndLevel:
+                yield return new SettingInfo(Key, DisplayName, group, SettingKind.Multiplier, SpellRules.MinGemMultiplier, SpellRules.MaxGemMultiplier, SpellRules.GemMultiplierStep, 1);
+                yield return new SettingInfo(PerLevelKey, DisplayName + " Per Level", group, SettingKind.Multiplier, SpellRules.MinGemMultiplier, SpellRules.MaxGemMultiplier, SpellRules.GemMultiplierStep, 1);
+                break;
+            case GemStatKind.SetValue:
+                yield return new SettingInfo(Key, DisplayName, group, Unit == GemUnit.Seconds ? SettingKind.Seconds : SettingKind.Percent, Minimum, Maximum, Step, Default);
+                break;
+            case GemStatKind.ChancePoints:
+                yield return new SettingInfo(Key, DisplayName, group, SettingKind.Points, SpellRules.MinChancePoints, SpellRules.MaxChancePoints, 1, 0);
+                break;
+            case GemStatKind.LevelBonus:
+                yield return new SettingInfo(Key, DisplayName, group, SettingKind.Levels, SpellRules.MinLevelBonus, SpellRules.MaxLevelBonus, 1, 0);
+                yield return new SettingInfo(SyncKey, "Gem of " + Gem + " Sync With Player", group, SettingKind.Toggle, 0, 1, 1, 0);
+                break;
+        }
+    }
+
+    /// <summary>This stat's lines on its gem's card.</summary>
+    public IEnumerable<CardLine> Lines()
+    {
+        yield return new CardLine(Label, Key);
+        if (Kind == GemStatKind.BaseAndLevel)
+        {
+            yield return new CardLine("Per Level", PerLevelKey);
+        }
+        else if (Kind == GemStatKind.LevelBonus)
+        {
+            yield return new CardLine("Sync With Player", SyncKey);
+        }
+    }
 }
 
 /// <summary>A line of a spell's card in the settings window: the name it has there and the setting's key.</summary>
@@ -76,6 +178,7 @@ public static class SpellCatalog
     public const string GroupGeneral = "General";
     public const string GroupGemDamage = "Gem Damage";
     public const string GroupGemGeneral = "Gem General";
+    public const string GroupGemStats = "Gem Stats";
 
     // The General card: one multiplier per kind of setting for every spell, and whether it multiplies with the spells' own or is a
     // floor under them.
@@ -170,30 +273,117 @@ public static class SpellCatalog
     };
 
     /// <summary>
-    /// The gems that deal damage, from their Impact programs (dump 26430625). 0x5e34f09b is the damage of most gems' own program; the
-    /// Gem of Fracturing's and the Gem of Aerobatics' go to the homing projectiles they spawn, the Gem of Cold Composure's to its ice
-    /// explosion. The Gem of Meteoric Impact has three: on hits while primed (0x5e34f09b), the meteor's explosion (0xa8338df8) and its
-    /// fire trail (0xfaf3b41b). Left out: gems whose numbers are healing (Soul Reaping), stamina, armour, resistance, chances or
-    /// summon levels.
+    /// Every weapon gem (29), with the configs that deal its damage, from their Impact programs (dump 26430625). 0x5e34f09b is the
+    /// damage of most gems' own program; the Gem of Fracturing's and the Gem of Aerobatics' go to the homing projectiles they spawn, the
+    /// Gem of Cold Composure's to its ice explosion. The Gem of Meteoric Impact has three: on hits while primed (0x5e34f09b), the
+    /// meteor's explosion (0xa8338df8) and its fire trail (0xfaf3b41b). Gems with none deal no damage of their own (healing, stamina,
+    /// armour, summons); their other numbers are in GemStats.
     /// </summary>
     public static readonly IReadOnlyList<GemSpell> GemSpells = new[]
     {
         new GemSpell("Bleeding", "T1_Gem_GemOfBleeding", new[] { 0x5e34f09bu }, 1),
         new GemSpell("Burning", "T1_Gem_GemOfIgnition", new[] { 0x5e34f09bu }, 1),
         new GemSpell("Puncturing", "T1_Gem_GemOfRepetition", new[] { 0x5e34f09bu }, 1),
+        new GemSpell("Skulls", "T1_Gem_GemOfSkulls", Array.Empty<uint>(), 1),
         new GemSpell("Fracturing", "T2_Gem_GemOfFracturing", new[] { 0x5e34f09bu }, 2),
+        new GemSpell("Hopeful Embers", "T2_Gem_GemOfHopefulEmbers", Array.Empty<uint>(), 2),
         new GemSpell("Retaliation", "T2_Gem_GemOfRetaliation", new[] { 0x5e34f09bu }, 2),
         new GemSpell("Swiftness", "T2_Gem_GemOfSwiftness", new[] { 0x5e34f09bu }, 2),
         new GemSpell("Toxic Betrayal", "T2_Gem_GemOfToxicReaction", new[] { 0x5e34f09bu }, 2),
         new GemSpell("Agility", "T3_Gem_GemOfAgility", new[] { 0x5e34f09bu }, 3),
         new GemSpell("Storm's Eye", "T3_Gem_GemOfConduction", new[] { 0x5e34f09bu }, 3),
+        new GemSpell("Lesser Necromancy", "T3_Gem_GemOfLesserNecromancy", Array.Empty<uint>(), 3),
+        new GemSpell("Overpowering", "T3_Gem_GemOfOverpowering", Array.Empty<uint>(), 3),
         new GemSpell("Corruption", "T4_Gem_GemOfCorruption", new[] { 0x5e34f09bu }, 4),
         new GemSpell("Focused Light", "T4_Gem_GemOfFocusedLight", new[] { 0x5e34f09bu }, 4),
+        new GemSpell("Battle Mania", "T4_Gem_GemOfObsession", Array.Empty<uint>(), 4),
+        new GemSpell("Soul Reaping", "T4_Gem_GemOfSoulReaping", Array.Empty<uint>(), 4),
         new GemSpell("Bloodlust", "T5_Gem_GemOfBloodlust", new[] { 0x5e34f09bu }, 5),
         new GemSpell("Cold Composure", "T5_Gem_GemOfColdComposure", new[] { 0x5e34f09bu }, 5),
         new GemSpell("Meteoric Impact", "T5_Gem_GemOfMeteoricDescent", new[] { 0x5e34f09bu, 0xa8338df8u, 0xfaf3b41bu }, 5),
+        new GemSpell("Necromancy", "T5_Gem_GemOfNecromancy", Array.Empty<uint>(), 5),
         new GemSpell("Aerobatics", "T6_Gem_GemOfAerobatics_UnderFog", new[] { 0x5e34f09bu }, 6),
         new GemSpell("Currents", "T6_Gem_GemOfCurrents_OverFog", new[] { 0x5e34f09bu }, 6),
+        new GemSpell("Greater Necromancy", "T6_Gem_GemOfGreaterNecromancy", Array.Empty<uint>(), 6),
+        new GemSpell("Lycanthropy", "T6_Gem_GemOfLycanthropy", Array.Empty<uint>(), 6),
+        new GemSpell("Armoring", "T7_Gem_GemOfArmoring", Array.Empty<uint>(), 7),
+        new GemSpell("Cleansing", "T7_Gem_GemOfCleansing", Array.Empty<uint>(), 7),
+        new GemSpell("Destiny", "T7_Gem_GemOfDestiny", Array.Empty<uint>(), 7),
+        new GemSpell("Hyperspecialization", "T7_Gem_GemOfHyperSpecialization", Array.Empty<uint>(), 7),
+    };
+
+    /// <summary>
+    /// The gems' other numbers the user chose (1.1.6), from their programs (dump 26430625). Times are the gem item's Time configs;
+    /// Puncturing's debuff and Corruption's marks also have a buff whose own lifetime is that time (Puncturing's Punctured is shared
+    /// with the Gem of Retaliation). Left out: spawn waits, the Aerobatics projectile count, and configs no program reads.
+    /// </summary>
+    public static readonly IReadOnlyList<GemStat> GemStats = new[]
+    {
+        new GemStat("Bleeding", "Debuff Duration", 0x3ff81f2bu, GemStatKind.BaseAndLevel, GemUnit.Seconds, TooltipLocaId: 2609639373u),
+        new GemStat("Bleeding", "Tick Damage Share", 0x854ea8fau, GemStatKind.Multiply, GemUnit.Number),
+        new GemStat("Bleeding", "Tick Interval", 0xe21b4b72u, GemStatKind.SetValue, GemUnit.Seconds, Minimum: 0.1, Maximum: 1, Step: 0.05, Default: 0.5),
+        new GemStat("Burning", "Debuff Duration", 0x3ff81f2bu, GemStatKind.BaseAndLevel, GemUnit.Seconds, TooltipLocaId: 2609639373u),
+        new GemStat("Burning", "Cooldown", 0x2fd280c2u, GemStatKind.Multiply, GemUnit.Seconds, TooltipLocaId: 1262017188u),
+        new GemStat("Burning", "Tick Damage Share", 0x854ea8fau, GemStatKind.Multiply, GemUnit.Number),
+        new GemStat("Burning", "Tick Interval", 0x8fbfcd98u, GemStatKind.SetValue, GemUnit.Seconds, Minimum: 0.1, Maximum: 1, Step: 0.05, Default: 0.333),
+        new GemStat("Puncturing", "Debuff Duration", 0x3ff81f2bu, GemStatKind.Multiply, GemUnit.Seconds, TooltipLocaId: 2609639373u, Buffs: new[] { 0xa7afb6b3u }),
+        new GemStat("Skulls", "Trigger Chance", 0xe6ddff32u, GemStatKind.ChancePoints, GemUnit.Share, TooltipLocaId: 3117278103u),
+        new GemStat("Skulls", "Skull Level", 0x1ef169b2u, GemStatKind.LevelBonus, GemUnit.Whole, TooltipLocaId: 1670435875u, Program: "8611b73a-2b76-4745-bbbf-222f87cf0199", SpawnTemplate: "d39d7329-c9f5-43ee-b070-0de8b9223ea5"),
+        new GemStat("Fracturing", "Trigger Chance", 0xe6ddff32u, GemStatKind.ChancePoints, GemUnit.Share, TooltipLocaId: 3117278103u),
+        new GemStat("Fracturing", "Extra Shard Chance", 0xde1695c2u, GemStatKind.SetValue, GemUnit.Share, TooltipLocaId: 3636205654u, Minimum: 1, Maximum: 100, Step: 1, Default: 50),
+        new GemStat("Hopeful Embers", "Shroud Time Gained", 0x955055b2u, GemStatKind.Multiply, GemUnit.Whole, TooltipLocaId: 1125830499u),
+        new GemStat("Hopeful Embers", "Shroud Time Threshold", 0x6fd0dcf1u, GemStatKind.BaseAndLevel, GemUnit.Whole, TooltipLocaId: 317193095u),
+        new GemStat("Retaliation", "Trigger Chance", 0xe6ddff32u, GemStatKind.ChancePoints, GemUnit.Share, TooltipLocaId: 4215279162u),
+        new GemStat("Retaliation", "Buff Duration", 0xbee6d4a9u, GemStatKind.Multiply, GemUnit.Seconds),
+        new GemStat("Swiftness", "Buff Duration", 0xbee6d4a9u, GemStatKind.Multiply, GemUnit.Seconds, TooltipLocaId: 164611558u),
+        new GemStat("Toxic Betrayal", "Poison Duration", 0x3ff81f2bu, GemStatKind.BaseAndLevel, GemUnit.Seconds, TooltipLocaId: 3393431252u),
+        new GemStat("Agility", "Stamina On Hit", 0x5d8dc70du, GemStatKind.Multiply, GemUnit.Whole, TooltipLocaId: 555773910u),
+        new GemStat("Agility", "Buff Duration", 0xbee6d4a9u, GemStatKind.Multiply, GemUnit.Seconds),
+        new GemStat("Storm's Eye", "Mark Duration", 0xbee6d4a9u, GemStatKind.Multiply, GemUnit.Seconds),
+        new GemStat("Storm's Eye", "Cooldown", 0x2fd280c2u, GemStatKind.Multiply, GemUnit.Seconds),
+        new GemStat("Lesser Necromancy", "Trigger Chance", 0xe6ddff32u, GemStatKind.ChancePoints, GemUnit.Share, TooltipLocaId: 3117278103u),
+        new GemStat("Lesser Necromancy", "Wretch Level", 0x1ef169b2u, GemStatKind.LevelBonus, GemUnit.Whole, TooltipLocaId: 382595869u, Program: "4694bf1e-feda-4064-9843-8880ac74e10f", SpawnTemplate: "c9c957ad-78bf-44fe-a891-b0771577a3b3"),
+        new GemStat("Overpowering", "Stamina Damage", 0x8c622a97u, GemStatKind.Multiply, GemUnit.Whole, TooltipLocaId: 3550824552u),
+        new GemStat("Corruption", "Explosion Delay", 0xbee6d4a9u, GemStatKind.Multiply, GemUnit.Seconds, Buffs: new[] { 0x26bfda91u, 0xc0a941f0u, 0xfcfb5ec6u, 0x32734118u, 0x504d285eu }),
+        new GemStat("Focused Light", "Damage At 1 Stack", 0x6f307db7u, GemStatKind.Multiply, GemUnit.Share, TooltipLocaId: 3826727585u),
+        new GemStat("Focused Light", "Damage At 2 Stacks", 0xb8f00949u, GemStatKind.Multiply, GemUnit.Share, TooltipLocaId: 2490680837u),
+        new GemStat("Focused Light", "Damage At 3 Stacks", 0x0dd9e684u, GemStatKind.Multiply, GemUnit.Share, TooltipLocaId: 3477297884u),
+        new GemStat("Battle Mania", "Health Regeneration", 0xb58d778au, GemStatKind.Multiply, GemUnit.Whole, TooltipLocaId: 1028242286u),
+        new GemStat("Battle Mania", "Mana Regeneration", 0x62acdc61u, GemStatKind.Multiply, GemUnit.Whole, TooltipLocaId: 2857006190u),
+        new GemStat("Battle Mania", "Stamina Regeneration", 0x867736f3u, GemStatKind.Multiply, GemUnit.Whole, TooltipLocaId: 3627626609u),
+        new GemStat("Battle Mania", "Buff Duration", 0xbee6d4a9u, GemStatKind.Multiply, GemUnit.Seconds, TooltipLocaId: 164611558u),
+        new GemStat("Battle Mania", "Regeneration Pause", 0x581f75ffu, GemStatKind.Multiply, GemUnit.Milliseconds, TooltipLocaId: 2609639373u, Maximum: 60),
+        new GemStat("Soul Reaping", "Healing", 0x9106dde8u, GemStatKind.Multiply, GemUnit.Whole, TooltipLocaId: 4085987468u),
+        new GemStat("Soul Reaping", "Debuff Duration", 0x130a0ef2u, GemStatKind.Multiply, GemUnit.Seconds, TooltipLocaId: 2609639373u),
+        new GemStat("Bloodlust", "Orb Chance", 0xde1695c2u, GemStatKind.ChancePoints, GemUnit.Share, TooltipLocaId: 4193434764u),
+        new GemStat("Bloodlust", "Orb Chance While Buffed", 0xe6ddff32u, GemStatKind.ChancePoints, GemUnit.Share, TooltipLocaId: 2633608633u),
+        new GemStat("Cold Composure", "Physical Armor", 0x2b9400b4u, GemStatKind.Multiply, GemUnit.Whole, TooltipLocaId: 3889960709u),
+        new GemStat("Cold Composure", "Magical Armor", 0x2ec994d1u, GemStatKind.Multiply, GemUnit.Whole, TooltipLocaId: 1963764541u),
+        new GemStat("Cold Composure", "Movement Speed", 0x65d4559du, GemStatKind.SetValue, GemUnit.Share, TooltipLocaId: 2378794516u, Minimum: -90, Maximum: 50, Step: 5, Default: -29.99),
+        new GemStat("Cold Composure", "Charge Time", 0xbee6d4a9u, GemStatKind.Multiply, GemUnit.Seconds),
+        new GemStat("Meteoric Impact", "Buff Duration", 0xc9c2d7f1u, GemStatKind.BaseAndLevel, GemUnit.Seconds, TooltipLocaId: 164611558u),
+        new GemStat("Necromancy", "Trigger Chance", 0xe6ddff32u, GemStatKind.ChancePoints, GemUnit.Share, TooltipLocaId: 3117278103u),
+        new GemStat("Necromancy", "Damned Level", 0x1ef169b2u, GemStatKind.LevelBonus, GemUnit.Whole, TooltipLocaId: 1783032156u, Program: "4694bf1e-feda-4064-9843-8880ac74e10f", SpawnTemplate: "10f892be-2374-4d31-ae27-85e0a36f3853"),
+        new GemStat("Aerobatics", "Volley Wait", 0xe21b4b72u, GemStatKind.SetValue, GemUnit.Seconds, Minimum: 0.1, Maximum: 10, Step: 0.1, Default: 1),
+        new GemStat("Currents", "Trigger Chance", 0xe6ddff32u, GemStatKind.ChancePoints, GemUnit.Share, TooltipLocaId: 3216647939u),
+        new GemStat("Currents", "Debuff Duration", 0x3ff81f2bu, GemStatKind.BaseAndLevel, GemUnit.Seconds, TooltipLocaId: 2609639373u),
+        new GemStat("Greater Necromancy", "Trigger Chance", 0xe6ddff32u, GemStatKind.ChancePoints, GemUnit.Share, TooltipLocaId: 3117278103u),
+        new GemStat("Greater Necromancy", "Reaper Level", 0x1ef169b2u, GemStatKind.LevelBonus, GemUnit.Whole, TooltipLocaId: 1783032156u, Program: "4694bf1e-feda-4064-9843-8880ac74e10f", SpawnTemplate: "ef0c170d-0653-4517-88a7-0c4c9aba8139"),
+        new GemStat("Lycanthropy", "Trigger Chance", 0xe6ddff32u, GemStatKind.ChancePoints, GemUnit.Share, TooltipLocaId: 3117278103u),
+        new GemStat("Lycanthropy", "Health On Orb", 0x9106dde8u, GemStatKind.Multiply, GemUnit.Whole, TooltipLocaId: 3930573097u),
+        new GemStat("Lycanthropy", "Mana On Orb", 0xe395f2c8u, GemStatKind.Multiply, GemUnit.Whole, TooltipLocaId: 2471974202u),
+        new GemStat("Lycanthropy", "Max Health", 0x766757f5u, GemStatKind.Multiply, GemUnit.Whole, TooltipLocaId: 4188525107u),
+        new GemStat("Lycanthropy", "Max Mana", 0xe38f6439u, GemStatKind.Multiply, GemUnit.Whole, TooltipLocaId: 3994206546u),
+        new GemStat("Lycanthropy", "Max Stamina", 0x3548f806u, GemStatKind.Multiply, GemUnit.Whole, TooltipLocaId: 3572690653u),
+        new GemStat("Lycanthropy", "Melee Damage", 0x958958bcu, GemStatKind.Multiply, GemUnit.Share, TooltipLocaId: 1527944368u),
+        new GemStat("Lycanthropy", "Buff Duration", 0xc9c2d7f1u, GemStatKind.BaseAndLevel, GemUnit.Seconds, TooltipLocaId: 164611558u),
+        new GemStat("Armoring", "Buff Duration", 0xc9c2d7f1u, GemStatKind.BaseAndLevel, GemUnit.Seconds, TooltipLocaId: 164611558u),
+        new GemStat("Cleansing", "Debuff Duration", 0x3ff81f2bu, GemStatKind.BaseAndLevel, GemUnit.Seconds, TooltipLocaId: 2609639373u),
+        new GemStat("Destiny", "Health On Orb", 0x9106dde8u, GemStatKind.Multiply, GemUnit.Whole, TooltipLocaId: 3930573097u),
+        new GemStat("Destiny", "Mana On Orb", 0xe395f2c8u, GemStatKind.Multiply, GemUnit.Whole, TooltipLocaId: 2471974202u),
+        new GemStat("Destiny", "Stamina On Orb", 0x5d8dc70du, GemStatKind.Multiply, GemUnit.Whole, TooltipLocaId: 3485312036u),
+        new GemStat("Destiny", "Mark Duration", 0x130a0ef2u, GemStatKind.Multiply, GemUnit.Seconds, TooltipLocaId: 2609639373u),
+        new GemStat("Hyperspecialization", "Buff Duration", 0xbee6d4a9u, GemStatKind.Multiply, GemUnit.Seconds, TooltipLocaId: 164611558u),
     };
 
     public const string SkeletonsPerCastKey = "skeletonsPerCast";
@@ -305,7 +495,7 @@ public static class SpellCatalog
     });
 
     /// <summary>The groups of the settings page, in its order.</summary>
-    public static readonly IReadOnlyList<string> Groups = new[] { GroupSummons, GroupDuration, GroupDamage, GroupRadius, GroupCasting, GroupHealth, GroupPerception, GroupCost, GroupCastTime, GroupGeneral, GroupGemDamage, GroupGemGeneral };
+    public static readonly IReadOnlyList<string> Groups = new[] { GroupSummons, GroupDuration, GroupDamage, GroupRadius, GroupCasting, GroupHealth, GroupPerception, GroupCost, GroupCastTime, GroupGeneral, GroupGemDamage, GroupGemGeneral, GroupGemStats };
 
     // Root's and Blizzard's zones hold enemies and slow them for the spell's main duration (their DebuffDuration config), so it follows the setting.
     public static readonly IReadOnlyList<DurationSpell> DurationSpells = new[]
@@ -481,7 +671,7 @@ public static class SpellCatalog
     /// <summary>Every spell of the settings window, section after section: the index the window keeps for the chosen spell.</summary>
     public static readonly IReadOnlyList<WindowSpell> WindowSpells = Flatten(WindowSections);
 
-    /// <summary>The Gems tab: General, then a row per tier, each gem's card a Damage line.</summary>
+    /// <summary>The Gems tab: General, then a row per tier, each gem's card its Damage line and its stats' lines.</summary>
     public static readonly IReadOnlyList<WindowSection> GemSections = MakeGemSections();
 
     /// <summary>Every gem card of the Gems tab, section after section.</summary>
@@ -495,10 +685,22 @@ public static class SpellCatalog
         };
         foreach (int tier in GemSpells.Select(gem => gem.Tier).Distinct().OrderBy(tier => tier))
         {
-            WindowSpell[] gems = GemSpells.Where(gem => gem.Tier == tier).Select(gem => new WindowSpell(gem.DisplayName, gem.Item, new[] { Line("Damage", gem.DamageKey) })).ToArray();
+            WindowSpell[] gems = GemSpells.Where(gem => gem.Tier == tier).Select(gem => new WindowSpell(gem.DisplayName, gem.Item, GemLines(gem))).ToArray();
             sections.Add(new WindowSection("Tier " + tier.ToString(System.Globalization.CultureInfo.InvariantCulture), gems));
         }
         return sections.ToArray();
+    }
+
+    // A gem's card: its Damage (when it deals any), then its stats' lines.
+    private static CardLine[] GemLines(GemSpell gem)
+    {
+        var lines = new List<CardLine>();
+        if (gem.HasDamage)
+        {
+            lines.Add(Line("Damage", gem.DamageKey));
+        }
+        lines.AddRange(GemStats.Where(stat => stat.Gem == gem.Name).SelectMany(stat => stat.Lines()));
+        return lines.ToArray();
     }
 
     // A spell's card: its Mana Cost first, then its own lines.
@@ -532,6 +734,13 @@ public static class SpellCatalog
             key.Append(char.ToUpperInvariant(words[index][0])).Append(words[index], 1, words[index].Length - 1);
         }
         return key.ToString();
+    }
+
+    /// <summary>A name in Pascal case without its apostrophes: "Damage At 1 Stack" is DamageAt1Stack.</summary>
+    public static string PascalCase(string name)
+    {
+        string camel = CamelCase(name);
+        return char.ToUpperInvariant(camel[0]) + camel.Substring(1);
     }
 
     /// <summary>The key of a card's Cast Time setting: "Fire Bolt" is fireBoltCastTimeMultiplier.</summary>
@@ -601,12 +810,13 @@ public static class SpellCatalog
         settings.Add(new SettingInfo(GeneralRadiusKey, "General Radius", GroupGeneral, SettingKind.Multiplier, SpellRules.MinRadius, SpellRules.MaxRadius, SpellRules.RadiusStep, 1));
         settings.Add(new SettingInfo(GeneralHealthKey, "General Health", GroupGeneral, SettingKind.Multiplier, SpellRules.MinHealth, SpellRules.MaxHealth, SpellRules.HealthStep, 1));
         settings.Add(new SettingInfo(GeneralAtLeastKey, "General Mode", GroupGeneral, SettingKind.Toggle, 0, 1, 1, 0));
-        foreach (GemSpell gem in GemSpells)
+        foreach (GemSpell gem in GemSpells.Where(gem => gem.HasDamage))
         {
             settings.Add(new SettingInfo(gem.DamageKey, gem.DisplayName + " Damage", GroupGemDamage, SettingKind.Multiplier, SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep, 1));
         }
         settings.Add(new SettingInfo(GemGeneralDamageKey, "Gem General Damage", GroupGemGeneral, SettingKind.Multiplier, SpellRules.MinDamage, SpellRules.MaxDamage, SpellRules.DamageStep, 1));
         settings.Add(new SettingInfo(GemGeneralAtLeastKey, "Gem General Mode", GroupGemGeneral, SettingKind.Toggle, 0, 1, 1, 0));
+        settings.AddRange(GemStats.SelectMany(stat => stat.Settings()));
         return settings;
     }
 
