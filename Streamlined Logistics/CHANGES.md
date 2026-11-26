@@ -10,6 +10,7 @@ How it works: the screen is a Kiln screen (`Ui.Screen`) drawn in the player's ga
 ## 1.1.0
 
 - **Nexus upload of 1.0.3** (asked 26 Nov 2026): no code change, the DLL is 1.0.3's (2e8d405); only kiln.mod.json's version changes. `Changelog.mdbbcode` covers 1.0.1 to 1.0.3. The Nexus page no longer mentions Cross-Base Storage as a way to craft (its section is now Craft From Linked Chests, and Compatibility says it isn't needed), and says Build From Linked Chests waits on a Kiln fix (report 32: the Construction Hammer and build menu show and pay nothing from linked chests on Kiln 0.2.0-dev.31.13), and that Kiln 0.2.0-dev.31.15 turns a lock's Required: Lockpick line green when the pick is in a linked chest (#147 follow-up, report 31b; before, the lock opened but the line stayed red).
+- The repair kit can be used from the window (Kiln's `UseItem` handles it since 0.2.0-dev.31.5, #118; the user tested it in game, 26 Nov 2026): the Nexus page lists it with the usable items and drops its known limitation and the Planned Features section; the player changelog says so.
 
 ## 1.0.3
 

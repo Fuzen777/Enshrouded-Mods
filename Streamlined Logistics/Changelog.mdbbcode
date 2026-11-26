@@ -7,6 +7,7 @@ Fill Stations From Linked Chests - new setting, on by default. A production stat
 Lockpicks From Linked Chests - new setting, on by default. A lock that needs a lockpick opens with one held in a linked chest. With Kiln 0.2.0-dev.31.15 or newer, the lock's Required: Lockpick line also turns green.
 Build From Linked Chests - new setting, on by default. The Construction Hammer and the build menu will count and use blocks and materials from your linked chests once Kiln ships its fix. It does nothing yet.
 Auto-Stations - removed. Stations now fill from your linked chests by themselves, so the Auto-Stations chests and their settings are gone. A chest named Auto-Stations is now an ordinary chest.
+Repair Kit - can now be used from the window like other consumables.
 Requirements - now needs Kiln 0.2.0-dev.31.12 or newer.
 ```
 

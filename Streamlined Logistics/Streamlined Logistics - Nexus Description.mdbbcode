@@ -59,7 +59,7 @@ The F2 menu offers :
 
 ### Use from Chests
 
-- **MMB** (or the Use button) uses a food, drink, potion, bandage or scroll exactly as from your hotbar: the animation plays and the buff shows in the buff panel with its real effects and duration.
+- **MMB** (or the Use button) uses a food, drink, potion, bandage, scroll or repair kit exactly as from your hotbar: the animation plays and the buff shows in the buff panel with its real effects and duration.
 - Works on items in chests (moved into your backpack first), in your backpack and on your hotbars.
 
 ### Favorites
@@ -128,7 +128,7 @@ Only Magic Chests are offered for linking by default. Turn on **Link Regular Che
 - **LMB** : select an item (its buttons appear above the list: Take Stack, Take All, Store, Use, Favorite)
 - **RMB** : take a stack from the chests, or store a stack from your backpack
 - **Shift + RMB** : mark or unmark a favorite
-- **MMB**: use the item (food, drinks, potions, bandages, scrolls)
+- **MMB**: use the item (food, drinks, potions, bandages, scrolls, repair kits)
 - **Drag &amp; Drop** : move a stack to the other side. Hold **Shift** when you release to move every stack. Drop on the Hotbars list to fill hotbar 1, then 2, then the backpack.
 - **Hover** : item details and which chests hold it
 - **Drag the bar** between the two sides : resize them
@@ -177,17 +177,10 @@ To update, check with Kiln or download the newest version and install it manuall
 ## Known limitations
 
 - Links are stored by chest position and are not yet kept per world.
-- The repair kit can't be used from the window; use it from your hotbar.
 - The game's full item detail (damage, perks, gems) only shows for items you have looked at in the game's own screens this session.
 - No controller button to open the window yet, nor controller navigation.
 - A large Re-Sort takes a little while; the window's other buttons wait until it ends.
 - Building from linked chests (Construction Hammer and build menu) waits on a Kiln fix, see above.
-
-## Planned features
-
-These are designed and waiting on a Kiln update that gives mods what they need. They will come as soon as Kiln supports them.
-
-- **Use the repair kit** from the window, like other consumables.
 
 ---
 
