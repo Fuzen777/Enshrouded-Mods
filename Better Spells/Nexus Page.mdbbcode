@@ -81,10 +81,10 @@ Every setting starts at the game's own value, so nothing changes until you decid
 
 ### Weapon Gems
 
-- The **Gems** tab lists all 29 gems by tier, each with its own card.
+- The **Gems** tab lists all 28 obtainable gems by tier, each with its own card.
 - **Damage** for every gem that deals damage, with its own General card (Multiply or At Least) that leaves your spells alone. The damage grows with the setting at every gem level.
 - **Every other number** of a gem: durations, cooldowns, tick intervals, chances, regeneration, armor, orb healing and more. Durations that grow with the gem's level have a **Base** and a **Per Level** multiplier.
-- **Summon levels** for the Skull, Wretch, Damned and Reaper gems, and **Sync With Player** (experimental): the summon takes your level plus those levels.
+- **Summon levels** for the Skull, Wretch and Reaper gems, and **Sync With Player** (experimental): the summon takes your level plus those levels.
 - A gem takes its new values when its weapon is next **equipped or switched to** on the hotbar.
 
 ### Live, safe and reversible

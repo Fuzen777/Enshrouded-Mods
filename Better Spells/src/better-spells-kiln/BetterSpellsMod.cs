@@ -162,6 +162,8 @@ public sealed class BetterSpellsMod : Mod
     private Dictionary<string, GameDataEntry> _gemItemsByName = new Dictionary<string, GameDataEntry>(StringComparer.Ordinal);
     private bool _gemLookupLogged;
     private volatile uint[] _gemIconItems = new uint[SpellCatalog.GemWindowSpells.Count];
+    // The Gems tab's cards to leave out: gems the world's item list does not have (Gem of Necromancy is not obtainable in game).
+    private volatile bool[] _hiddenGems = new bool[SpellCatalog.GemWindowSpells.Count];
     private volatile int _selectedGem;
     private volatile bool _gemsTab;
     // Each gem stat's game value and scaleFactor (NaN for none), by setting key, found by Apply for the window's results.
@@ -489,7 +491,12 @@ public sealed class BetterSpellsMod : Mod
         IReadOnlyList<WindowSection> sections = gemsTab ? SpellCatalog.GemSections : SpellCatalog.WindowSections;
         IReadOnlyList<WindowSpell> spells = gemsTab ? SpellCatalog.GemWindowSpells : SpellCatalog.WindowSpells;
         uint[] rowIconItems = gemsTab ? _gemIconItems : _rowIconItems;
+        bool[] hiddenRows = gemsTab ? _hiddenGems : Array.Empty<bool>();
         int selected = Math.Clamp(gemsTab ? _selectedGem : _selectedSpell, 0, spells.Count - 1);
+        if (selected < hiddenRows.Length && hiddenRows[selected])
+        {
+            selected = 0;
+        }
         ApplyWheelNotches();
         _hoveredThisFrame = null;
 
@@ -517,6 +524,11 @@ public sealed class BetterSpellsMod : Mod
             DrawRowText(ui, section.Name, sectionWidth, iconSize, false, ui.Palette.TextMuted);
             foreach (WindowSpell spell in section.Spells)
             {
+                if (spellIndex < hiddenRows.Length && hiddenRows[spellIndex])
+                {
+                    spellIndex++;
+                    continue;
+                }
                 ui.SameLine(0f, _controlGap);
                 DrawSpellButton(ui, spell, spellIndex, spellIndex == selected, spellIndex < rowIconItems.Length ? rowIconItems[spellIndex] : 0, iconSize);
                 spellIndex++;
@@ -1007,6 +1019,7 @@ public sealed class BetterSpellsMod : Mod
     {
         _rowIconItems = IconItems(SpellCatalog.WindowSpells, _spellItems);
         _gemIconItems = GemIconItems();
+        _hiddenGems = HiddenGems();
     }
 
     // The gem items by their catalog names. Gem of Necromancy (T5_Gem_GemOfNecromancy) was missing from the item list in game
@@ -1034,6 +1047,18 @@ public sealed class BetterSpellsMod : Mod
         }
         _gemLookupLogged = true;
         _gemItemsByName = byName;
+    }
+
+    // The gem cards whose gem is missing from the world's item list (found by name at most): the game does not hand them out.
+    private bool[] HiddenGems()
+    {
+        var hidden = new bool[SpellCatalog.GemWindowSpells.Count];
+        for (int rowIndex = 0; rowIndex < hidden.Length; rowIndex++)
+        {
+            GemSpell? gem = SpellCatalog.GemSpells.FirstOrDefault(spell => spell.DisplayName == SpellCatalog.GemWindowSpells[rowIndex].Spell);
+            hidden[rowIndex] = gem != null && !_gemItems.Any(entry => entry.Name == gem.ItemName);
+        }
+        return hidden;
     }
 
     // Each gem card's icon: its gem item's (the General card has none).
