@@ -5,7 +5,6 @@ bbcodeFormat: nexus
 <div style="text-align: center">
 
 # <span style="color: #e6a050">Streamlined Logistics</span>
-
 *<span style="color: #e6a050">Now, you can opt out of the Inventory Management™ minigame.</span>*
 
 <div style="text-align: center">
@@ -24,7 +23,7 @@ If you fully set it up, you'll never have to worry about your inventory again :
 
 - Enable Auto Quick Deposit, Salvage and Rename.
 - Have a few unnamed Magic Chests around
-- Whenever your inventory is full, its contents will be automatically deposited in your chests, and as you loot, items you don’t want get salvaged. Works with mods like [Kiln Auto Loot](https://www.nexusmods.com/enshrouded/mods/355). You might want to turn off either its or Streamlined Logistics’ auto-salvage, though nothing will break if you don’t. My version was tested with [Shroudforge - Unified Tweaks](https://www.nexusmods.com/enshrouded/mods/185)’s gear level sync and [Loot Leveler](https://www.nexusmods.com/enshrouded/mods/322?tab=description).
+- Whenever your inventory is (almost) full, its contents will be automatically deposited in your chests, and as you loot, items you don’t want get salvaged. Works with mods like [Kiln Auto Loot](https://www.nexusmods.com/enshrouded/mods/355). You might want to turn off either its or Streamlined Logistics’ auto-salvage, though nothing will break if you don’t. My version was tested with [Shroudforge - Unified Tweaks](https://www.nexusmods.com/enshrouded/mods/185)’s gear level sync and [Loot Leveler](https://www.nexusmods.com/enshrouded/mods/322?tab=description).
 - Coming from a chaotic, unorganized save ? Just click Re-Sort, and all your chests will be (almost) perfectly sorted without requiring you to do anything.
 
 … This way, you’ll stop fighting your inventory so you can actually play the game. Most features are fully configurable if you’d rather have more inventory management in your game. I’m not judging. ||(I am.)||
@@ -83,7 +82,7 @@ The F2 menu offers :
 - **Auto Quick Deposit** (optional): when loot leaves fewer free slots in your backpack than Auto Deposit Free Slots (5 by default), a quick deposit runs by itself (at most every 10 seconds), so several items looted at once don't spill into your hotbar. Only looting triggers it, not taking from your own chests or crafting.
 - Existing stacks are topped up first, then items go to a chest named for their category, then to a chest that already holds them.
 - Never touched: your hotbars, what you wear, your favorites, chests named with **--**, and Magic Chests with Receive Quick Stacking turned off.
-- **Quick Deposit and Auto Salvage**: set rules for Weapons, Shields, Armor and Rings, matching items get deposited, the rest remain in your inventory. Set up auto salvage and "the rest" can be salvaged when you loot it. (Note that it reaches your inventory first, so you still unlock recipes for items that you loot.)
+- **Quick Deposit and Auto Salvage**: set rules for Weapons, Shields, Armor and Rings, matching items get deposited, the rest remain in your inventory. Set up auto salvage and "the rest" can be salvaged when you loot it. (Note that it reaches your inventory first, so you still unlock recipes for items that you loot.) Auto Salvage waits a moment for a looted piece's level and rarity to settle, so loot-level mods have time to set them.
 - A **report** tells you what went where and what stayed, including which chest name is missing ("No chest named Ores (Iron Ore, Copper Ore)").
 - The chests that received items are **highlighted** with the game's own outline, **visible through walls**.
 
@@ -142,7 +141,7 @@ Only Magic Chests are offered for linking by default. Turn on **Link Regular Che
 1. In the **Chests** tab, pick a category name from each chest's name dropdown (*Weapons*, *Meals*, *Ores*...). Use the **Show** button to see which chest is which in the world.
 2. Open the **Categories** tab to check which categories have a chest and how much room is left. LMB a category to light up its chests.
 3. Press **Re-Sort Chests** once to move what you already own into the right chests.
-4. From then on, **G G** in your base, or the Quick Deposit button anywhere, keeps it sorted. Turn on **Auto Quick Deposit** and it happens on its own whenever loot fills your backpack.
+4. From then on, **G G** in your base, or the Quick Deposit button anywhere, keeps it sorted. Turn on **Auto Quick Deposit** and it happens on its own whenever loot nearly fills your backpack.
 
 Tip : turn on **Auto-Name Chests** in the Settings tab and drop a few unnamed chests in your base. The mod names them as it needs them.
 

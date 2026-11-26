@@ -1,3 +1,10 @@
+## 1.2.0
+
+```
+Auto Quick Deposit - now starts before your backpack is full: when loot leaves fewer free slots than Auto Deposit Free Slots (new setting, 5 by default), so several items looted at once no longer spill into your hotbar. Set it to 1 for the old behavior.
+Auto Salvage - waits until a looted piece's level and rarity have settled before salvaging it. It no longer salvages gear read as level 0 Common for too few runes, and loot-level mods have time to set the level first.
+```
+
 ## 1.1.0
 
 ```

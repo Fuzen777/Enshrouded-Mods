@@ -93,7 +93,7 @@ Every setting starts at the game's own value, so nothing changes until you decid
 ### Skills
 
 - The **Skills** tab changes your skill tree's effects: damage bonuses, attributes, auras, critical chance, resistances, armor, mana and stamina gains, healing and more (99 stats).
-- A searchable list of every skill by class, with the game's own icons for active skills. Each skill's card shows its in-game description with its numbers at max level after your settings, in **bold green**.
+- A list of every skill by class, searchable by name, setting or description, with the game's own icons for active skills. Each skill's card shows its in-game description with its numbers at max level after your settings, in **bold green**.
 - **Groups** set many skills at once: Stats, Damage Bonuses, Terrain Damage, Critical Chance, Resistances, Armor, Mana and Stamina Gains, and Healing. **At Least** lifts each skill to the group's value, **Override** sets them all to it.
 - A skill change applies after you **return to the main menu and load your world again**.
 

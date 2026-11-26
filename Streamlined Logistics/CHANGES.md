@@ -7,6 +7,10 @@ How it works: the screen is a Kiln screen (`Ui.Screen`) drawn in the player's ga
 `Scripts\Build.ps1` runs the tests (`tests\ChestRulesTests`), builds against Kiln's assemblies in `<game>\kiln\host` and puts the mod in `dist\streamlined-logistics`; `-Install` copies it to `<game>\kiln\mods\streamlined-logistics`, where Kiln loads it as a drop-in (game closed).
 
 
+## 1.2.0
+
+- **Nexus upload of 1.1.2** (asked 26 Nov 2026): no code change, the DLL is 1.1.2's (3e78810); only kiln.mod.json's version changes. `Changelog.mdbbcode` covers 1.1.1 and 1.1.2. The Nexus page says Auto Quick Deposit starts when the backpack is almost full, and that Auto Salvage waits for loot to settle.
+
 ## 1.1.2
 
 - **Auto Quick Deposit before the backpack is full** (the user: several items arriving at once overflowed to the hotbar, since the deposit only started once no slot was free): a new setting, Auto Deposit Free Slots (`autoDepositFreeSlots`, 1 to 20, default 5), starts it when looting leaves fewer free backpack slots than that. 1 is the old behavior (only a full backpack). The 10 s pause between automatic deposits is unchanged, so a backpack that stays under the threshold with items no chest takes starts at most one deposit every 10 s of looting. The rule is `ChestRules.AutoDepositWanted`, with tests.
