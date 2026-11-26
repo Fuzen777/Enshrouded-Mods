@@ -6,7 +6,7 @@
 
 <div style="text-align: center">
 
-*<span style="color: #e6a050">Your spells and arrows in slots of their own, out of the backpack, in the order you choose.</span>*
+*<span style="color: #e6a050">Why would you keep a Blizzard in your backpack ?</span>*
 
 </div>
 
@@ -19,6 +19,8 @@ The source code for all my Enshrouded mods is available on [GitHub](https://gith
 ---
 
 Grimoire is a **Kiln** mod that keeps your spells and arrows in a grimoire of their own instead of your backpack. Each kind of spell or arrow gets one slot, the HUD's spell and arrow lists follow the order you set, and picking one in the HUD equips it as usual.
+
+This means, you can place spells you use often next to each other or group them thematically and the order will never move around randomly.
 
 It works with the game's own equipment, not around it, so it doesn't always behave the way you might expect. **Please read the Caveats below before you install it.**
 
@@ -33,10 +35,10 @@ It works with the game's own equipment, not around it, so it doesn't always beha
 - With nothing equipped and a **full backpack**, a spell can't be equipped from the grimoire. Free one slot.
 - If the equipped spell sits on your hotbar, it stays there, and the spells you switch to take its place. When switching extremely fast, it can move to another hotbar slot, but it is always just that one spell.
 
-### Only in a World You Host
+### Multiplayer and Dedicated Servers
 
-- Grimoire works in **single player** and for the **host** of a co-op world. A player who joins someone else's world gets the game's own lists, and their grimoire does nothing there.
-- Not tested on dedicated servers.
+- Grimoire works in **single player**, in **co-op** and on **dedicated servers** (since 1.0.2). In multiplayer, **the server (or the host) needs Grimoire too**, and each player who wants a grimoire installs it as well.
+- Each player has their own grimoire, order and settings. Players without Grimoire on their game are left alone.
 
 ### What Joins the Grimoire by Itself
 
@@ -90,12 +92,13 @@ It works with the game's own equipment, not around it, so it doesn't always beha
 ## Requirements
 
 - [Kiln](https://github.com/frostdev-ops/kiln) mod loader, **0.2.0-dev.31 or newer** (Kiln's player storage).
+- In multiplayer: Kiln and Grimoire on the server (or the host) and on each player's game that wants a grimoire.
 
 ## Installation
 
 1. Close the game.
 2. Drop the archive on Kiln.
-3. Start the game and load a world you host.
+3. Start the game and load your world, or join a server that runs Grimoire.
 4. Press F3, then add your spells and arrows.
 
 **Changing the key**: it is **Open Grimoire** in the Keys tab of Kiln's menu. The settings are kept in Kiln's profile, so updating the mod never resets them.

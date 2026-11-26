@@ -1,19 +1,19 @@
 <div style="text-align: center">
 
-The source code for all my Enshrouded mods is available on [GitHub](https://github.com/Fuzen777/Enshrouded-Mods) (MIT)
-
-</div>
-
-<div style="text-align: center">
-
 # <span style="color: #e6a050">Better Spells</span>
 
 </div>
 
 <div style="text-align: center">
 
-*<span style="color: #e6a050">Tune every spell to your liking: longer, stronger, wider, cheaper, faster, more summons.</span>*   
+<span style="color: #e6a050">*Tune every spell to your liking: longer, stronger, wider, cheaper, faster, more summons.*</span>  
 *<span style="color: #e6a050">Or nerf them. All while you play.</span>*
+
+</div>
+
+<div style="text-align: center">
+
+The source code for all my Enshrouded mods is available on [GitHub](https://github.com/Fuzen777/Enshrouded-Mods) (MIT)
 
 </div>
 
@@ -89,7 +89,7 @@ Every setting starts at the game's own value, so nothing changes until you decid
 4. Cast the spell. The new values apply from that cast on. A totem or skeleton already out keeps its old values until you cast again.
 5. Press **Shift+F3** again or **Esc** to close the window. Your settings are saved automatically.
 
-**Tips**
+### Tips
 
 - Raising Per Cast? Raise that spell's Mana Cost too if you want to keep it fair (5 wisps for x5 cost).
 - On the General card, **At Least** is the easy way to set a floor ("every spell at least x2 damage") without stacking on top of your per-spell values.
@@ -107,7 +107,7 @@ Every setting starts at the game's own value, so nothing changes until you decid
 
 1. Close the game.
 2. Drop the archive on Kiln.
-3. Start the game and load a world. 
+3. Start the game and load a world.
 4. Press Shift+F3.
 
 ## Compatibility
@@ -122,7 +122,7 @@ Every setting starts at the game's own value, so nothing changes until you decid
 - Chain Lightning's Lock-On Range is capped by the game at about x1.75, so the setting stops at x2.
 - Skeleton Health scales the skeletons' level-based health, which may not be exactly proportional.
 - Ice Totem's chill on enemies keeps its normal length when you raise Totem Duration.
-- Heal spells aren’t covered yet… Might do them later. 
+- Heal spells aren’t covered yet… Might do them later.
 
 ---
 

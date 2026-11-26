@@ -1,9 +1,11 @@
+---
+target: nexus
+---
 <div style="text-align: center">
 
 # <span style="color: #e6a050">Auto Doors</span>
 
 </div>
-
 <div style="text-align: center">
 
 *<span style="color: #e6a050">Approach : door opens. Leave : door closes. Simple as that.</span>*

@@ -6,23 +6,23 @@ target: nexus
 
 <div style="text-align: center">
 
-The source code for all my Enshrouded mods is available on [GitHub](https://github.com/Fuzen777/Enshrouded-Mods) (MIT)
-
-</div>
-
-<div style="text-align: center">
-
 # <span style="color: #e6a050">Streamlined Logistics</span>
 
 *<span style="color: #e6a050">Now, you can opt out of the Inventory Management™ minigame.</span>*
 
+<div style="text-align: center">
+
+*The source code for all my Enshrouded mods is available on [GitHub](https://github.com/Fuzen777/Enshrouded-Mods) (MIT)*
+
 </div>
 
-Tired of stopping every five minutes because your inventory is, *yet again*, full ? Streamlined Logistics is intended as an all-in-one storage mod for **Kiln** that solves this exact issue.
+</div>
+
+Tired of stopping every five minutes because your inventory is, *yet again*, full ? Streamlined Logistics is intended as an all-in-one storage mod for **Kiln** that solves this exact issue through automation.
 
 Press **F2** and every chest you linked shows up as one searchable list next to your hotbars and backpack. Take what you need, drag it where you want it, store your loot, or let Quick Deposit and Re-Sort put everything into the right chests for you. Need a specific item ? Just open the menu : your favorited ones wait for you at the top, and everything else is searchable and neatly organized in tabs and categories.
 
-If you fully set it up, you'll never have to worry about your inventory again : 
+If you fully set it up, you'll never have to worry about your inventory again :
 
 - Enable Auto Quick Deposit, Salvage and Rename.
 - Have a few unnamed Magic Chests around
@@ -33,11 +33,7 @@ If you fully set it up, you'll never have to worry about your inventory again :
 
 ---
 
-<div style="text-align: center">
-
 ## Features
-
-</div>
 
 ### Control Center
 
@@ -185,7 +181,7 @@ To update, check with Kiln or download the newest version and install it manuall
 - Links are stored by chest position and are not yet kept per world.
 - The repair kit can't be used from the window; use it from your hotbar.
 - The game's full item detail (damage, perks, gems) only shows for items you have looked at in the game's own screens this session.
-- No controller button to open the window yet, nor controller navigation. 
+- No controller button to open the window yet, nor controller navigation.
 - A large Re-Sort takes a little while; the window's other buttons wait until it ends.
 
 ## Planned features
