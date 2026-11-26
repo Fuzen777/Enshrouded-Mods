@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -10,8 +11,14 @@ namespace Grimoire;
 
 /// <summary>
 /// One book of the grimoire (spells, arrows): the player's stacks of one kind of ammunition kept in Kiln's player storage
-/// (keys "grimoire:spells" and "grimoire:arrows", 32 slots, that kind only, kept at death), shown and equipped in the player's own order. Works in a world this
-/// player hosts (single player or hosted co-op): the screen, the clicks and the HUD list act on the local player.
+/// (keys "grimoire:spells" and "grimoire:arrows", 32 slots, that kind only, kept at death), shown and equipped in the player's own order.
+/// It has two halves (1.0.2):
+/// - The server half runs where the world runs (a dedicated server, or the game hosting it) and does every step for every player: the
+///   storage, the character data and the inventory are there. It sends each player a view of the book after each change, and toasts.
+/// - The player's half draws the screen and the HUD list from the last view, and asks for steps (pick, add, take out, move). On a game
+///   joined to a server it sends them over Kiln's network (GrimoireNet); in a world it hosts it calls the server half directly.
+///   1.0.0 and 1.0.1 had only the host's half: on a dedicated server nothing ran for the players, and their screen stayed empty.
+/// The steps:
 /// - The equipped stack lives in a backpack cell, where the game expects it, and every step is a plain move (no item is created or
 ///   destroyed). 0.1.0 to 0.1.2 kept it in an Equipment page cell (Kiln's GiveEquip): the game did not keep a spell there across a
 ///   reload, and with any spell in the backpack it equipped that one over it. Secure brings back what those versions left there.
@@ -24,8 +31,8 @@ namespace Grimoire;
 ///   or emptied the slot during a fast switch) takes the slot back when nothing is equipped, and is otherwise filed back into the
 ///   storage at the end of every switch and one second after the last change of the slot (Settle), from the action bar too. The
 ///   player's own backpack spells stay.
-/// - Steps run one at a time, in the order they came; a pick replaces a pick still waiting, so only the player's latest choice is
-///   equipped.
+/// - Steps run one at a time, in the order they came; a pick replaces a pick of the same player still waiting, so only the player's
+///   latest choice is equipped.
 /// Every step is logged with the book's name ("spells:", "arrows:").
 /// </summary>
 internal sealed class Book : IDisposable
@@ -42,17 +49,18 @@ internal sealed class Book : IDisposable
         public List<uint> Items { get; set; } = new List<uint>();
     }
 
-    // What the screen and the HUD list draw, as the tick thread last saw it (they are drawn on other threads).
-    private sealed record Entry(uint Item, string Name, int Stored, bool Equipped, int EquippedCount)
+    // What the screen and the HUD list draw, as the server last saw it (they are drawn on other threads). Names are looked up where
+    // it is drawn, in that game's language.
+    private sealed record Entry(uint Item, int Stored, bool Equipped, int EquippedCount)
     {
         public int Count => Stored + (Equipped ? EquippedCount : 0);
     }
-    private sealed record BagEntry(uint Item, string Name, int Count, bool Equipped);
+    private sealed record BagEntry(uint Item, int Count, bool Equipped);
     private sealed record View(Entry[] Entries, BagEntry[] Bag, uint[] Shown, IReadOnlyDictionary<uint, int> Stored, uint Equipped, int EquippedCount,
         int Limit, bool Enabled, string? NotReady, uint OwnEquipped = 0)
     {
         public static readonly View Empty = new View(Array.Empty<Entry>(), Array.Empty<BagEntry>(), Array.Empty<uint>(), new Dictionary<uint, int>(), 0, 0,
-            GrimoireRules.DefaultSlots, false, "not read yet");
+            GrimoireRules.DefaultSlots, false, "Not Read Yet");
     }
 
     // The stack in the kind's equipment slot, and where it lies.
@@ -64,50 +72,68 @@ internal sealed class Book : IDisposable
     // One storage slot that holds something.
     private sealed record StoredStack(int Index, InventorySlot Stack);
 
-    // A step waiting its turn. A waiting pick is updated in place by a later pick.
+    // A step waiting its turn, for one player. A waiting pick is updated in place by a later pick of the same player.
     private sealed class Step
     {
-        public Step(string what, Func<EntityId, Task> action, bool quiet)
+        public Step(EntityId player, string what, Func<EntityId, Task> action, bool quiet)
         {
+            Player = player;
             What = what;
             Action = action;
             Quiet = quiet;
         }
 
+        public EntityId Player { get; }
         public string What { get; set; }
         public Func<EntityId, Task> Action { get; set; }
         public bool Quiet { get; }
     }
 
+    // The server half's state of one player.
+    private sealed class PlayerState
+    {
+        public View View = View.Empty;
+        public Step? WaitingPick;
+        // The item the slot held before it last emptied: Settle equips it again when it is still loose in the backpack.
+        public uint LastEmptied;
+        // Bumped at every change of the slot; the settling waits until it stays the same for SettleDelay.
+        public int SlotChanges;
+        public int RefreshQueued;
+    }
+
     private readonly Mod _mod;
     private readonly BookKind _kind;
+    private readonly byte _index;
+    private readonly GrimoireNet _net;
     private readonly Func<int> _limit;
     private readonly Func<bool> _enabled;
     private readonly Func<bool> _hideOthers;
+    private readonly Func<EntityId, (bool Enabled, int Limit)> _prefs;
     private PlayerStorage? _storage;
     private AmmoListProvider? _rows;
     private IDisposable? _clicks;
+    // The player's half: the view the screen and the HUD list draw.
     private volatile View _view = View.Empty;
     private volatile bool _busy;
     private readonly object _stepsGate = new object();
     private readonly Queue<Step> _steps = new Queue<Step>();
-    private Step? _waitingPick;
+    private readonly Dictionary<EntityId, PlayerState> _players = new Dictionary<EntityId, PlayerState>();
     private bool _running;
-    // The item the slot held before it last emptied: Settle equips it again when it is still loose in the backpack.
-    private uint _lastEmptied;
-    private int _refreshQueued;
     private long _refreshedAt;
-    // Bumped at every change of the slot; the settling waits until it stays the same for SettleDelay.
-    private int _slotChanges;
     private ulong _loggedRevision = ulong.MaxValue;
+    private static readonly ConcurrentDictionary<uint, string> Names = new ConcurrentDictionary<uint, string>();
 
-    public Book(Mod mod, BookKind kind, Func<int> limit, Func<bool> enabled, Func<bool> hideOthers)
+    public Book(Mod mod, BookKind kind, byte index, GrimoireNet net, Func<int> limit, Func<bool> enabled, Func<bool> hideOthers,
+        Func<EntityId, (bool Enabled, int Limit)> prefs)
     {
         _mod = mod;
         _kind = kind;
+        _index = index;
+        _net = net;
         _limit = limit;
         _enabled = enabled;
         _hideOthers = hideOthers;
+        _prefs = prefs;
     }
 
     private Logger Log => _mod.Context.Log;
@@ -121,15 +147,8 @@ internal sealed class Book : IDisposable
     public bool HasEntries => _view.Entries.Length > 0;
     public bool HasBackpackStacks => _view.Bag.Length > 0;
 
-    // Reads the game again now. Tick thread only.
-    public void RefreshNow()
-    {
-        EntityId player = Client.Available ? Client.LocalPlayer : EntityId.None;
-        if (!player.IsNone && Client.IsHosting)
-        {
-            Refresh(player);
-        }
-    }
+    // Asks for a new view now (any thread).
+    public void RefreshNow() => RequestRefresh(force: true);
 
     public void Start()
     {
@@ -151,7 +170,7 @@ internal sealed class Book : IDisposable
         }
         if (!Ui.Available || !Client.Available || !Client.IsClient)
         {
-            Log.Info($"{Tag}: no game UI here (a dedicated server): the grimoire works in a world you host");
+            Log.Info($"{Tag}: no game UI here (a dedicated server): the steps of joined players with Grimoire run here");
             return;
         }
         if (Ui.AmmoList.Available)
@@ -173,7 +192,7 @@ internal sealed class Book : IDisposable
         }
         Ui.Inventory.ScreenChanged += OnScreenChanged;
         Log.Info($"{Tag}: ready. HUD list {(_rows != null ? "follows the grimoire" : "is the game's")}");
-        QueueRefresh();
+        RequestRefresh(force: true);
     }
 
     public void Dispose()
@@ -193,14 +212,29 @@ internal sealed class Book : IDisposable
     }
 
     // The settings changed (on or off, the slot count): the list and the screen follow.
-    public void SettingsChanged() => QueueRefresh();
+    public void SettingsChanged()
+    {
+        View view = _view;
+        _view = view with { Enabled = _enabled(), Limit = GrimoireRules.ClampSlots(_limit()) };
+        _rows?.Refresh();
+        RequestRefresh(force: true);
+    }
 
-    // Events ------------------------------------------------------------------------------------------------------
+    // The connection to a server came up or went away: the view is read again (or emptied).
+    public void ConnectionChanged()
+    {
+        _view = View.Empty with { Enabled = _enabled(), Limit = GrimoireRules.ClampSlots(_limit()) };
+        _rows?.Refresh();
+        RequestRefresh(force: true);
+    }
+
+    // Server half: events ---------------------------------------------------------------------------------------------------
 
     // The player's equipment events, from the mod's [Subscribe] handler: the slot may have run out or the game may have switched.
     public void OnEquipmentChanged(PlayerEquipmentChangedEvent e)
     {
-        if (e.Slot != _kind.PlayerSlot)
+        EntityId player = e.Player.Entity;
+        if (e.Slot != _kind.PlayerSlot || !GrimoireNet.WorldHere || !GrimoireNet.Serves(player))
         {
             return;
         }
@@ -208,26 +242,144 @@ internal sealed class Book : IDisposable
         uint before = e.Before.Id;
         if (e.Now.IsNone && before != 0)
         {
-            _lastEmptied = before;
-            uint[] shownBefore = _view.Shown;
-            Post("ran out", p => RanOut(p, before, shownBefore), quiet: true);
+            uint[] shownBefore;
+            lock (_stepsGate)
+            {
+                PlayerState state = StateOfLocked(player);
+                state.LastEmptied = before;
+                shownBefore = state.View.Shown;
+            }
+            Post(player, "ran out", p => RanOut(p, before, shownBefore), quiet: true);
         }
         else
         {
-            QueueRefresh();
+            QueueRefresh(player);
         }
-        ScheduleSettle();
+        ScheduleSettle(player);
     }
 
     // Kiln's storage events, from the mod's [Subscribe] handlers.
-    public void OnStorageEvent(string key, string what)
+    public void OnStorageEvent(string key, EntityId player, string what)
     {
-        if (_storage != null && key == _storage.FullKey)
+        if (_storage != null && key == _storage.FullKey && GrimoireNet.WorldHere && GrimoireNet.Serves(player))
         {
             Log.Info($"{Tag}: storage {what}");
-            QueueRefresh();
-            ScheduleSettle(); // brings back what an older version left in the Equipment page
+            QueueRefresh(player);
+            ScheduleSettle(player); // brings back what an older version left in the Equipment page
         }
+    }
+
+    // A player left: their state goes (their steps still waiting find no player and do nothing).
+    public void OnPlayerLeft(EntityId player)
+    {
+        lock (_stepsGate)
+        {
+            _players.Remove(player);
+        }
+    }
+
+    // A command of a player, from their game (the channel, tick thread) or from the host's own screen and HUD (any thread).
+    public void OnCommand(BookOp op, uint item, int index, EntityId player)
+    {
+        if (player.IsNone || !GrimoireNet.WorldHere)
+        {
+            return;
+        }
+        index = Math.Clamp(index, 0, GrimoireRules.MaxSlots - 1);
+        switch (op)
+        {
+            case BookOp.Refresh:
+                QueueRefresh(player);
+                break;
+            case BookOp.Pick:
+                PostPick(player, item, p => Equip(p, item, "a pick"));
+                break;
+            case BookOp.Add:
+                Post(player, "add", p => Add(p, item));
+                break;
+            case BookOp.TakeOut:
+                Post(player, "take out", p => TakeOut(p, item));
+                break;
+            case BookOp.AddAll:
+                Post(player, "add all", AddAll);
+                break;
+            case BookOp.TakeAllOut:
+                Post(player, "take all out", TakeAllOut);
+                break;
+            case BookOp.Move:
+                Post(player, "move", p => Move(p, item, index));
+                break;
+            case BookOp.AddAt:
+                Post(player, "add", async p =>
+                {
+                    await Add(p, item);
+                    Refresh(p);
+                    await Move(p, item, index);
+                });
+                break;
+        }
+    }
+
+    // Player's half: input ------------------------------------------------------------------------------------------------
+
+    // A step for the server half: called directly in a world this game hosts, else sent to the server.
+    private void Request(BookOp op, uint item = 0, int index = 0)
+    {
+        if (GrimoireNet.WorldHere)
+        {
+            if (Client.Available && Client.IsHosting)
+            {
+                OnCommand(op, item, index, Client.LocalPlayer);
+            }
+            return;
+        }
+        if (!_net.ServerHasGrimoire)
+        {
+            if (op != BookOp.Refresh)
+            {
+                Hud.Toast("Grimoire: This Server Doesn't Run Grimoire", ToastKind.Info, 4);
+            }
+            return;
+        }
+        _net.SendCommand(new CommandMessage(_index, op, item, index));
+    }
+
+    // Asks for a new view at most once a second (force: now).
+    private void RequestRefresh(bool force = false)
+    {
+        long now = Environment.TickCount64;
+        long last = Interlocked.Read(ref _refreshedAt);
+        if (!force && now - last <= RefreshMilliseconds)
+        {
+            return;
+        }
+        Interlocked.Exchange(ref _refreshedAt, now);
+        if (!GrimoireNet.WorldHere && !_net.ServerHasGrimoire)
+        {
+            string why = Network.ServerHasKiln ? "This Server Doesn't Run Grimoire" : "The Server Needs Kiln And Grimoire";
+            if (_view.NotReady != why)
+            {
+                _view = View.Empty with { Enabled = _enabled(), Limit = GrimoireRules.ClampSlots(_limit()), NotReady = why };
+                _rows?.Refresh();
+            }
+            return;
+        }
+        Request(BookOp.Refresh);
+    }
+
+    // A view from the server (the channel, the game's main thread).
+    public void OnView(ViewMessage message)
+    {
+        Entry[] entries = message.Entries.Select(e => new Entry(e.Item, e.Stored, e.Equipped, e.EquippedCount)).ToArray();
+        var stored = new Dictionary<uint, int>();
+        foreach (Entry entry in entries)
+        {
+            stored[entry.Item] = entry.Stored;
+        }
+        _view = new View(entries, message.Bag.Select(b => new BagEntry(b.Item, b.Count, b.Equipped)).ToArray(), entries.Select(e => e.Item).ToArray(),
+            stored, message.Equipped, message.EquippedCount, GrimoireRules.ClampSlots(_limit()), _enabled(), message.NotReady, message.OwnEquipped);
+        Interlocked.Exchange(ref _refreshedAt, Environment.TickCount64);
+        _rows?.Refresh();
     }
 
     private void OnPicked(AmmoListPick pick)
@@ -236,60 +388,104 @@ internal sealed class Book : IDisposable
         {
             return;
         }
-        Log.Info($"{Tag}: HUD list pick {ItemName(pick.Item)}");
-        uint item = pick.Item.Value;
-        PostPick(item, p => Equip(p, item, "a HUD list pick"));
+        Log.Info($"{Tag}: HUD list pick {ItemName(pick.Item.Value)}");
+        Request(BookOp.Pick, pick.Item.Value);
     }
 
     private void OnScreenChanged(InventoryScreen? before, InventoryScreen? now)
     {
         if (now != null)
         {
-            QueueRefresh();
+            RequestRefresh(force: true);
         }
     }
 
-    // Ctrl+click on an item of this kind in the player's own inventory adds it.
+    // Ctrl+click on an item of this kind in the player's own inventory adds it. A joined game has no item catalog, so it can't tell
+    // spells from arrows: it asks both books, and the server's book of the other kind says nothing.
     private void OnSlotClicked(SlotClick click)
     {
-        if (!_view.Enabled || click.Item.Value == 0 || !_kind.Holds(click.Item) || !Client.IsHosting)
+        if (!_view.Enabled || click.Item.Value == 0)
         {
             return;
         }
-        uint item = click.Item.Value;
-        Post("add", p => Add(p, item));
+        if (Items.Get(click.Item) != null && !_kind.Holds(click.Item))
+        {
+            return;
+        }
+        Request(BookOp.Add, click.Item.Value);
     }
 
-    // Steps ------------------------------------------------------------------------------------------------------
+    // Server half: steps ------------------------------------------------------------------------------------------------------
 
-    // Clicks, picks and the screen arrive on the UI or render thread; inventories and character data are read and changed on the tick
-    // thread, one step at a time and in the order they came. 0.2.0 retried a step that came during another every 250 ms, so with
-    // picks faster than a swap they ran late and out of order (kiln.log, 25 Nov 2026: a Hollow Wretch pick ran after the Blizzard and
-    // Shock Totem picks that followed it).
-    private void Post(string what, Func<EntityId, Task> action, bool quiet = false)
+    private PlayerState StateOfLocked(EntityId player)
+    {
+        if (!_players.TryGetValue(player, out PlayerState? state))
+        {
+            state = new PlayerState();
+            _players[player] = state;
+        }
+        return state;
+    }
+
+    private PlayerState StateOf(EntityId player)
     {
         lock (_stepsGate)
         {
-            _steps.Enqueue(new Step(what, action, quiet));
+            return StateOfLocked(player);
+        }
+    }
+
+    private View ViewOf(EntityId player) => StateOf(player).View;
+
+    // The player's settings: the host's own for the host, else what the player's game sent (the defaults until it did).
+    private (bool Enabled, int Limit) Prefs(EntityId player)
+    {
+        (bool enabled, int limit) = _prefs(player);
+        return (enabled, GrimoireRules.ClampSlots(limit));
+    }
+
+    // A toast on the player's game: the host's own, or sent to a joined player's game.
+    private void Toast(EntityId player, string text, ToastKind kind, double seconds)
+    {
+        if (GrimoireNet.IsLocal(player))
+        {
+            Hud.Toast(text, kind, seconds);
+        }
+        else
+        {
+            _net.SendToast(player, text, kind, seconds);
+        }
+    }
+
+    // Clicks, picks and the screen arrive on the UI or render thread, commands of joined players on the tick thread; inventories and
+    // character data are read and changed on the tick thread, one step at a time and in the order they came. 0.2.0 retried a step that
+    // came during another every 250 ms, so with picks faster than a swap they ran late and out of order (kiln.log, 25 Nov 2026: a
+    // Hollow Wretch pick ran after the Blizzard and Shock Totem picks that followed it).
+    private void Post(EntityId player, string what, Func<EntityId, Task> action, bool quiet = false)
+    {
+        lock (_stepsGate)
+        {
+            _steps.Enqueue(new Step(player, what, action, quiet));
         }
         Pump();
     }
 
-    // A pick of an entry (the HUD list, the screen): one still waiting is replaced, so only the latest choice is equipped and a burst of
-    // picks (the game can raise the same pick several times within a few milliseconds) is one swap.
-    private void PostPick(uint item, Func<EntityId, Task> action)
+    // A pick of an entry (the HUD list, the screen): one of the same player still waiting is replaced, so only the latest choice is
+    // equipped and a burst of picks (the game can raise the same pick several times within a few milliseconds) is one swap.
+    private void PostPick(EntityId player, uint item, Func<EntityId, Task> action)
     {
-        string what = $"pick {ItemName(new ItemId(item))}";
+        string what = $"pick {ItemName(item)}";
         lock (_stepsGate)
         {
-            if (_waitingPick != null)
+            PlayerState state = StateOfLocked(player);
+            if (state.WaitingPick != null)
             {
-                _waitingPick.What = what;
-                _waitingPick.Action = action;
+                state.WaitingPick.What = what;
+                state.WaitingPick.Action = action;
                 return;
             }
-            _waitingPick = new Step(what, action, quiet: false);
-            _steps.Enqueue(_waitingPick);
+            state.WaitingPick = new Step(player, what, action, quiet: false);
+            _steps.Enqueue(state.WaitingPick);
         }
         Pump();
     }
@@ -321,9 +517,9 @@ internal sealed class Book : IDisposable
                     return;
                 }
                 step = _steps.Dequeue();
-                if (ReferenceEquals(step, _waitingPick))
+                if (_players.TryGetValue(step.Player, out PlayerState? state) && ReferenceEquals(step, state.WaitingPick))
                 {
-                    _waitingPick = null;
+                    state.WaitingPick = null;
                 }
             }
             try
@@ -339,13 +535,9 @@ internal sealed class Book : IDisposable
 
     private async Task RunStep(Step step)
     {
-        EntityId player = Client.Available ? Client.LocalPlayer : EntityId.None;
-        if (player.IsNone || !Client.IsHosting)
+        EntityId player = step.Player;
+        if (!GrimoireNet.WorldHere || !GrimoireNet.Serves(player))
         {
-            if (!step.Quiet)
-            {
-                Hud.Toast("Grimoire: Works In A World You Host", ToastKind.Info, 3);
-            }
             return;
         }
         _busy = true;
@@ -362,7 +554,7 @@ internal sealed class Book : IDisposable
         catch (Exception ex)
         {
             Log.Warn($"{Tag} ({step.What}) failed: {ex}");
-            Hud.Toast($"Grimoire: {step.What} failed ({ex.GetType().Name}), see kiln.log", ToastKind.Error, 6);
+            Toast(player, $"Grimoire: {step.What} failed ({ex.GetType().Name}), see kiln.log", ToastKind.Error, 6);
         }
         finally
         {
@@ -371,14 +563,23 @@ internal sealed class Book : IDisposable
         }
     }
 
-    private void ScheduleSettle()
+    private void ScheduleSettle(EntityId player)
     {
-        int seen = Interlocked.Increment(ref _slotChanges);
+        int seen;
+        lock (_stepsGate)
+        {
+            seen = ++StateOfLocked(player).SlotChanges;
+        }
         _ = Task.Delay(SettleDelay).ContinueWith(_ =>
         {
-            if (Volatile.Read(ref _slotChanges) == seen)
+            bool settled;
+            lock (_stepsGate)
             {
-                Post("settle", Settle, quiet: true);
+                settled = _players.TryGetValue(player, out PlayerState? state) && state.SlotChanges == seen;
+            }
+            if (settled)
+            {
+                Post(player, "settle", Settle, quiet: true);
             }
         }, TaskScheduler.Default);
     }
@@ -393,7 +594,7 @@ internal sealed class Book : IDisposable
         Log.Info($"{Tag} ({what}): {why}");
         if (!quiet)
         {
-            Hud.Toast($"Grimoire: {why}", ToastKind.Info, 4);
+            Toast(player, $"Grimoire: {why}", ToastKind.Info, 4);
         }
         return null;
     }
@@ -416,7 +617,7 @@ internal sealed class Book : IDisposable
     private async Task Equip(EntityId player, uint item, string why)
     {
         PlayerStorage? storage = Ready(player, why);
-        if (storage == null || !_enabled())
+        if (storage == null || !Prefs(player).Enabled)
         {
             return;
         }
@@ -436,7 +637,7 @@ internal sealed class Book : IDisposable
         if (equipped != null && !equipped.InBackpack)
         {
             Log.Info($"{Tag} ({why}): the equipped {ItemName(equipped.Stack.Item)} is still outside the backpack ({Where(equipped)}); nothing is swapped");
-            Hud.Toast("Grimoire: Free A Backpack Slot To Switch", ToastKind.Info, 4);
+            Toast(player, "Grimoire: Free A Backpack Slot To Switch", ToastKind.Info, 4);
             return;
         }
         if (equipped != null && !Kept(player, storage, equipped.Stack.Item.Value))
@@ -446,7 +647,7 @@ internal sealed class Book : IDisposable
             equipped = Equipped(player, storage);
             if (!off.Ok || equipped != null)
             {
-                Hud.Toast($"Grimoire: {name} Not Equipped", ToastKind.Info, 3);
+                Toast(player, $"Grimoire: {name} Not Equipped", ToastKind.Info, 3);
                 return;
             }
         }
@@ -475,7 +676,7 @@ internal sealed class Book : IDisposable
                 Log.Info($"{Tag} ({why}): {name} x{loosePicked.Count}, loose in cell {loosePicked.Slot}, equipped there -> {on}");
                 if (!on.Ok)
                 {
-                    Hud.Toast($"Grimoire: {name} Not Equipped ({on.Reason})", ToastKind.Error, 4);
+                    Toast(player, $"Grimoire: {name} Not Equipped ({on.Reason})", ToastKind.Error, 4);
                 }
             }
             else if (stored != null)
@@ -484,7 +685,7 @@ internal sealed class Book : IDisposable
                 Log.Info($"{Tag} ({why}): {name} x{stored.Stack.Count} in slot {stored.Index} swapped with {ItemName(equipped.Stack.Item)} -> {swapped}; now in {Where(Equipped(player, storage))}");
                 if (!swapped.Ok)
                 {
-                    Hud.Toast($"Grimoire: {name} Not Equipped ({swapped.Reason})", ToastKind.Error, 4);
+                    Toast(player, $"Grimoire: {name} Not Equipped ({swapped.Reason})", ToastKind.Error, 4);
                 }
             }
             else
@@ -509,7 +710,7 @@ internal sealed class Book : IDisposable
         Log.Info($"{Tag} ({why}): {name} x{stored.Stack.Count} from slot {stored.Index} into the backpack -> {moved}");
         if (!moved.Succeeded)
         {
-            Hud.Toast($"Grimoire: Backpack Full, {name} Not Equipped", ToastKind.Info, 4);
+            Toast(player, $"Grimoire: Backpack Full, {name} Not Equipped", ToastKind.Info, 4);
             return;
         }
         InventorySlot? loose = Items.Read(player)?.Slots.FirstOrDefault(s => !s.IsEmpty && s.Category == InventoryCategory.Generic && s.Item.Value == item
@@ -525,7 +726,7 @@ internal sealed class Book : IDisposable
         {
             MoveResult back = await Store(player, storage, loose);
             Log.Info($"{Tag} ({why}): {name} back into the grimoire -> {back}");
-            Hud.Toast($"Grimoire: {name} Not Equipped ({on.Reason})", ToastKind.Error, 4);
+            Toast(player, $"Grimoire: {name} Not Equipped ({on.Reason})", ToastKind.Error, 4);
         }
     }
 
@@ -571,7 +772,7 @@ internal sealed class Book : IDisposable
             Log.Info($"{Tag} ({why}): {name} x{stack.Count} equipped in Equipment page cell {stack.Slot}: unequipped into the backpack -> {off}");
             if (!off.Ok)
             {
-                Hud.Toast($"Grimoire: Free A Backpack Slot For {name}", ToastKind.Error, 6);
+                Toast(player, $"Grimoire: Free A Backpack Slot For {name}", ToastKind.Error, 6);
                 return;
             }
             InventorySlot? landed = Items.Read(player)?.Slots.FirstOrDefault(s => !s.IsEmpty && s.Category == InventoryCategory.Generic && s.Item == stack.Item
@@ -589,7 +790,7 @@ internal sealed class Book : IDisposable
     private async Task RanOut(EntityId player, uint item, uint[] shownBefore)
     {
         PlayerStorage? storage = Ready(player, "ran out", quiet: true);
-        if (storage == null || !_enabled() || !shownBefore.Contains(item))
+        if (storage == null || !Prefs(player).Enabled || !shownBefore.Contains(item))
         {
             return;
         }
@@ -618,7 +819,7 @@ internal sealed class Book : IDisposable
     private async Task Settle(EntityId player)
     {
         PlayerStorage? storage = Ready(player, "settle", quiet: true);
-        if (storage == null || !_enabled())
+        if (storage == null || !Prefs(player).Enabled)
         {
             return;
         }
@@ -626,7 +827,7 @@ internal sealed class Book : IDisposable
         if (Equipped(player, storage) == null)
         {
             List<InventorySlot> loose = Loose(player, storage, null);
-            uint last = _lastEmptied;
+            uint last = StateOf(player).LastEmptied;
             InventorySlot? back = loose.FirstOrDefault(s => s.Item.Value == last) ?? loose.FirstOrDefault();
             if (back != null)
             {
@@ -655,17 +856,21 @@ internal sealed class Book : IDisposable
     // is, in the backpack, and counts as added.
     private async Task Add(EntityId player, uint item)
     {
+        if (!_kind.Holds(new ItemId(item)))
+        {
+            return; // a joined game can't tell spells from arrows (no item catalog there): it asks both books
+        }
         PlayerStorage? storage = Ready(player, "add");
         if (storage == null)
         {
             return;
         }
         string name = ItemName(new ItemId(item));
-        View view = _view;
-        int limit = GrimoireRules.ClampSlots(_limit());
+        View view = ViewOf(player);
+        int limit = GrimoireRules.ClampSlots(Prefs(player).Limit);
         if (!view.Shown.Contains(item) && view.Shown.Length >= limit)
         {
-            Hud.Toast($"Grimoire: {_kind.Name} Full ({limit} Slots)", ToastKind.Info, 3);
+            Toast(player, $"Grimoire: {_kind.Name} Full ({limit} Slots)", ToastKind.Info, 3);
             return;
         }
         await Secure(player, storage, "add");
@@ -681,7 +886,7 @@ internal sealed class Book : IDisposable
             Log.Info($"{Tag} (add): {name} x{stack.Count} at {stack.Slot} -> {moved}");
             if (moved.Status == ItemsStatus.NoRoom)
             {
-                Hud.Toast($"Grimoire: {_kind.Name} Storage Full", ToastKind.Info, 3);
+                Toast(player, $"Grimoire: {_kind.Name} Storage Full", ToastKind.Info, 3);
                 break;
             }
             added += Math.Max(0, moved.Done);
@@ -689,11 +894,11 @@ internal sealed class Book : IDisposable
         if (added > 0 || equippedIsIt)
         {
             GrimoireRules.Merge(Order(player).Items, new[] { item });
-            Hud.Toast($"Grimoire: {name} Added", ToastKind.Info, 2);
+            Toast(player, $"Grimoire: {name} Added", ToastKind.Info, 2);
         }
         else if (stacks.Count == 0)
         {
-            Hud.Toast($"Grimoire: No {name} In The Backpack", ToastKind.Info, 2);
+            Toast(player, $"Grimoire: No {name} In The Backpack", ToastKind.Info, 2);
         }
     }
 
@@ -747,16 +952,16 @@ internal sealed class Book : IDisposable
         }
         if (left)
         {
-            Hud.Toast($"Grimoire: Backpack Full, Some {name} Stays", ToastKind.Info, 3);
+            Toast(player, $"Grimoire: Backpack Full, Some {name} Stays", ToastKind.Info, 3);
             return;
         }
         Order(player).Items.Remove(item);
-        Hud.Toast($"Grimoire: {name} Taken Out", ToastKind.Info, 2);
+        Toast(player, $"Grimoire: {name} Taken Out", ToastKind.Info, 2);
     }
 
     private async Task TakeAllOut(EntityId player)
     {
-        foreach (uint item in _view.Shown.ToList())
+        foreach (uint item in ViewOf(player).Shown.ToList())
         {
             await TakeOut(player, item);
             Refresh(player);
@@ -765,7 +970,7 @@ internal sealed class Book : IDisposable
 
     private Task Move(EntityId player, uint item, int to)
     {
-        View view = _view;
+        View view = ViewOf(player);
         int from = Array.IndexOf(view.Shown, item);
         if (GrimoireRules.MoveEntry(Order(player).Items, view.Shown, from, to))
         {
@@ -774,56 +979,75 @@ internal sealed class Book : IDisposable
         return Task.CompletedTask;
     }
 
-    // The view ------------------------------------------------------------------------------------------------------
+    // Server half: the view ---------------------------------------------------------------------------------------------------
 
-    private void QueueRefresh()
+    private void QueueRefresh(EntityId player)
     {
-        if (Interlocked.Exchange(ref _refreshQueued, 1) == 1)
+        lock (_stepsGate)
         {
-            return;
+            PlayerState state = StateOfLocked(player);
+            if (state.RefreshQueued != 0)
+            {
+                return;
+            }
+            state.RefreshQueued = 1;
         }
         _mod.Context.Scheduler.Post(() =>
         {
-            Interlocked.Exchange(ref _refreshQueued, 0);
-            EntityId player = Client.Available ? Client.LocalPlayer : EntityId.None;
-            if (player.IsNone || !Client.IsHosting)
+            lock (_stepsGate)
             {
-                _view = View.Empty with { NotReady = "Works In A World You Host" };
-                _rows?.Refresh();
-                return;
+                if (_players.TryGetValue(player, out PlayerState? state))
+                {
+                    state.RefreshQueued = 0;
+                }
             }
             Refresh(player);
         });
     }
 
+    // Reads the player's book from the game (tick thread) and sends the view to their game.
     private void Refresh(EntityId player)
     {
-        Interlocked.Exchange(ref _refreshedAt, Environment.TickCount64);
-        bool enabled = _enabled();
-        int limit = GrimoireRules.ClampSlots(_limit());
+        if (!GrimoireNet.WorldHere || !GrimoireNet.Serves(player))
+        {
+            return;
+        }
+        (bool enabled, int limit) = Prefs(player);
+        View view;
         if (_storage == null || !_storage.IsReady(player))
         {
             string why = _storage == null ? "Player Storage Not Available" : $"Storage {_storage.Status(player).State}";
-            _view = View.Empty with { Enabled = enabled, Limit = limit, NotReady = why };
-            _rows?.Refresh();
-            return;
+            view = View.Empty with { Enabled = enabled, Limit = limit, NotReady = why };
         }
-        List<StoredStack> stored = Stored(player, _storage);
+        else
+        {
+            view = Read(player, _storage, enabled, limit);
+        }
+        lock (_stepsGate)
+        {
+            StateOfLocked(player).View = view;
+        }
+        Publish(player, view);
+    }
+
+    private View Read(EntityId player, PlayerStorage storage, bool enabled, int limit)
+    {
+        List<StoredStack> stored = Stored(player, storage);
         var counts = new Dictionary<uint, int>();
         foreach (StoredStack stack in stored)
         {
             counts[stack.Stack.Item.Value] = counts.GetValueOrDefault(stack.Stack.Item.Value) + stack.Stack.Count;
         }
-        EquippedStack? equipped = Equipped(player, _storage);
+        EquippedStack? equipped = Equipped(player, storage);
         // The equipped stack is the grimoire's when the grimoire keeps its item (in the order or stored); else it is the player's own.
-        uint bookEquipped = equipped != null && Kept(player, _storage, equipped.Stack.Item.Value) ? equipped.Stack.Item.Value : 0;
+        uint bookEquipped = equipped != null && Kept(player, storage, equipped.Stack.Item.Value) ? equipped.Stack.Item.Value : 0;
         var present = new List<uint>(stored.Select(s => s.Stack.Item.Value));
         if (bookEquipped != 0)
         {
             present.Add(bookEquipped);
         }
         // A grimoire stack loose in the backpack (until it is filed back) keeps its entry and its place in the list.
-        List<InventorySlot> loose = Loose(player, _storage, equipped);
+        List<InventorySlot> loose = Loose(player, storage, equipped);
         var looseCells = new HashSet<SlotId>(loose.Select(s => s.Slot));
         foreach (InventorySlot stack in loose)
         {
@@ -834,7 +1058,7 @@ internal sealed class Book : IDisposable
         GrimoireRules.Merge(order, present);
         List<uint> shown = GrimoireRules.Shown(order, present.Distinct().ToList());
         int equippedCount = equipped?.Stack.Count ?? 0;
-        Entry[] entries = shown.Select(item => new Entry(item, ItemName(new ItemId(item)), counts.GetValueOrDefault(item), item == bookEquipped,
+        Entry[] entries = shown.Select(item => new Entry(item, counts.GetValueOrDefault(item), item == bookEquipped,
             item == bookEquipped ? equippedCount : 0)).ToArray();
         var bag = new List<BagEntry>();
         InventoryContents? inventory = Items.Read(player);
@@ -849,24 +1073,38 @@ internal sealed class Book : IDisposable
                 List<InventorySlot> own = group.Where(s => !(isEquipped && bookEquipped == group.Key && s.Slot == equipped!.Stack.Slot)).ToList();
                 if (own.Count > 0)
                 {
-                    bag.Add(new BagEntry(group.Key, ItemName(new ItemId(group.Key)), own.Sum(s => s.Count), isEquipped && bookEquipped != group.Key));
+                    bag.Add(new BagEntry(group.Key, own.Sum(s => s.Count), isEquipped && bookEquipped != group.Key));
                 }
             }
         }
         // The player's own equipped stack (not the grimoire's) keeps its HUD row when the other rows are hidden.
         uint ownEquipped = equipped != null && !equipped.InStorage && bookEquipped == 0 ? equipped.Stack.Item.Value : 0;
-        _view = new View(entries, bag.ToArray(), shown.ToArray(), counts, bookEquipped, equippedCount, limit, enabled, null, ownEquipped);
-        _rows?.Refresh();
+        return new View(entries, bag.ToArray(), shown.ToArray(), counts, bookEquipped, equippedCount, limit, enabled, null, ownEquipped);
     }
+
+    // The view goes to the player's game: the host's own half directly, a joined player's game over the channel (nothing when that
+    // game has no Grimoire).
+    private void Publish(EntityId player, View view)
+    {
+        if (GrimoireNet.IsLocal(player))
+        {
+            _view = view;
+            Interlocked.Exchange(ref _refreshedAt, Environment.TickCount64);
+            _rows?.Refresh();
+            return;
+        }
+        _net.SendView(player, new ViewMessage(_index, view.NotReady, view.Equipped, view.EquippedCount, view.OwnEquipped,
+            view.Entries.Select(e => new ViewMessage.EntryRow(e.Item, e.Stored, e.Equipped, e.EquippedCount)).ToArray(),
+            view.Bag.Select(b => new ViewMessage.BagRow(b.Item, b.Count, b.Equipped)).ToArray()));
+    }
+
+    // Player's half: drawing -------------------------------------------------------------------------------------------------
 
     // The HUD list, on the UI thread: the book in its order, then the game's other rows. Off or not ready: the game's own rows.
     private IReadOnlyList<AmmoListRow> BuildRows(AmmoListContext ctx)
     {
         View view = _view;
-        if (Environment.TickCount64 - Interlocked.Read(ref _refreshedAt) > RefreshMilliseconds)
-        {
-            QueueRefresh();
-        }
+        RequestRefresh();
         if (!view.Enabled || view.NotReady != null || view.Shown.Length == 0)
         {
             return ctx.GameRows;
@@ -876,7 +1114,7 @@ internal sealed class Book : IDisposable
         if (ctx.Revision != _loggedRevision)
         {
             _loggedRevision = ctx.Revision;
-            Log.Info($"{Tag}: HUD list (revision {ctx.Revision}): game rows [{string.Join(", ", ctx.GameRows.Select(r => $"{ItemName(r.Item)} x{r.Count}"))}] -> shown [{string.Join(", ", rows.Select(r => $"{ItemName(new ItemId(r.Item))} x{r.Count}"))}]");
+            Log.Info($"{Tag}: HUD list (revision {ctx.Revision}): game rows [{string.Join(", ", ctx.GameRows.Select(r => $"{ItemName(r.Item.Value)} x{r.Count}"))}] -> shown [{string.Join(", ", rows.Select(r => $"{ItemName(r.Item)} x{r.Count}"))}]");
         }
         return rows.Select(r => new AmmoListRow(new ItemId(r.Item), r.Count)).ToList();
     }
@@ -886,10 +1124,7 @@ internal sealed class Book : IDisposable
     public void Draw(UiDraw ui)
     {
         View view = _view;
-        if (Environment.TickCount64 - Interlocked.Read(ref _refreshedAt) > RefreshMilliseconds)
-        {
-            QueueRefresh();
-        }
+        RequestRefresh();
         ui.Separator(string.Create(CultureInfo.InvariantCulture, $"{_kind.Name}  {view.Entries.Length} / {view.Limit}"));
         if (view.NotReady != null)
         {
@@ -909,21 +1144,20 @@ internal sealed class Book : IDisposable
             if (i < view.Entries.Length)
             {
                 Entry entry = view.Entries[i];
+                string name = ItemName(entry.Item);
                 ui.ItemIconTrimmed(new ItemId(entry.Item), icon);
                 ui.SameLine(0f, 6f * ui.Scale);
-                string label = $"{number}. {entry.Name}  x{entry.Count}{(entry.Equipped ? "  (Equipped)" : "")}{(i >= view.Limit ? "  (Over Limit)" : "")}##entry{number}";
+                string label = $"{number}. {name}  x{entry.Count}{(entry.Equipped ? "  (Equipped)" : "")}{(i >= view.Limit ? "  (Over Limit)" : "")}##entry{number}";
                 if (ui.Selectable(label, entry.Equipped, 0f, row, UiSelectableFlags.None) && view.Enabled)
                 {
-                    uint item = entry.Item;
-                    PostPick(item, p => Equip(p, item, "a screen click"));
+                    Request(BookOp.Pick, entry.Item);
                 }
                 if (ui.ItemClicked(UiMouseButton.Right))
                 {
-                    uint item = entry.Item;
-                    Post("take out", p => TakeOut(p, item));
+                    Request(BookOp.TakeOut, entry.Item);
                 }
                 ui.Tooltip(entry.Equipped ? "Equipped. Drag to reorder, right-click to take out." : "Click to equip. Drag to reorder, right-click to take out.");
-                ui.DragSource(SlotDragKind, entry.Item.ToString(CultureInfo.InvariantCulture), entry.Name);
+                ui.DragSource(SlotDragKind, entry.Item.ToString(CultureInfo.InvariantCulture), name);
             }
             else
             {
@@ -936,15 +1170,15 @@ internal sealed class Book : IDisposable
         ui.Separator("In Your Backpack");
         foreach (BagEntry bagEntry in view.Bag)
         {
+            string name = ItemName(bagEntry.Item);
             ui.ItemIconTrimmed(new ItemId(bagEntry.Item), icon);
             ui.SameLine(0f, 6f * ui.Scale);
-            if (ui.Selectable($"{bagEntry.Name}  x{bagEntry.Count}{(bagEntry.Equipped ? "  (Equipped)" : "")}##bag{bagEntry.Item}", false, 0f, row, UiSelectableFlags.None))
+            if (ui.Selectable($"{name}  x{bagEntry.Count}{(bagEntry.Equipped ? "  (Equipped)" : "")}##bag{bagEntry.Item}", false, 0f, row, UiSelectableFlags.None))
             {
-                uint item = bagEntry.Item;
-                Post("add", p => Add(p, item));
+                Request(BookOp.Add, bagEntry.Item);
             }
             ui.Tooltip("Click or drag into the grimoire to add it.");
-            ui.DragSource(BagDragKind, bagEntry.Item.ToString(CultureInfo.InvariantCulture), bagEntry.Name);
+            ui.DragSource(BagDragKind, bagEntry.Item.ToString(CultureInfo.InvariantCulture), name);
             DropOnBag(ui);
         }
         ui.Selectable(view.Bag.Length == 0 ? $"No {_kind.Name} In The Backpack##bagdrop" : "Drop Here To Take Out##bagdrop", false, 0f, row, UiSelectableFlags.None);
@@ -952,7 +1186,7 @@ internal sealed class Book : IDisposable
         ui.TextDisabled($"Ctrl+Click A {_kind.Singular} In The Backpack To Add It");
         if (view.Bag.Length > 0 && ui.SmallButton($"Add All##{Tag}"))
         {
-            Post("add all", AddAll);
+            Request(BookOp.AddAll);
         }
         if (view.Bag.Length > 0 && view.Entries.Length > 0)
         {
@@ -960,7 +1194,7 @@ internal sealed class Book : IDisposable
         }
         if (view.Entries.Length > 0 && ui.SmallButton($"Take All Out##{Tag}"))
         {
-            Post("take all out", TakeAllOut);
+            Request(BookOp.TakeAllOut);
         }
     }
 
@@ -968,16 +1202,11 @@ internal sealed class Book : IDisposable
     {
         if (ui.DropTarget(SlotDragKind) is { } dragged && uint.TryParse(dragged, NumberStyles.Integer, CultureInfo.InvariantCulture, out uint item))
         {
-            Post("move", p => Move(p, item, index));
+            Request(BookOp.Move, item, index);
         }
         if (ui.DropTarget(BagDragKind) is { } added && uint.TryParse(added, NumberStyles.Integer, CultureInfo.InvariantCulture, out uint addedItem))
         {
-            Post("add", async p =>
-            {
-                await Add(p, addedItem);
-                Refresh(p);
-                await Move(p, addedItem, index);
-            });
+            Request(BookOp.AddAt, addedItem, index);
         }
     }
 
@@ -985,7 +1214,7 @@ internal sealed class Book : IDisposable
     {
         if (ui.DropTarget(SlotDragKind) is { } dragged && uint.TryParse(dragged, NumberStyles.Integer, CultureInfo.InvariantCulture, out uint item))
         {
-            Post("take out", p => TakeOut(p, item));
+            Request(BookOp.TakeOut, item);
         }
     }
 
@@ -1049,6 +1278,25 @@ internal sealed class Book : IDisposable
     private static string Where(EquippedStack? equipped) =>
         equipped == null ? "no stack" : $"{equipped.Stack.Slot} ({(equipped.InStorage ? "storage" : equipped.Stack.Category.ToString())})";
 
-    private static string ItemName(ItemId item) =>
-        item.Value == 0 ? "nothing" : Items.DisplayName(item) ?? Items.Get(item)?.Name ?? $"item {item.Value:x8}";
+    private static string ItemName(ItemId item) => ItemName(item.Value);
+
+    // The item's name in this game's language (a joined game has no item catalog, but has the game's texts). Kept once found.
+    private static string ItemName(uint item)
+    {
+        if (item == 0)
+        {
+            return "nothing";
+        }
+        if (Names.TryGetValue(item, out string? known))
+        {
+            return known;
+        }
+        string? name = Items.DisplayName(new ItemId(item)) ?? Items.Get(new ItemId(item))?.Name;
+        if (name == null)
+        {
+            return $"item {item:x8}";
+        }
+        Names[item] = name;
+        return name;
+    }
 }

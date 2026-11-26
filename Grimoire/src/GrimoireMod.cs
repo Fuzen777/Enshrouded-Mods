@@ -19,14 +19,15 @@ public sealed class GrimoireMod : Mod
     // it, and WindowPlacement keeps both for the next game start.
     private const float ScreenWidth = 360f;
     private const float ScreenHeight = 780f;
-    private const int SpellsTab = 0;
-    private const int ArrowsTab = 1;
+    private const byte SpellsTab = 0;
+    private const byte ArrowsTab = 1;
 
     private ModConfig<GrimoireSettings>? _settings;
     private Book[] _books = Array.Empty<Book>();
     private UiWindow? _window;
     private WindowPlacement? _placement;
     private BesideBetterSpells? _beside;
+    private GrimoireNet? _net;
     private KeyBinding? _windowKey;
     private IDisposable? _settingsPage;
     // The tab to select at the next frame (-1: none), set when the screen opens; the tab drawn last, for the settings below it.
@@ -36,16 +37,38 @@ public sealed class GrimoireMod : Mod
     public override void OnLoad()
     {
         _settings = Config.Register<GrimoireSettings>(ConfigKind.Common, null);
+        GrimoireNet net = new GrimoireNet(this);
+        _net = net;
         _books = new[]
         {
-            new Book(this, BookKind.Spells, () => Setting(GrimoireSettings.SpellSlotsKey, GrimoireRules.DefaultSlots), () => Enabled, () => HideOthers),
-            new Book(this, BookKind.Arrows, () => Setting(GrimoireSettings.ArrowSlotsKey, GrimoireRules.DefaultSlots), () => Enabled, () => HideOthers),
+            new Book(this, BookKind.Spells, SpellsTab, net, () => Setting(GrimoireSettings.SpellSlotsKey, GrimoireRules.DefaultSlots), () => Enabled,
+                () => HideOthers, player => PrefsOf(player, BookKind.Spells)),
+            new Book(this, BookKind.Arrows, ArrowsTab, net, () => Setting(GrimoireSettings.ArrowSlotsKey, GrimoireRules.DefaultSlots), () => Enabled,
+                () => HideOthers, player => PrefsOf(player, BookKind.Arrows)),
         };
+        Book[] books = _books;
+        net.Handle(
+            (command, player) =>
+            {
+                if (command.Book < books.Length)
+                {
+                    books[command.Book].OnCommand(command.Op, command.Item, command.Index, player);
+                }
+            },
+            view =>
+            {
+                if (view.Book < books.Length)
+                {
+                    books[view.Book].OnView(view);
+                }
+            });
         foreach (Book book in _books)
         {
             book.Start();
         }
         _settings.Changed += OnSettingsChanged;
+        Network.ServerReady += OnServerReady;
+        Network.Disconnected += OnDisconnected;
         if (Ui.Available)
         {
             // A Kiln window, not a screen: a screen always opens centred with a fixed size (1.0.0, asked 25 Nov 2026: resizable, and it
@@ -61,6 +84,8 @@ public sealed class GrimoireMod : Mod
 
     public override void OnUnload()
     {
+        Network.ServerReady -= OnServerReady;
+        Network.Disconnected -= OnDisconnected;
         if (_settings != null)
         {
             _settings.Changed -= OnSettingsChanged;
@@ -78,6 +103,8 @@ public sealed class GrimoireMod : Mod
         _window = null;
         _beside?.Dispose();
         _beside = null;
+        _net?.Dispose();
+        _net = null;
     }
 
     [Subscribe]
@@ -90,28 +117,82 @@ public sealed class GrimoireMod : Mod
     }
 
     [Subscribe]
-    private void OnStorageRestored(PlayerStorageRestoredEvent e) => OnStorageEvent(e.Key, e.ToString());
+    private void OnStorageRestored(PlayerStorageRestoredEvent e) => OnStorageEvent(e.Key, e.Player, e.ToString());
 
     [Subscribe]
-    private void OnStorageParked(PlayerStorageParkedEvent e) => OnStorageEvent(e.Key, e.ToString());
+    private void OnStorageParked(PlayerStorageParkedEvent e) => OnStorageEvent(e.Key, e.Player, e.ToString());
 
     [Subscribe]
-    private void OnStorageDeath(PlayerStorageDeathEvent e) => OnStorageEvent(e.Key, e.ToString());
+    private void OnStorageDeath(PlayerStorageDeathEvent e) => OnStorageEvent(e.Key, e.Player, e.ToString());
 
-    private void OnStorageEvent(string key, string what)
+    private void OnStorageEvent(string key, EntityId player, string what)
     {
         foreach (Book book in _books)
         {
-            book.OnStorageEvent(key, what);
+            book.OnStorageEvent(key, player, what);
         }
+    }
+
+    [Subscribe]
+    private void OnPlayerLeft(PlayerLeftEvent e)
+    {
+        foreach (Book book in _books)
+        {
+            book.OnPlayerLeft(e.Player.Entity);
+        }
+        _net?.Forget(e.Player.Entity);
     }
 
     private void OnSettingsChanged(ConfigChangedEvent change)
     {
+        SendPrefs();
         foreach (Book book in _books)
         {
             book.SettingsChanged();
         }
+    }
+
+    // This game joined a server with Kiln: the server gets this player's settings, and the books read their views.
+    private void OnServerReady(NetPeer server)
+    {
+        SendPrefs();
+        foreach (Book book in _books)
+        {
+            book.ConnectionChanged();
+        }
+    }
+
+    private void OnDisconnected(NetPeer server)
+    {
+        foreach (Book book in _books)
+        {
+            book.ConnectionChanged();
+        }
+    }
+
+    // On a game joined to a server: the settings the server's steps follow for this player.
+    private void SendPrefs()
+    {
+        if (_net != null && !GrimoireNet.WorldHere && _net.ServerHasGrimoire)
+        {
+            _net.SendPrefs(new PrefsMessage(Enabled, Setting(GrimoireSettings.SpellSlotsKey, GrimoireRules.DefaultSlots),
+                Setting(GrimoireSettings.ArrowSlotsKey, GrimoireRules.DefaultSlots)));
+        }
+    }
+
+    // The settings a step of this player follows: the host's own, else what the player's game sent (the defaults until it did).
+    private (bool Enabled, int Limit) PrefsOf(EntityId player, BookKind kind)
+    {
+        if (GrimoireNet.IsLocal(player))
+        {
+            return (Enabled, Setting(kind.SlotsKey, GrimoireRules.DefaultSlots));
+        }
+        PrefsMessage? prefs = _net?.PrefsOf(player);
+        if (prefs == null)
+        {
+            return (true, GrimoireRules.DefaultSlots);
+        }
+        return (prefs.Enabled, kind == BookKind.Spells ? prefs.SpellSlots : prefs.ArrowSlots);
     }
 
     private void ToggleWindow()

@@ -2,7 +2,7 @@ using Kiln;
 
 namespace Grimoire;
 
-/// <summary>The settings: kiln config grimoire.json in the profile's config folder, used by the world's host while playing.</summary>
+/// <summary>The settings: kiln config grimoire.json in the profile's config folder, each player's own: a joined player's game sends them to the server, which runs the steps.</summary>
 public sealed class GrimoireSettings
 {
     public const string EnabledKey = "enabled";
@@ -11,7 +11,7 @@ public sealed class GrimoireSettings
     public const string HideOthersKey = "hideOthers";
 
     [ConfigKey(EnabledKey)]
-    [Comment("Mod Enabled. Spells and arrows kept in the grimoire stay out of the backpack (the equipped one takes one slot), and the HUD's spell and arrow lists follow the grimoire's order. Off: the game's own lists; the grimoire keeps what it holds. Works in a world you host.")]
+    [Comment("Mod Enabled. Spells and arrows kept in the grimoire stay out of the backpack (the equipped one takes one slot), and the HUD's spell and arrow lists follow the grimoire's order. Off: the game's own lists; the grimoire keeps what it holds. In multiplayer the server needs Grimoire too.")]
     public bool Enabled { get; set; } = true;
 
     [ConfigKey(HideOthersKey)]

@@ -4,6 +4,16 @@ Kiln mod (C#, id `grimoire`) that keeps spells and arrows out of the backpack in
 
 It was the spellbook of Better Spells (3.3.0-dev.1 to dev.11, 23 and 24 Nov 2026); that history, with what was found in game, is in `..\Better Spells\CHANGES.md`.
 
+## 1.0.2 (not uploaded)
+
+- **Fix: Grimoire works on dedicated servers and for players who join another's world** (reported on Nexus, 26 Nov 2026: on a dedicated server F3 opened the grimoire, but "In Your Backpack" stayed empty and nothing could be added). 1.0.0 and 1.0.1 ran every step for the local player of a game that hosts its world: on a dedicated server the server had no local player and the player's game had no world (Kiln's inventory calls only work where the world runs), so nothing ran on either side. The server's kiln.log showed the storage restored and the slot changes of the player, and nothing else.
+- Grimoire now has two halves. The **server half** runs where the world runs (a dedicated server, or the game hosting it) and does the steps for every player whose game has Grimoire: picks, add, take out, reorder, running out and the filing back, each player with their own queue entry, waiting pick and settling. After each change it sends the player's game a view of the book (entries, counts, the backpack's spells or arrows, the equipped one) and its toasts. The **player's half** draws the screen and the HUD lists from that view and sends its steps to the server, over Kiln's network channel `grimoire:net` (version 1, not required: a player without Grimoire joins as before). In a world the game hosts, both halves are in one game and call each other directly, as before.
+- Each player's settings are their own: a joined game sends Mod Enabled and the slot counts to the server when it joins and when they change (the defaults until it did). Hide Other Spells And Arrows stays on the player's game.
+- The server leaves players without Grimoire on their game alone (no filing back of spells they can't see).
+- A joined game has no item catalog, so Ctrl+click there asks both books and the server's book of the other kind says nothing. Item names are the player's game's own (its language).
+- Joined to a server without Kiln or without Grimoire, the screen says so instead of listing nothing.
+- Needs Grimoire on the server (or host) and on each player's game that wants a grimoire. Not run on a real dedicated server yet.
+
 ## 1.0.1 (not uploaded)
 
 - **The grimoire opens beside Better Spells' settings window while that one is open** (asked 25 Nov 2026, once Kiln 0.2.0-dev.31.11 shipped our request #146: `UiWindow.MoveTo`, mod API 0.2.20). Better Spells 1.1.1+ sends its window's edges (`better-spells.window`, fractions of the viewport) while the window is drawn, at most every half second when nothing changes, and null when it closes; a window not heard from for 1.5 s counts as closed. At F3 (or Open Grimoire on the mod's page) the grimoire's top left corner goes to Better Spells' top right corner, or its top right corner to the other's top left when it only fits on the left (`GrimoireRules.BesideOnRight`, tested). Kiln keeps the window on the screen.
