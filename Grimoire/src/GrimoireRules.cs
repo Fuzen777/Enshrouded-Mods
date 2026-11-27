@@ -19,7 +19,8 @@ public static class GrimoireRules
     /// <summary>HUD Switch Delay (1.2.1): how long, in milliseconds, the HUD list's cursor stays on a grimoire entry before it is equipped.</summary>
     public const int MinSwitchDelay = 0;
     public const int MaxSwitchDelay = 1000;
-    public const int DefaultSwitchDelay = 250;
+    public const int DefaultSwitchDelay = 25;
+    public const int SwitchDelayStep = 5;
 
     public static int ClampSwitchDelay(int milliseconds) => Math.Clamp(milliseconds, MinSwitchDelay, MaxSwitchDelay);
 

@@ -21,7 +21,7 @@ public sealed class GrimoireSettings
 
     [ConfigKey(SwitchDelayKey)]
     [Comment("HUD Switch Delay (ms). How long the HUD list's cursor stays on a grimoire spell or arrow before it is equipped. Scrolling past entries equips nothing, so the list scrolls smoothly, also on dedicated servers. 0: each entry is equipped as the cursor reaches it.")]
-    [Range(GrimoireRules.MinSwitchDelay, GrimoireRules.MaxSwitchDelay, 50)]
+    [Range(GrimoireRules.MinSwitchDelay, GrimoireRules.MaxSwitchDelay, GrimoireRules.SwitchDelayStep)]
     public int SwitchDelay { get; set; } = GrimoireRules.DefaultSwitchDelay;
 
     [ConfigKey(SpellSlotsKey)]

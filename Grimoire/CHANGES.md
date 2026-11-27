@@ -4,6 +4,10 @@ Kiln mod (C#, id `grimoire`) that keeps spells and arrows out of the backpack in
 
 It was the spellbook of Better Spells (3.3.0-dev.1 to dev.11, 23 and 24 Nov 2026); that history, with what was found in game, is in `..\Better Spells\CHANGES.md`.
 
+## 1.2.2 (not uploaded)
+
+- **HUD Switch Delay: 25 ms by default, in steps of 5** (the user's ask, 27 Nov 2026, after trying 1.2.1): with 250 ms, and still with 50 ms, the HUD showed no switch while scrolling, so the player had to count scroll steps. The setting keeps 0 to 1000 ms. A value already saved in the player's config stays as it is.
+
 ## 1.2.1 (not uploaded)
 
 - **Fix: the HUD spell list no longer flickers when switching to a grimoire spell, and scrolls smoothly, also on dedicated servers** (the user's report, and a Nexus report that on a dedicated server the list could not be scrolled without stopping on each spell, 27 Nov 2026). The cause: every switch is a swap (the picked spell into the backpack cell, the old one into the grimoire), the game builds its list again on each backpack change, and Kiln lays the grimoire's rows only over the build they were made for. For the build after a swap the HUD showed the game's own rows (kiln.log, 26 Nov 2026: `game rows [Eternal Shroud Meteor x0, Eternal Ball Lightning I x1]`) with the cursor back on the equipped spell, until the grimoire published again a frame later. On a dedicated server the swap comes back a round trip after the pick, when the player has scrolled on, so the cursor jumped back to the spell the server had just equipped and the next scroll step started from there.

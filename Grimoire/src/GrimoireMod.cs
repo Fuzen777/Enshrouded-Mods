@@ -354,7 +354,7 @@ public sealed class GrimoireMod : Mod
         int delay = SwitchDelay;
         if (ui.Slider("HUD Switch Delay (ms)", ref delay, GrimoireRules.MinSwitchDelay, GrimoireRules.MaxSwitchDelay))
         {
-            Change(GrimoireSettings.SwitchDelayKey, GrimoireRules.ClampSwitchDelay(delay / 50 * 50));
+            Change(GrimoireSettings.SwitchDelayKey, GrimoireRules.ClampSwitchDelay(delay / GrimoireRules.SwitchDelayStep * GrimoireRules.SwitchDelayStep));
         }
         ui.Tooltip("How long the HUD list's cursor stays on a grimoire entry before it is equipped. Scrolling past entries equips nothing, so the list scrolls smoothly. 0: each entry is equipped as the cursor reaches it.");
     }
