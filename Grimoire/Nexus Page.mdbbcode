@@ -58,6 +58,7 @@ It works with the game's own equipment, not around it, so it doesn't always beha
 
 ### HUD Lists
 
+- Picking a spell or arrow requests the switch immediately. Use Kiln **0.2.0-dev.31.21 or newer** to keep the rows and cursor in place while the game processes the swap.
 - The HUD shows only the grimoire's spells, in your order, plus the one you have equipped if it isn't in the grimoire. With **Hide Other Spells And Arrows** off, the other spells in your backpack follow them.
 - When the list has hidden itself, moving to one of the grimoire's spells doesn't bring it back the way moving to a backpack spell does. The pick still works. That's a Kiln limit (reported).
 - While you switch spells very quickly, the game sometimes empties the spell slot for a moment. Grimoire puts the spell back, so you may see the HUD flash no spell for a split second.

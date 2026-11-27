@@ -4,6 +4,10 @@ Kiln mod (C#, id `grimoire`) that keeps spells and arrows out of the backpack in
 
 It was the spellbook of Better Spells (3.3.0-dev.1 to dev.11, 23 and 24 Nov 2026); that history, with what was found in game, is in `..\Better Spells\CHANGES.md`.
 
+## 1.2.3 (not uploaded)
+
+- HUD spell and arrow picks now go straight to the existing swap queue. Kiln 0.2.0-dev.31.21 keeps the list and cursor in place while the game rebuilds the list after a swap. The HUD Switch Delay setting has been removed from F3 and Kiln’s mod settings. Old delay values are ignored.
+
 ## 1.2.2 (not uploaded)
 
 - **HUD Switch Delay: 25 ms by default, in steps of 5** (the user's ask, 27 Nov 2026, after trying 1.2.1): with 250 ms, and still with 50 ms, the HUD showed no switch while scrolling, so the player had to count scroll steps. The setting keeps 0 to 1000 ms. A value already saved in the player's config stays as it is.

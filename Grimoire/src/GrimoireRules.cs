@@ -16,14 +16,6 @@ public static class GrimoireRules
 
     public static int ClampSlots(int slots) => Math.Clamp(slots, MinSlots, MaxSlots);
 
-    /// <summary>HUD Switch Delay (1.2.1): how long, in milliseconds, the HUD list's cursor stays on a grimoire entry before it is equipped.</summary>
-    public const int MinSwitchDelay = 0;
-    public const int MaxSwitchDelay = 1000;
-    public const int DefaultSwitchDelay = 25;
-    public const int SwitchDelayStep = 5;
-
-    public static int ClampSwitchDelay(int milliseconds) => Math.Clamp(milliseconds, MinSwitchDelay, MaxSwitchDelay);
-
     /// <summary>The tab the screen opens on (the user's rule, 24 Nov 2026): Arrows when no spell is in the backpack and either arrows are
     /// in the backpack or the grimoire holds arrows but no spells; Spells otherwise. "In the backpack" means loose stacks, not the
     /// grimoire's own equipped stack.</summary>
