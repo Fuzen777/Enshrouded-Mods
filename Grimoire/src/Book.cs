@@ -119,6 +119,10 @@ internal sealed class Book : IDisposable
     private readonly Dictionary<EntityId, PlayerState> _players = new Dictionary<EntityId, PlayerState>();
     private bool _running;
     private long _refreshedAt;
+    private readonly object _hudTraceGate = new object();
+    private long _hudPickAt = -1;
+    private long _hudTraceSequence;
+    private long _hudPickNumber;
     private ulong _loggedRevision = ulong.MaxValue;
     private static readonly ConcurrentDictionary<uint, string> Names = new ConcurrentDictionary<uint, string>();
 
@@ -236,6 +240,10 @@ internal sealed class Book : IDisposable
         if (e.Slot != _kind.PlayerSlot || !GrimoireNet.WorldHere || !GrimoireNet.Serves(player))
         {
             return;
+        }
+        if (GrimoireNet.IsLocal(player))
+        {
+            TraceHud(() => $"equipment {e.Before} -> {e.Now}");
         }
         Log.Info($"{Tag}: slot of {e.Player.Name}: {e.Before} -> {e.Now}{(_busy ? " (during a step)" : "")}");
         uint before = e.Before.Id;
@@ -388,9 +396,36 @@ internal sealed class Book : IDisposable
             return;
         }
         uint item = pick.Item.Value;
+        TraceHud(() => $"picked {ItemName(item)} ({item:x8}); {DescribeHudView(_view)}", startPick: true);
         Log.Info($"{Tag}: HUD list pick {ItemName(item)}");
         Request(BookOp.Pick, item);
     }
+
+    // Picks, equipment events and row callbacks may arrive on different threads. Sequence numbers order the trace across them.
+    private void TraceHud(Func<string> describe, bool startPick = false)
+    {
+        if (_kind.ListKind != AmmoListKind.Spell)
+        {
+            return;
+        }
+        lock (_hudTraceGate)
+        {
+            long now = Environment.TickCount64;
+            if (startPick)
+            {
+                _hudPickAt = now;
+                _hudPickNumber++;
+            }
+            if (_hudPickAt < 0 || now - _hudPickAt > 2000)
+            {
+                return;
+            }
+            Log.Info($"HUD trace #{++_hudTraceSequence} pick={_hudPickNumber} +{now - _hudPickAt}ms {describe()}");
+        }
+    }
+
+    private static string DescribeHudView(View view) =>
+        $"enabled={view.Enabled} status={view.NotReady ?? "ready"} equipped={view.Equipped:x8} backpackEquipped={view.OwnEquipped:x8} entries=[{string.Join(", ", view.Entries.Select(entry => $"{entry.Item:x8} x{entry.Count}"))}]";
 
     private void OnScreenChanged(InventoryScreen? before, InventoryScreen? now)
     {
@@ -1089,6 +1124,7 @@ internal sealed class Book : IDisposable
         if (GrimoireNet.IsLocal(player))
         {
             _view = view;
+            TraceHud(() => $"local book update: {DescribeHudView(view)}");
             Interlocked.Exchange(ref _refreshedAt, Environment.TickCount64);
             _rows?.Refresh();
             return;
@@ -1107,6 +1143,7 @@ internal sealed class Book : IDisposable
         RequestRefresh();
         if (!view.Enabled || view.NotReady != null || view.Shown.Length == 0)
         {
+            TraceRows(ctx, view, ctx.GameRows, "game fallback");
             return ctx.GameRows;
         }
         List<(uint Item, int Count)> rows = GrimoireRules.HudRows(view.Shown, view.Stored, view.Equipped, view.EquippedCount,
@@ -1116,7 +1153,17 @@ internal sealed class Book : IDisposable
             _loggedRevision = ctx.Revision;
             Log.Info($"{Tag}: HUD list (revision {ctx.Revision}): game rows [{string.Join(", ", ctx.GameRows.Select(r => $"{ItemName(r.Item.Value)} x{r.Count}"))}] -> shown [{string.Join(", ", rows.Select(r => $"{ItemName(r.Item)} x{r.Count}"))}]");
         }
-        return rows.Select(r => new AmmoListRow(new ItemId(r.Item), r.Count)).ToList();
+        var result = rows.Select(r => new AmmoListRow(new ItemId(r.Item), r.Count)).ToList();
+        TraceRows(ctx, view, result, "grimoire");
+        return result;
+    }
+
+    private void TraceRows(AmmoListContext context, View view, IReadOnlyList<AmmoListRow> result, string source)
+    {
+        static string FormatRows(IEnumerable<AmmoListRow> rows) =>
+            string.Join(", ", rows.Select(row => $"{row.Item.Value:x8} x{row.Count}"));
+
+        TraceHud(() => $"rows revision={context.Revision} source={source} {DescribeHudView(view)} game=[{FormatRows(context.GameRows)}] returned=[{FormatRows(result)}]");
     }
 
     // The book's part of the grimoire screen, on the render thread: its entries (click to equip, drag to reorder, right-click to take

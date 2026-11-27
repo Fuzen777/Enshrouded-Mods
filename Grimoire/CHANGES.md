@@ -4,6 +4,10 @@ Kiln mod (C#, id `grimoire`) that keeps spells and arrows out of the backpack in
 
 It was the spellbook of Better Spells (3.3.0-dev.1 to dev.11, 23 and 24 Nov 2026); that history, with what was found in game, is in `..\Better Spells\CHANGES.md`.
 
+## 1.2.4 (diagnostic build)
+
+- For two seconds after each Grimoire spell pick in the HUD, kiln.log records the pick, solo equipment changes and book updates, and every spell list returned to Kiln. Each line includes a sequence number, pick number, and milliseconds since the pick.
+
 ## 1.2.3 (not uploaded)
 
 - HUD spell and arrow picks now go straight to the existing swap queue. Kiln 0.2.0-dev.31.21 keeps the list and cursor in place while the game rebuilds the list after a swap. The HUD Switch Delay setting has been removed from F3 and Kiln’s mod settings. Old delay values are ignored.
