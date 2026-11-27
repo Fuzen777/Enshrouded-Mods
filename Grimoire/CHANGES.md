@@ -7,6 +7,7 @@ It was the spellbook of Better Spells (3.3.0-dev.1 to dev.11, 23 and 24 Nov 2026
 ## 1.2.2 (not uploaded)
 
 - **HUD Switch Delay: 25 ms by default, in steps of 5** (the user's ask, 27 Nov 2026, after trying 1.2.1): with 250 ms, and still with 50 ms, the HUD showed no switch while scrolling, so the player had to count scroll steps. The setting keeps 0 to 1000 ms. A value already saved in the player's config stays as it is.
+- **Packaged as a patch** (asked 27 Nov 2026, after the user's test: 25 ms works better). `Changelog.mdbbcode` covers 1.2.1 and 1.2.2 under 1.2.2 (1.2.1 was never uploaded) and calls HUD Switch Delay a stopgap until Kiln can keep a Replace provider's rows over a new list revision (Kiln Report Tracker r35).
 
 ## 1.2.1 (not uploaded)
 

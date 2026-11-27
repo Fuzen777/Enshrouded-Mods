@@ -1,11 +1,12 @@
 ---
 lintDisable: [ MD041 ]
 ---
-## 1.2.1
+## 1.2.2
 
 ```
 HUD scrolling - switching to a Grimoire spell from the HUD list no longer makes the list flicker, and the list scrolls smoothly again, also on dedicated servers.
-HUD Switch Delay - new setting (250 ms by default): a Grimoire spell is equipped once the HUD cursor has stayed on it that long, so scrolling past spells swaps nothing. Set it to 0 to equip each spell as the cursor reaches it. In the F3 window and on the mod's page.
+HUD Switch Delay - new setting (25 ms by default, 0 to 1000): a Grimoire spell is equipped once the HUD cursor has stayed on it that long, so scrolling past spells swaps nothing. Set it to 0 to equip each spell as the cursor reaches it. In the F3 window and on the mod's page.
+Stopgap - the delay is a workaround until Kiln provides the API Grimoire needs to keep its HUD list in place during a switch. It will go once Kiln has it.
 HUD counts - the spell you just switched away from no longer shows x0 for a moment.
 ```
 
