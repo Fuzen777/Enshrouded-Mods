@@ -50,9 +50,9 @@ public sealed class GrimoireMod : Mod
         _books = new[]
         {
             new Book(this, BookKind.Spells, SpellsTab, net, () => Setting(GrimoireSettings.SpellSlotsKey, GrimoireRules.DefaultSlots), () => Enabled,
-                () => HideOthers, player => PrefsOf(player, BookKind.Spells)),
+                () => HideOthers, () => SwitchDelay, player => PrefsOf(player, BookKind.Spells)),
             new Book(this, BookKind.Arrows, ArrowsTab, net, () => Setting(GrimoireSettings.ArrowSlotsKey, GrimoireRules.DefaultSlots), () => Enabled,
-                () => HideOthers, player => PrefsOf(player, BookKind.Arrows)),
+                () => HideOthers, () => SwitchDelay, player => PrefsOf(player, BookKind.Arrows)),
         };
         Book[] books = _books;
         net.Handle(
@@ -298,6 +298,8 @@ public sealed class GrimoireMod : Mod
 
     private bool HideOthers => _settings?.Value.HideOthers ?? true;
 
+    private int SwitchDelay => GrimoireRules.ClampSwitchDelay(_settings?.Value.SwitchDelay ?? GrimoireRules.DefaultSwitchDelay);
+
     // A number setting as the file holds it, inside its range (any thread).
     private int Setting(string key, int fallback)
     {
@@ -349,6 +351,12 @@ public sealed class GrimoireMod : Mod
             Change(GrimoireSettings.HideOthersKey, hideOthers);
         }
         ui.Tooltip("The HUD lists show only what is in the grimoire, and the one you have equipped. Off: the other spells and arrows in your backpack come after the grimoire's.");
+        int delay = SwitchDelay;
+        if (ui.Slider("HUD Switch Delay (ms)", ref delay, GrimoireRules.MinSwitchDelay, GrimoireRules.MaxSwitchDelay))
+        {
+            Change(GrimoireSettings.SwitchDelayKey, GrimoireRules.ClampSwitchDelay(delay / 50 * 50));
+        }
+        ui.Tooltip("How long the HUD list's cursor stays on a grimoire entry before it is equipped. Scrolling past entries equips nothing, so the list scrolls smoothly. 0: each entry is equipped as the cursor reaches it.");
     }
 
     // The screen: a tab per book, then the settings (Mod Enabled and the shown book's slots).

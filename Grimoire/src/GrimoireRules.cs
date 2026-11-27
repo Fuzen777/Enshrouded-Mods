@@ -16,6 +16,13 @@ public static class GrimoireRules
 
     public static int ClampSlots(int slots) => Math.Clamp(slots, MinSlots, MaxSlots);
 
+    /// <summary>HUD Switch Delay (1.2.1): how long, in milliseconds, the HUD list's cursor stays on a grimoire entry before it is equipped.</summary>
+    public const int MinSwitchDelay = 0;
+    public const int MaxSwitchDelay = 1000;
+    public const int DefaultSwitchDelay = 250;
+
+    public static int ClampSwitchDelay(int milliseconds) => Math.Clamp(milliseconds, MinSwitchDelay, MaxSwitchDelay);
+
     /// <summary>The tab the screen opens on (the user's rule, 24 Nov 2026): Arrows when no spell is in the backpack and either arrows are
     /// in the backpack or the grimoire holds arrows but no spells; Spells otherwise. "In the backpack" means loose stacks, not the
     /// grimoire's own equipped stack.</summary>
@@ -144,22 +151,39 @@ public static class GrimoireRules
     /// <summary>The HUD list: the book's entries in their order with what is stored of each, the equipped stack counted on its entry,
     /// then the rows of the game's list the book does not show, in the game's order. With <paramref name="hideOthers"/> (Hide Other
     /// Spells And Arrows) only one of those stays: the player's own equipped item (<paramref name="ownEquipped"/>), because the game
-    /// switches to the first row when the equipped item is missing from the list.</summary>
+    /// switches to the first row when the equipped item is missing from the list.
+    /// The game's rows can be newer than the book's view, or older (1.2.1): a swap reaches the game's list before the view that follows
+    /// it (on a dedicated server a round trip before). The game keeps a swapped-out stack's row at count 0, so a view that still had it
+    /// equipped took that 0 as its count and showed the spell at x0 until the view came. Now the game's count of the view's equipped
+    /// stack is used only while it has stock or no other entry has stock in the game's rows (it ran out); otherwise the view's count
+    /// stays. Another entry the game holds with stock shows at least that stock (the stack the swap just moved into the backpack).</summary>
     public static List<(uint Item, int Count)> HudRows(IReadOnlyList<uint> shown, IReadOnlyDictionary<uint, int> stored, uint equipped, int equippedCount,
         IEnumerable<(uint Item, int Count)> gameRows, bool hideOthers = false, uint ownEquipped = 0)
     {
         var rows = new List<(uint Item, int Count)>();
         var listed = new HashSet<uint>();
         var game = gameRows.ToList();
+        // The game's count of an item: its first row, or -1 when the game lists none.
+        int Live(uint item)
+        {
+            foreach ((uint at, int count) in game)
+            {
+                if (at == item)
+                {
+                    return count;
+                }
+            }
+            return -1;
+        }
+        bool otherLive = shown.Any(item => item != equipped && Live(item) > 0);
         foreach (uint item in shown)
         {
-            int count = stored.TryGetValue(item, out int kept) ? kept : 0;
-            if (item == equipped)
-            {
-                // The game's own count of the equipped stack is fresher than the book's picture of it.
-                int live = game.Where(row => row.Item == item).Select(row => row.Count).DefaultIfEmpty(equippedCount).First();
-                count += live;
-            }
+            int kept = stored.TryGetValue(item, out int value) ? value : 0;
+            int live = Live(item);
+            // The game's own count of the equipped stack is fresher than the book's picture of it, unless the game has moved on.
+            int count = item == equipped
+                ? kept + (live > 0 || (live == 0 && !otherLive) ? live : equippedCount)
+                : Math.Max(kept, live);
             if (listed.Add(item))
             {
                 rows.Add((item, count));

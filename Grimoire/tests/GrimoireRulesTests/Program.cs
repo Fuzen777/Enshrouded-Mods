@@ -58,6 +58,23 @@ Check(rows.SequenceEqual(new (uint, int)[] { (2, 53), (1, 1) }), "Hide Other Spe
 rows = GrimoireRules.HudRows(new uint[] { 2, 1 }, stored, 0, 0, new (uint, int)[] { (9, 4), (8, 2) }, hideOthers: true, ownEquipped: 8);
 Check(rows.SequenceEqual(new (uint, int)[] { (2, 50), (1, 1), (8, 2) }), "Hide Other Spells And Arrows: the player's own equipped row stays");
 
+// 1.2.1: the game's rows and the view out of step during a swap (A equipped in the view, B picked, C stored).
+stored = new Dictionary<uint, int> { [2] = 1, [3] = 1 };
+rows = GrimoireRules.HudRows(new uint[] { 1, 2, 3 }, stored, 1, 1, new (uint, int)[] { (1, 0), (2, 1) }, hideOthers: true);
+Check(rows.SequenceEqual(new (uint, int)[] { (1, 1), (2, 1), (3, 1) }), "swap seen by the game before the view: the swapped-out spell keeps its count, not x0");
+stored = new Dictionary<uint, int> { [1] = 1, [3] = 1 };
+rows = GrimoireRules.HudRows(new uint[] { 1, 2, 3 }, stored, 2, 1, new (uint, int)[] { (1, 1) }, hideOthers: true);
+Check(rows.SequenceEqual(new (uint, int)[] { (1, 1), (2, 1), (3, 1) }), "view newer than the game's rows: every entry keeps its count");
+stored = new Dictionary<uint, int> { [2] = 40 };
+rows = GrimoireRules.HudRows(new uint[] { 1, 2 }, stored, 1, 300, new (uint, int)[] { (1, 0) }, hideOthers: true);
+Check(rows.SequenceEqual(new (uint, int)[] { (1, 0), (2, 40) }), "the equipped stack ran out and nothing else is live: x0");
+stored = new Dictionary<uint, int> { [2] = 120 };
+rows = GrimoireRules.HudRows(new uint[] { 1, 2 }, stored, 1, 300, new (uint, int)[] { (1, 0), (2, 120) }, hideOthers: true);
+Check(rows.SequenceEqual(new (uint, int)[] { (1, 300), (2, 120) }), "charged spells: the stack the swap moved in shows its stock, the one moved out its last count");
+
+Check(GrimoireRules.ClampSwitchDelay(-5) == 0 && GrimoireRules.ClampSwitchDelay(5000) == 1000 && GrimoireRules.ClampSwitchDelay(250) == 250,
+    "HUD Switch Delay stays within 0 to 1000 ms");
+
 Check(GrimoireRules.ClampSlots(0) == GrimoireRules.MinSlots && GrimoireRules.ClampSlots(99) == GrimoireRules.MaxSlots && GrimoireRules.ClampSlots(12) == 12,
     "Spell Slots stays within 1 to 32");
 

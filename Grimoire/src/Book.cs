@@ -25,7 +25,7 @@ namespace Grimoire;
 /// - The order is the player's (CharacterData.Carried, key "order-spells"): a swap puts the old spell into the picked storage slot, so
 ///   the storage's own slot order changes on every switch and the list follows the order instead.
 /// - The HUD's list is replaced (Ui.AmmoList, Replace): the book in its order, then the game's other rows. A pick of a stored spell
-///   equips it.
+///   equips it once the list's cursor has stayed on it for the HUD Switch Delay (1.2.1).
 /// - Running out: the next entry in the order is equipped (more of the same spell first).
 /// - The backpack holds one grimoire stack at most: the equipped one. A grimoire spell left loose there (the game switched away from it,
 ///   or emptied the slot during a fast switch) takes the slot back when nothing is equipped, and is otherwise filed back into the
@@ -108,6 +108,7 @@ internal sealed class Book : IDisposable
     private readonly Func<int> _limit;
     private readonly Func<bool> _enabled;
     private readonly Func<bool> _hideOthers;
+    private readonly Func<int> _switchDelay;
     private readonly Func<EntityId, (bool Enabled, int Limit)> _prefs;
     private PlayerStorage? _storage;
     private AmmoListProvider? _rows;
@@ -115,6 +116,9 @@ internal sealed class Book : IDisposable
     // The player's half: the view the screen and the HUD list draw.
     private volatile View _view = View.Empty;
     private volatile bool _busy;
+    // The player's half: bumped at every HUD list pick and screen pick; a HUD pick is sent only if it is still the latest after the
+    // HUD Switch Delay (1.2.1).
+    private long _pickSerial;
     private readonly object _stepsGate = new object();
     private readonly Queue<Step> _steps = new Queue<Step>();
     private readonly Dictionary<EntityId, PlayerState> _players = new Dictionary<EntityId, PlayerState>();
@@ -124,7 +128,7 @@ internal sealed class Book : IDisposable
     private static readonly ConcurrentDictionary<uint, string> Names = new ConcurrentDictionary<uint, string>();
 
     public Book(Mod mod, BookKind kind, byte index, GrimoireNet net, Func<int> limit, Func<bool> enabled, Func<bool> hideOthers,
-        Func<EntityId, (bool Enabled, int Limit)> prefs)
+        Func<int> switchDelay, Func<EntityId, (bool Enabled, int Limit)> prefs)
     {
         _mod = mod;
         _kind = kind;
@@ -133,6 +137,7 @@ internal sealed class Book : IDisposable
         _limit = limit;
         _enabled = enabled;
         _hideOthers = hideOthers;
+        _switchDelay = switchDelay;
         _prefs = prefs;
     }
 
@@ -382,14 +387,41 @@ internal sealed class Book : IDisposable
         _rows?.Refresh();
     }
 
+    // A pick in the HUD list (the UI thread). Kiln moves the list's cursor onto the row by itself and equips nothing, so the backpack
+    // stays as it is while the player scrolls. Each swap changes the backpack, the game builds its list again, and for that build
+    // Kiln shows the game's own rows (the grimoire's are for the build before) with the cursor back on the equipped spell: the
+    // flicker, and on a dedicated server, where the swap comes back a round trip later, a cursor that jumps back while the player
+    // scrolls on. So the pick waits for the HUD Switch Delay and is sent only if the cursor stayed on it (1.2.1): scrolling past
+    // entries swaps nothing, and only the entry the player stops on is equipped, once.
     private void OnPicked(AmmoListPick pick)
     {
         if (pick.Kind != _kind.ListKind || !_view.Enabled)
         {
             return;
         }
-        Log.Info($"{Tag}: HUD list pick {ItemName(pick.Item.Value)}");
-        Request(BookOp.Pick, pick.Item.Value);
+        uint item = pick.Item.Value;
+        long serial = Interlocked.Increment(ref _pickSerial);
+        int delay = GrimoireRules.ClampSwitchDelay(_switchDelay());
+        Log.Info($"{Tag}: HUD list pick {ItemName(item)}{(delay > 0 ? $", equipped if the cursor stays {delay} ms" : "")}");
+        if (delay <= 0)
+        {
+            Request(BookOp.Pick, item);
+            return;
+        }
+        _ = Task.Delay(delay).ContinueWith(_ =>
+        {
+            if (Interlocked.Read(ref _pickSerial) != serial)
+            {
+                return; // the cursor moved on
+            }
+            _mod.Context.Scheduler.Post(() =>
+            {
+                if (Interlocked.Read(ref _pickSerial) == serial && _view.Enabled)
+                {
+                    Request(BookOp.Pick, item);
+                }
+            });
+        }, TaskScheduler.Default);
     }
 
     private void OnScreenChanged(InventoryScreen? before, InventoryScreen? now)
@@ -1150,6 +1182,7 @@ internal sealed class Book : IDisposable
                 string label = $"{number}. {name}  x{entry.Count}{(entry.Equipped ? "  (Equipped)" : "")}{(i >= view.Limit ? "  (Over Limit)" : "")}##entry{number}";
                 if (ui.Selectable(label, entry.Equipped, 0f, row, UiSelectableFlags.None) && view.Enabled)
                 {
+                    Interlocked.Increment(ref _pickSerial); // a click wins over a HUD pick still waiting
                     Request(BookOp.Pick, entry.Item);
                 }
                 if (ui.ItemClicked(UiMouseButton.Right))

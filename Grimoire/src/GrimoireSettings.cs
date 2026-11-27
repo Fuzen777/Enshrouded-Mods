@@ -9,6 +9,7 @@ public sealed class GrimoireSettings
     public const string SpellSlotsKey = "spellSlots";
     public const string ArrowSlotsKey = "arrowSlots";
     public const string HideOthersKey = "hideOthers";
+    public const string SwitchDelayKey = "switchDelay";
 
     [ConfigKey(EnabledKey)]
     [Comment("Mod Enabled. Spells and arrows kept in the grimoire stay out of the backpack (the equipped one takes one slot), and the HUD's spell and arrow lists follow the grimoire's order. Off: the game's own lists; the grimoire keeps what it holds. In multiplayer the server needs Grimoire too.")]
@@ -17,6 +18,11 @@ public sealed class GrimoireSettings
     [ConfigKey(HideOthersKey)]
     [Comment("Hide Other Spells And Arrows. The HUD's spell and arrow lists show only what is in the grimoire (and the equipped one). Off: the other spells and arrows in the backpack follow the grimoire's.")]
     public bool HideOthers { get; set; } = true;
+
+    [ConfigKey(SwitchDelayKey)]
+    [Comment("HUD Switch Delay (ms). How long the HUD list's cursor stays on a grimoire spell or arrow before it is equipped. Scrolling past entries equips nothing, so the list scrolls smoothly, also on dedicated servers. 0: each entry is equipped as the cursor reaches it.")]
+    [Range(GrimoireRules.MinSwitchDelay, GrimoireRules.MaxSwitchDelay, 50)]
+    public int SwitchDelay { get; set; } = GrimoireRules.DefaultSwitchDelay;
 
     [ConfigKey(SpellSlotsKey)]
     [Comment("Spell Slots. How many spells the grimoire holds, one slot per spell; more of a spell already in it tops up its slot. Lowering it keeps the spells already in it.")]
