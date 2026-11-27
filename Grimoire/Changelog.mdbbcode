@@ -1,6 +1,13 @@
 ---
 lintDisable: [ MD041 ]
 ---
+## 1.2.3
+
+```
+HUD scrolling - picking a spell or arrow now requests the switch immediately. Kiln 0.2.0-dev.31.21 or newer keeps the list and cursor in place during the swap.
+Settings - removed HUD Switch Delay from the F3 window and Kiln's mod settings. Previously saved delays are ignored.
+```
+
 ## 1.2.2
 
 ```
