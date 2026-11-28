@@ -279,6 +279,8 @@ public sealed class StreamlinedLogisticsMod : Mod
     // Craft From Linked Chests (Kiln 0.2.0-dev.30.6's Crafting.AddSource): one source per linked chest found in the world, for the
     // local player; checked again when the saved state changes and every StepsBetweenCraftSourceChecks steps.
     private readonly Dictionary<uint, CraftSourceHandle> _craftSources = new();
+    private IDisposable? _forgeOpened;
+    private EntityId _gemOfferPlayer;
     private EntityId _craftSourcesPlayer;
     private ulong _craftSourcesCheckedStep;
     private int _craftSourcesStateVersion = -1;
@@ -345,6 +347,7 @@ public sealed class StreamlinedLogisticsMod : Mod
             // Rebind writes the key to keybinds.json, where the player's choice is kept from now on.
             Log.Info($"the key of Remote Chests ({formerKey}) now opens Streamlined Logistics");
         }
+        _forgeOpened = Events.On<GemForgeOpenedEvent>(OnForgeOpened);
         Context.Tick.Pre += OnTick;
         _subscribed = true;
         Log.Info($"loaded {Context.Info.Version}: {_openKey.Key} opens the screen in a world you host (item icons: {Ui.ItemIconsAvailable}, outlines: {OutlinesOn()})");
@@ -370,6 +373,8 @@ public sealed class StreamlinedLogisticsMod : Mod
         DropChestHighlights();
         DropKeepRules();
         DropCraftSources();
+        _forgeOpened?.Dispose();
+        _forgeOpened = null;
         _openKey?.Dispose();
         _openKey = null;
         _screen?.Dispose();
@@ -424,6 +429,7 @@ public sealed class StreamlinedLogisticsMod : Mod
     {
         if (!Client.IsHosting)
         {
+            _gemOfferPlayer = default; // Kiln clears forge offers on world exit.
             if (_snapshot != null || _linkedChests.Count > 0 || _chestKinds.Count > 0 || _keepRules.Count > 0 || _slotKeepRules.Count > 0 || _craftSources.Count > 0 || _pickups != null || _clientActions != null || _otherQuickDepositRuns != null || _favoriteMarks != null || _favoriteTints != null || _favoriteClicks != null || _chestButton != null || _depositHighlight != null)
             {
                 _snapshot = null;
@@ -452,6 +458,10 @@ public sealed class StreamlinedLogisticsMod : Mod
         try
         {
             ApplyPendingSettings();
+            if (!_gemOfferPlayer.IsNone && (_settings?.Value.ShowLinkedGemsInGemForge == false || _gemOfferPlayer != Client.LocalPlayer))
+            {
+                WithdrawForgeGems();
+            }
             if (tick.Step - _lastRuleCheckStep >= StepsBetweenRuleChecks)
             {
                 _lastRuleCheckStep = tick.Step;
@@ -1222,6 +1232,50 @@ public sealed class StreamlinedLogisticsMod : Mod
         }
     }
 
+    private HashSet<uint> FindLinkedContainers()
+    {
+        var chests = new HashSet<uint>();
+        if (_state.Links.Count > 0)
+        {
+            foreach (EntityId container in Items.FindInventories(InventoryKinds.Containers))
+            {
+                if (World.TryGetPosition(container, out WorldPosition position) && ChestRules.FindLink(_state.Links, ToChestPosition(position)) >= 0)
+                {
+                    chests.Add(container.Value);
+                }
+            }
+        }
+        return chests;
+    }
+
+    private void OnForgeOpened(GemForgeOpenedEvent forge)
+    {
+        if (!Client.IsHosting || forge.Player.IsNone || forge.Player != Client.LocalPlayer || forge.Forge.IsNone
+            || _settings?.Value.ShowLinkedGemsInGemForge == false || !Capabilities.Is(Gems.SourcesCapability))
+        {
+            return;
+        }
+        LoadStateOnce();
+        _gemOfferPlayer = forge.Player;
+        foreach (uint chest in FindLinkedContainers())
+        {
+            // Kiln's default payer and recycle destination are both the player's inventory.
+            Gems.OfferChestGems(forge.Player, new EntityId(chest));
+        }
+    }
+
+    private void WithdrawForgeGems(EntityId chest = default)
+    {
+        if (!_gemOfferPlayer.IsNone && Capabilities.Is(Gems.SourcesCapability))
+        {
+            Gems.WithdrawChestGems(_gemOfferPlayer, chest);
+        }
+        if (chest.IsNone)
+        {
+            _gemOfferPlayer = default;
+        }
+    }
+
     // The world's thread: every linked chest standing in the world is a crafting source of the local player (any base, or none),
     // after the backpack and the crafting base's own chests; its dyes show in the tinting screen. Kiln pays a recipe all or
     // nothing and rechecks the player's permission. A source lives for the session: registered again after a load.
@@ -1245,17 +1299,7 @@ public sealed class StreamlinedLogisticsMod : Mod
         _craftSourcesStateVersion = _stateVersion;
         _craftSourcesCheckedStep = step;
         _craftSourcesPlayer = player;
-        var chests = new HashSet<uint>();
-        if (_state.Links.Count > 0)
-        {
-            foreach (EntityId container in Items.FindInventories(InventoryKinds.Containers))
-            {
-                if (World.TryGetPosition(container, out WorldPosition position) && ChestRules.FindLink(_state.Links, ToChestPosition(position)) >= 0)
-                {
-                    chests.Add(container.Value);
-                }
-            }
-        }
+        HashSet<uint> chests = FindLinkedContainers();
         var gone = new List<uint>();
         foreach (uint chest in _craftSources.Keys)
         {
@@ -1686,6 +1730,7 @@ public sealed class StreamlinedLogisticsMod : Mod
         else if (!linked && linkIndex >= 0)
         {
             _state.Links.RemoveAt(linkIndex);
+            WithdrawForgeGems(new EntityId(chest.Entity));
         }
         SaveState();
         _status = linked ? $"Linked {chest.Label}." : $"Unlinked {chest.Label}.";
@@ -1712,6 +1757,7 @@ public sealed class StreamlinedLogisticsMod : Mod
     {
         int removed = _state.Links.Count;
         _state.Links.Clear();
+        WithdrawForgeGems();
         SaveState();
         _status = string.Create(CultureInfo.InvariantCulture, $"Unlinked {removed} chest(s). Nothing was moved.");
         return Task.CompletedTask;
@@ -2800,6 +2846,8 @@ public sealed class StreamlinedLogisticsMod : Mod
             "Off: only Magic Chests are offered for linking. On: regular chests too.");
         SettingSlider(ui, "linkRadiusMeters", "Link Radius (m)", settings.LinkRadiusMeters, ChestRules.MinLinkRadiusMeters, ChestRules.MaxLinkRadiusMeters,
             "How far from your character Link Nearby Chests reaches.");
+        SettingToggle(ui, "showLinkedGemsInGemForge", "Show Linked Gems in Gem Forge", settings.ShowLinkedGemsInGemForge,
+            "Use loose gems from linked chests at the Gem Forge. Your backpack pays the cost and receives recycled essence.");
         SettingToggle(ui, "craftFromLinkedChests", "Craft From Linked Chests", settings.CraftFromLinkedChests,
             "Crafting at a station, an NPC or from your inventory uses what your linked chests hold, in any base,\nafter your backpack and the base's own chests. The tinting screen offers their dyes too. Skill resets and unlearning skills can use linked runes.");
         SettingToggle(ui, "fillStationsFromLinkedChests", "Fill Stations From Linked Chests", settings.FillStationsFromLinkedChests,
@@ -3158,6 +3206,7 @@ public sealed class StreamlinedLogisticsMod : Mod
         else if (!linking && linkIndex >= 0)
         {
             _state.Links.RemoveAt(linkIndex);
+            WithdrawForgeGems(chest);
             SaveState();
             Hud.Toast("Unlinked: " + label, ToastKind.Info, 2);
             Log.Info($"chest button: unlinked {label} ({chest.Value}); {_state.Links.Count} link(s)");

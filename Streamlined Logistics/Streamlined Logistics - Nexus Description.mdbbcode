@@ -96,6 +96,10 @@ The F2 menu offers :
 - **LMB on a category** highlights every chest named for it in the world. LMB on a group highlights the group's chests and all of its sub-categories' chests.
 - Materials and Building blocks are hidden by default, since you mostly use them through the crafting menu and the Construction Hammer. A search still finds them.
 
+### Gem Forge
+
+Show Linked Gems in Gem Forge is on by default and works independently of Craft From Linked Chests. Loose gems from linked chests appear in the forge’s Gems list for insertion, upgrading, or recycling. Your backpack pays the cost and receives recycled essence.
+
 ### Craft From Linked Chests
 
 - Craft from your linked chests in any base: at stations, at NPCs and from your inventory. Their dyes work at the coloring station too. It works in every crafting menu, even next to Building Tools, with no other mod needed.

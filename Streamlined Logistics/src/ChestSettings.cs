@@ -5,6 +5,10 @@ namespace StreamlinedLogistics;
 /// <summary>The player's settings: kiln config streamlined-logistics-client.json in the profile's config folder, changed from the Kiln menu or by saving the file. All of them apply while playing.</summary>
 public sealed class ChestSettings
 {
+    [ConfigKey("showLinkedGemsInGemForge")]
+    [Comment("Show Linked Gems in Gem Forge. Use loose gems from linked chests at the Gem Forge. Your backpack pays the cost and receives recycled essence.")]
+    public bool ShowLinkedGemsInGemForge { get; set; } = true;
+
     [ConfigKey("craftFromLinkedChests")]
     [Comment("Craft From Linked Chests. On: crafting at a station, an NPC or from your inventory uses what your linked chests hold, in any base, after your backpack and the base's own chests; the tinting screen offers their dyes. Needs Kiln 0.2.0-dev.30.6. On dev.31.18 or newer, linked runes also pay for Flame Altar skill resets and unlearning a skill.")]
     public bool CraftFromLinkedChests { get; set; } = true;
