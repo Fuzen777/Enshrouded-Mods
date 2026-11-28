@@ -1278,8 +1278,10 @@ public sealed class StreamlinedLogisticsMod : Mod
             }
             try
             {
-                _craftSources[chest] = Crafting.AddSource(player, new EntityId(chest),
-                    new CraftSourceOptions { Fills = options.Fills, Building = options.Building, Locks = options.Locks });
+                var sourceOptions = new CraftSourceOptions { Fills = options.Fills, Building = options.Building, Locks = options.Locks };
+                // Older supported Kiln builds have no Respec property. Enable it whenever the installed API provides it.
+                typeof(CraftSourceOptions).GetProperty(nameof(CraftSourceOptions.Respec))?.SetValue(sourceOptions, true);
+                _craftSources[chest] = Crafting.AddSource(player, new EntityId(chest), sourceOptions);
                 added++;
             }
             catch (KilnUnavailableException problem)
@@ -2799,7 +2801,7 @@ public sealed class StreamlinedLogisticsMod : Mod
         SettingSlider(ui, "linkRadiusMeters", "Link Radius (m)", settings.LinkRadiusMeters, ChestRules.MinLinkRadiusMeters, ChestRules.MaxLinkRadiusMeters,
             "How far from your character Link Nearby Chests reaches.");
         SettingToggle(ui, "craftFromLinkedChests", "Craft From Linked Chests", settings.CraftFromLinkedChests,
-            "Crafting at a station, an NPC or from your inventory uses what your linked chests hold, in any base,\nafter your backpack and the base's own chests. The tinting screen offers their dyes too.");
+            "Crafting at a station, an NPC or from your inventory uses what your linked chests hold, in any base,\nafter your backpack and the base's own chests. The tinting screen offers their dyes too. Skill resets and unlearning skills can use linked runes.");
         SettingToggle(ui, "fillStationsFromLinkedChests", "Fill Stations From Linked Chests", settings.FillStationsFromLinkedChests,
             "A production station's +1 and +10 also take from your linked chests, in any base,\nwhat your backpack and the base's own chests can't cover. Needs Craft From Linked Chests.");
         SettingToggle(ui, "buildFromLinkedChests", "Build From Linked Chests", settings.BuildFromLinkedChests,

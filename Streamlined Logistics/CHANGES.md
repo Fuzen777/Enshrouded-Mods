@@ -7,6 +7,10 @@ How it works: the screen is a Kiln screen (`Ui.Screen`) drawn in the player's ga
 `Scripts\Build.ps1` runs the tests (`tests\ChestRulesTests`), builds against Kiln's assemblies in `<game>\kiln\host` and puts the mod in `dist\streamlined-logistics`; `-Install` copies it to `<game>\kiln\mods\streamlined-logistics`, where Kiln loads it as a drop-in (game closed).
 
 
+## 1.2.1
+
+- With Craft From Linked Chests enabled, a Flame Altar skill reset or an individual skill refund can spend runes from linked chests. Kiln uses the backpack and the current base’s Magic Chests first, then takes the shortfall from linked chests. This requires Kiln 0.2.0-dev.31.18 or newer.
+
 ## 1.2.0
 
 - **Nexus upload of 1.1.2** (asked 26 Nov 2026): no code change, the DLL is 1.1.2's (3e78810); only kiln.mod.json's version changes. `Changelog.mdbbcode` covers 1.1.1 and 1.1.2. The Nexus page says Auto Quick Deposit starts when the backpack is almost full, and that Auto Salvage waits for loot to settle.

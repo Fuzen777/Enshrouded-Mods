@@ -99,6 +99,7 @@ The F2 menu offers :
 ### Craft From Linked Chests
 
 - Craft from your linked chests in any base: at stations, at NPCs and from your inventory. Their dyes work at the coloring station too. It works in every crafting menu, even next to Building Tools, with no other mod needed.
+- With Craft From Linked Chests enabled, a Flame Altar skill reset or an individual skill refund can spend runes from linked chests. Kiln uses the backpack and the current base’s Magic Chests first, then takes the shortfall from linked chests. This requires Kiln 0.2.0-dev.31.18 or newer.
 - **Fill Stations From Linked Chests**: a production station's +1 and +10 also take from your linked chests what your backpack and the base's own chests can't cover.
 - **Build From Linked Chests**: the Construction Hammer and the build menu count and use the blocks and materials your linked chests hold. **Coming with the next Kiln update**: the setting is already in the mod, but Kiln doesn't count or pay building materials from linked chests yet. A fix is on its way, and it will work without a mod update.
 - **Lockpicks From Linked Chests**: a lock that needs a lockpick opens with one held in your linked chests. With Kiln **0.2.0-dev.31.15 or newer**, the lock's *Required: Lockpick* line turns green too (on older Kiln versions it stays red, but the lock still opens).
